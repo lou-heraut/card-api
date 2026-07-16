@@ -73,7 +73,7 @@ plot(as.Date(qa$date), qa$QA, type = "l",
 r = requests.get("https://API/v1/trend", params={
     "stations": "F700000103,K0550010",
     "cards": "VCN10",
-    "mk": "INDE",                 # ou AR1, LTP
+    "mk": "AR1",                  # défaut ; ou INDE, LTP
     "level": 0.1,
 }).json()
 pd.DataFrame(r["data"]["VCN10"])

@@ -201,11 +201,10 @@ def extract(request: Request, stations: str, cards: str,
     st, cd = _parse_lists(stations, cards)
     res = _run_extract(st, cd, start, end)
 
-    dataEX = res["dataEX"]
-    if isinstance(dataEX, dict):
-        data_out = {k: _serialize(v, orient) for k, v in dataEX.items()}
-    else:
-        data_out = {cd[0]: _serialize(dataEX, orient)}
+    extracted = res["data"]
+    if not isinstance(extracted, dict):
+        extracted = {cd[0]: extracted}
+    data_out = {k: _serialize(v, orient) for k, v in extracted.items()}
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
     return {
         "card_version": CARD_VERSION,
@@ -214,7 +213,7 @@ def extract(request: Request, stations: str, cards: str,
         "period": {"start": start, "end": end},
         "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
         "orient": orient,
-        "meta": _serialize(res["metaEX"]),
+        "meta": _serialize(res["meta"]),
         "data": data_out,
     }
 
@@ -222,12 +221,14 @@ def extract(request: Request, stations: str, cards: str,
 @app.get("/v1/trend", dependencies=[Depends(usage.rate_compute)])
 def trend(request: Request, stations: str, cards: str,
           start: str | None = None, end: str | None = None,
-          mk: str = "INDE", level: float = Query(0.1, gt=0, lt=1),
+          mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
           orient: str = "records"):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (stase.trend) sur chaque série.
 
-    mk    : 'INDE' (standard), 'AR1' (autocorrélation, Hamed & Rao) ou
+    mk    : 'AR1' (défaut — robuste à l'autocorrélation d'ordre 1,
+            fréquente sur les séries annuelles d'étiage ; Hamed & Rao
+            1998), 'INDE' (test standard, hypothèse d'indépendance) ou
             'LTP' (mémoire longue, Hamed 2008).
     level : niveau de signification du test (défaut 0.1).
     Fiches acceptées : sorties de forme 'series' uniquement (la
@@ -247,14 +248,14 @@ def trend(request: Request, stations: str, cards: str,
                      "la tendance ne s'applique qu'aux fiches 'series'")
 
     res = _run_extract(st, cd, start, end)
-    dataEX = res["dataEX"]
-    if not isinstance(dataEX, dict):
-        dataEX = {cd[0]: dataEX}
+    extracted = res["data"]
+    if not isinstance(extracted, dict):
+        extracted = {cd[0]: extracted}
     trends = {}
     with _COMPUTE:
-        for cid, df in dataEX.items():
+        for cid, df in extracted.items():
             tr = stase.trend(df, level=level, dependency=mk,
-                             meta=res["metaEX"], verbose=False)
+                             meta=res["meta"], verbose=False)
             trends[cid] = _serialize(tr, orient)
 
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
@@ -266,7 +267,7 @@ def trend(request: Request, stations: str, cards: str,
         "mk": mk, "level": level,
         "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
         "orient": orient,
-        "meta": _serialize(res["metaEX"]),
+        "meta": _serialize(res["meta"]),
         "data": trends,
     }
 

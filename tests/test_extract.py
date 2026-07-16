@@ -77,7 +77,8 @@ def test_extract_orient_columns():
 
 def test_trend_endpoint():
     r = client.get("/v1/trend", params={
-        "stations": "K0550010", "cards": "QA,VCN10", "mk": "INDE"})
+        "stations": "K0550010", "cards": "QA,VCN10"})
+    assert r.json()["mk"] == "AR1"                 # défaut : robuste AR(1)
     assert r.status_code == 200
     body = r.json()
     assert set(body["data"]) == {"QA", "VCN10"}
