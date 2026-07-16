@@ -19,6 +19,7 @@ import threading
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
 
 import card
 
@@ -59,6 +60,7 @@ app = FastAPI(
         "Code GPL-3 : https://github.com/lou-heraut/card"
     ),
 )
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 def _clean(records):
@@ -122,24 +124,34 @@ def stations(libelle: str | None = None, code: str | None = None,
     return {"stations": hubeau.search_stations(libelle, code, departement, size)}
 
 
-def _records(df):
+def _serialize(df, orient="records"):
+    """records (défaut, style Hub'Eau) ou columns (colonnaire, compact,
+    rechargeable en DataFrame d'une ligne)."""
     out = df.copy()
     for c in out.columns:
         if pd.api.types.is_datetime64_any_dtype(out[c]):
             out[c] = out[c].dt.strftime("%Y-%m-%d")
+    out = out.astype(object).where(out.notna(), None)
+    if orient == "columns":
+        return {c: out[c].tolist() for c in out.columns}
     return _clean(out.to_dict(orient="records"))
 
 
 @app.get("/v1/extract")
 def extract(stations: str, cards: str,
-            start: str | None = None, end: str | None = None):
+            start: str | None = None, end: str | None = None,
+            orient: str = "records"):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
     stations : codes séparés par des virgules (max 10).
     cards    : ids de fiches séparés par des virgules (max 20) —
                fiches à entrée Q uniquement (données hydrométriques).
     start/end: bornes AAAA-MM-JJ optionnelles (défaut : tout).
+    orient   : 'records' (défaut, liste d'objets, style Hub'Eau) ou
+               'columns' (colonnaire : {colonne: [valeurs]}, compact).
     """
+    if orient not in ("records", "columns"):
+        raise HTTPException(422, "orient : 'records' ou 'columns'")
     st = [s.strip() for s in stations.split(",") if s.strip()]
     cd = [c.strip() for c in cards.split(",") if c.strip()]
     if not (0 < len(st) <= MAX_STATIONS):
@@ -179,16 +191,17 @@ def extract(stations: str, cards: str,
 
     dataEX = res["dataEX"]
     if isinstance(dataEX, dict):
-        data_out = {k: _records(v) for k, v in dataEX.items()}
+        data_out = {k: _serialize(v, orient) for k, v in dataEX.items()}
     else:
-        data_out = {cd[0]: _records(dataEX)}
+        data_out = {cd[0]: _serialize(dataEX, orient)}
     return {
         "card_version": CARD_VERSION,
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
         "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
-        "metaEX": _records(res["metaEX"]),
+        "orient": orient,
+        "metaEX": _serialize(res["metaEX"]),
         "dataEX": data_out,
     }
 

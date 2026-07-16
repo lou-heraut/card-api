@@ -62,3 +62,14 @@ def test_extract_card_needing_other_inputs_rejected():
     r = client.get("/v1/extract", params={"stations": "K0550010", "cards": "RA"})
     assert r.status_code == 422
     assert "R" in r.json()["detail"]
+
+
+def test_extract_orient_columns():
+    r = client.get("/v1/extract", params={
+        "stations": "K0550010", "cards": "QA", "orient": "columns"})
+    assert r.status_code == 200
+    qa = r.json()["dataEX"]["QA"]
+    assert set(qa) == {"id", "date", "QA"}
+    assert len(qa["date"]) == len(qa["QA"]) == 31
+    assert client.get("/v1/extract", params={
+        "stations": "K0550010", "cards": "QA", "orient": "n_importe"}).status_code == 422
