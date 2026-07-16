@@ -42,7 +42,7 @@ key:             ## crée une clé de priorité : make key name="Prénom Nom, la
 keys:            ## liste les clés de priorité
 	@docker compose exec api python -m card_api.keys list
 
-key-revoke:      ## révoque une clé : make key-revoke key=<jeton>
+key-revoke:      ## révoque une clé : make key-revoke key=<jeton, préfixe ou nom>
 	@docker compose exec api python -m card_api.keys revoke "$(key)"
 
 down:            ## arrête le service

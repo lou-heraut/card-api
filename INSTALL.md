@@ -71,7 +71,7 @@ calcul), `make watch` (le même, rafraîchi en continu).
 Clés de priorité (attribution manuelle, demandées via l'issue
 « Clé de priorité » du repo) : `make key name="Prénom Nom, labo"`
 crée et affiche le jeton à transmettre, `make keys` liste,
-`make key-revoke key=<jeton>` révoque. Stockage :
+`make key-revoke key=<jeton, préfixe affiché par make keys, ou nom>` révoque. Stockage :
 `$CARD_API_DATA/keys.json` (jamais sous git). Le porteur la passe en
 en-tête `X-API-Key` ou en paramètre `key=` : quotas par minute levés,
 plafonds `PRIORITY_*`, jobs en tête de file. Le journal enregistre le

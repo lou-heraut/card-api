@@ -16,7 +16,7 @@ sous git). Gestion sur la VM :
 
     make key name="Prénom Nom, labo"     # crée et affiche un jeton
     make keys                            # liste (jetons tronqués)
-    make key-revoke key=<jeton>          # révoque
+    make key-revoke key=<jeton, préfixe ou nom>   # révoque
 """
 
 import json
@@ -56,13 +56,23 @@ def add(name: str) -> str:
     return token
 
 
-def revoke(token: str) -> bool:
+def revoke(ref: str) -> str:
+    """Révoque par jeton complet, préfixe unique (ce que `make keys`
+    affiche) ou nom exact. Retourne un message lisible : l'ambiguïté
+    ne révoque rien."""
     keys = load()
-    if token not in keys:
-        return False
-    del keys[token]
+    matches = [t for t in keys
+               if t == ref or t.startswith(ref)
+               or keys[t]["name"] == ref]
+    if not matches:
+        return "aucune clé ne correspond"
+    if len(matches) > 1:
+        return (f"{len(matches)} clés correspondent, rien de révoqué : "
+                "précisez (préfixe plus long ou nom exact)")
+    name = keys[matches[0]]["name"]
+    del keys[matches[0]]
     _save(keys)
-    return True
+    return f"révoquée : {name}"
 
 
 def main():
@@ -79,10 +89,10 @@ def main():
         for token, info in keys.items():
             print(f"  {token[:8]}…  {info['name']}  ({info['created']})")
     elif args[:1] == ["revoke"] and len(args) == 2:
-        print("révoquée" if revoke(args[1]) else "clé inconnue")
+        print(revoke(args[1]))
     else:
         print("usage : python -m card_api.keys add \"Nom, labo\" | list | "
-              "revoke <jeton>")
+              "revoke <jeton|préfixe|nom>")
         sys.exit(2)
 
 
