@@ -4,3 +4,4 @@ __pycache__/
 .python_env/
 *~
 *.pdf
+.env

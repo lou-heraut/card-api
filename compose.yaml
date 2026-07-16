@@ -1,10 +1,18 @@
-# Déploiement VM : `docker compose up -d --build`
-# Mise à jour : `git pull && docker compose up -d --build`
+# Déploiement VM — interface : le Makefile (make up / update / logs...).
+# Configuration : fichier .env (copier .env.example).
 
 services:
   api:
-    build: .
+    build:
+      context: .
+      args:
+        CARD_REF: ${CARD_REF:-main}
+        STASE_REF: ${STASE_REF:-main}
     restart: unless-stopped
+    environment:
+      CARD_API_SALT: ${CARD_API_SALT:?définir CARD_API_SALT dans .env}
+      CARD_API_RATE_COMPUTE: ${CARD_API_RATE_COMPUTE:-10}
+      CARD_API_RATE_LIGHT: ${CARD_API_RATE_LIGHT:-60}
     volumes:
       - data:/data
     expose:
@@ -13,6 +21,8 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?définir DOMAIN dans .env}
     ports:
       - "80:80"
       - "443:443"

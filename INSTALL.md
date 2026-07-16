@@ -21,25 +21,43 @@ CARD_API_LIVE=1 .python_env/bin/python -m pytest tests/test_live_hubeau.py
 
 ## Déploiement (VM)
 
+Le Makefile est l'interface ; la configuration vit dans `.env`
+(gitignoré — rien de propre à la VM n'est dans le code) :
+
 ```bash
-# éditer Caddyfile : y mettre le nom de domaine de la VM
-docker compose up -d --build
+sudo git clone git@github.com:lou-heraut/card-api.git /opt/card-api
+cd /opt/card-api
+make env        # crée .env (sel aléatoire généré) — éditer DOMAIN
+make up         # construit et lance (api + caddy, HTTPS automatique)
 ```
 
-Mise à jour : `git pull && docker compose up -d --build`.
+Au quotidien :
+
+```bash
+make update     # git pull + reconstruction + redéploiement + statut
+make logs       # suivre les logs de l'API
+make status     # conteneurs + sonde de vie
+make stats      # statistiques d'usage (requêtes, utilisateurs, fiches)
+make down       # arrêt
+```
 
 L'image installe card et stase depuis GitHub à révision épinglée
-(arguments `CARD_REF`/`STASE_REF` du Dockerfile) : chaque déploiement
-est traçable.
+(`CARD_REF`/`STASE_REF` dans `.env`) : chaque déploiement est
+traçable. Docker (`restart: unless-stopped`) relance les conteneurs
+au démarrage de la VM — pas de systemd à écrire.
 
 ## Variables d'environnement
 
+Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
+
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `CARD_API_DATA` | `./data` (`/data` en Docker) | cache des chroniques + journal d'usage |
-| `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend) par IP et par minute |
-| `CARD_API_RATE_LIGHT` | 60 | requêtes de catalogue par IP et par minute |
-| `CARD_API_SALT` | aléatoire au démarrage | sel du hachage des IP dans le journal — le fixer pour des statistiques d'utilisateurs distincts stables entre redémarrages |
+| `DOMAIN` | — (requis) | domaine public, injecté dans le Caddyfile |
+| `CARD_API_SALT` | — (requis, généré par `make env`) | sel du hachage des IP du journal — fixe en prod pour des comptes d'utilisateurs distincts stables |
+| `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend) par IP/minute |
+| `CARD_API_RATE_LIGHT` | 60 | requêtes de catalogue par IP/minute |
+| `CARD_REF` / `STASE_REF` | main | révisions de card/stase dans l'image |
+| `CARD_API_DATA` | `/data` (volume) | cache des chroniques + journal (ne pas toucher en Docker) |
 
 ## Journal d'usage
 
