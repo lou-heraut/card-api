@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "card-api"
+version = "0.1.0"
+description = "Service web des fiches CARD (extraction hydroclimatique sur données Hub'Eau)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+authors = [{name = "Louis Héraut", email = "louis.heraut@inrae.fr"}]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "httpx",
+    # card et stase : installés depuis GitHub à révision épinglée
+    # (cf. Dockerfile) tant qu'ils ne sont pas sur PyPI.
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,5 @@
+# Remplacer par le vrai nom de domaine de la VM ; Caddy obtient et
+# renouvelle le certificat HTTPS tout seul (Let's Encrypt).
+api.example.org {
+	reverse_proxy api:8000
+}
