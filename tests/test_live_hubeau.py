@@ -20,6 +20,6 @@ def test_live_extract_austerlitz(tmp_path, monkeypatch):
         "stations": "F700000103", "cards": "QA",
         "start": "2010-01-01", "end": "2019-12-31"})
     assert r.status_code == 200
-    qa = r.json()["dataEX"]["QA"]
+    qa = r.json()["data"]["QA"]
     values = [row["QA"] for row in qa if row["QA"] is not None]
     assert values and all(50 < v < 2000 for v in values)   # la Seine à Paris, m3/s

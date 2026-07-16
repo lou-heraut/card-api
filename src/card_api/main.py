@@ -9,41 +9,46 @@
 
 """card-api — service web des fiches CARD (v1).
 
-Étape 1 (docs/dev/API.md du repo card) : découverte du catalogue,
-sans réseau ni calcul. Les endpoints d'extraction (Hub'Eau) viennent
-aux étapes suivantes.
+Conception : docs/dev/API.md du repo card. Découverte du catalogue et
+des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
+par IP et journal d'usage anonymisé (usage.py).
 """
 
 import math
 import threading
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 
 import card
+import stase
 
-from . import hubeau
+from . import hubeau, usage
 
 MAX_STATIONS = 10          # par requête publique (clés de priorité : plus tard)
 MAX_CARDS = 20
 _COMPUTE = threading.Semaphore(2)      # concurrence bornée des calculs
 
 
-def _input_vars_map():
-    """{id de fiche: input_vars} — calculé une fois au premier appel.
-    Sert à refuser explicitement les fiches non-débit sur les données
-    Hub'Eau (l'affectation automatique de colonnes de la bibliothèque
-    mapperait sinon Q sur n'importe quelle variable requise unique)."""
-    global _INPUTS
+def _card_meta_map():
+    """{id de fiche: {input_vars, output}} — calculé une fois.
+    input_vars : refuser les fiches non-débit sur les données Hub'Eau
+    (l'affectation automatique de colonnes de la bibliothèque mapperait
+    sinon Q sur n'importe quelle variable requise unique).
+    output : la tendance n'a de sens que sur les fiches 'series'."""
+    global _CARDS_META
     try:
-        return _INPUTS
+        return _CARDS_META
     except NameError:
         from pathlib import Path
         df = card.list_cards()
-        _INPUTS = {Path(p).stem: iv
-                   for p, iv in zip(df["script_path"], df["input_vars"])}
-        return _INPUTS
+        _CARDS_META = {}
+        for p, iv, out in zip(df["script_path"], df["input_vars"],
+                              df["output_en"]):
+            _CARDS_META.setdefault(Path(p).stem,
+                                   {"input_vars": iv, "output": out})
+        return _CARDS_META
 
 try:
     from importlib.metadata import version as _pkg_version
@@ -69,7 +74,7 @@ def _clean(records):
              for k, v in r.items()} for r in records]
 
 
-@app.get("/v1/cards")
+@app.get("/v1/cards", dependencies=[Depends(usage.rate_light)])
 def cards(domain: str | None = None,
           phenomenon: str | None = None,
           aspect: str | None = None,
@@ -96,7 +101,7 @@ def cards(domain: str | None = None,
     }
 
 
-@app.get("/v1/cards/{card_id}")
+@app.get("/v1/cards/{card_id}", dependencies=[Depends(usage.rate_light)])
 def card_detail(card_id: str, lang: str = "fr"):
     """Détail d'une fiche : métadonnées complètes + classification."""
     if lang not in ("fr", "en"):
@@ -113,7 +118,7 @@ def card_detail(card_id: str, lang: str = "fr"):
     return {"card_version": CARD_VERSION, "lang": lang, "card": meta}
 
 
-@app.get("/v1/stations")
+@app.get("/v1/stations", dependencies=[Depends(usage.rate_light)])
 def stations(libelle: str | None = None, code: str | None = None,
              departement: str | None = None, size: int = Query(20, le=100)):
     """Recherche de stations hydrométriques (référentiel Hub'Eau).
@@ -122,6 +127,47 @@ def stations(libelle: str | None = None, code: str | None = None,
     if not any((libelle, code, departement)):
         raise HTTPException(422, "donner au moins libelle, code ou departement")
     return {"stations": hubeau.search_stations(libelle, code, departement, size)}
+
+
+def _parse_lists(stations, cards):
+    st = [s.strip() for s in stations.split(",") if s.strip()]
+    cd = [c.strip() for c in cards.split(",") if c.strip()]
+    if not (0 < len(st) <= MAX_STATIONS):
+        raise HTTPException(422, f"1 à {MAX_STATIONS} stations par requête")
+    if not (0 < len(cd) <= MAX_CARDS):
+        raise HTTPException(422, f"1 à {MAX_CARDS} fiches par requête")
+    meta_map = _card_meta_map()
+    for c in cd:
+        m = meta_map.get(c)
+        if m is not None and m["input_vars"] != "Q":
+            raise HTTPException(
+                422, f"la fiche {c} requiert {m['input_vars']} : ce service "
+                     "ne fournit que des débits journaliers (Q, Hub'Eau)")
+    return st, cd
+
+
+def _run_extract(st, cd, start, end):
+    frames = []
+    for s in st:
+        try:
+            df = hubeau.fetch_chronicle(s)
+        except hubeau.StationInconnue as e:
+            raise HTTPException(404, str(e))
+        if start:
+            df = df[df["date"] >= start]
+        if end:
+            df = df[df["date"] <= end]
+        if df.empty:
+            raise HTTPException(404, f"{s}: aucune donnée sur la période")
+        frames.append(df)
+    data = pd.concat(frames, ignore_index=True)
+    with _COMPUTE:
+        try:
+            return card.extract(data, cards=cd, verbose=False)
+        except FileNotFoundError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
 
 
 def _serialize(df, orient="records"):
@@ -137,8 +183,8 @@ def _serialize(df, orient="records"):
     return _clean(out.to_dict(orient="records"))
 
 
-@app.get("/v1/extract")
-def extract(stations: str, cards: str,
+@app.get("/v1/extract", dependencies=[Depends(usage.rate_compute)])
+def extract(request: Request, stations: str, cards: str,
             start: str | None = None, end: str | None = None,
             orient: str = "records"):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
@@ -152,48 +198,15 @@ def extract(stations: str, cards: str,
     """
     if orient not in ("records", "columns"):
         raise HTTPException(422, "orient : 'records' ou 'columns'")
-    st = [s.strip() for s in stations.split(",") if s.strip()]
-    cd = [c.strip() for c in cards.split(",") if c.strip()]
-    if not (0 < len(st) <= MAX_STATIONS):
-        raise HTTPException(422, f"1 à {MAX_STATIONS} stations par requête")
-    if not (0 < len(cd) <= MAX_CARDS):
-        raise HTTPException(422, f"1 à {MAX_CARDS} fiches par requête")
-    inputs = _input_vars_map()
-    for c in cd:
-        iv = inputs.get(c)
-        if iv is not None and iv != "Q":
-            raise HTTPException(
-                422, f"la fiche {c} requiert {iv} : ce service ne fournit "
-                     "que des débits journaliers (Q, Hub'Eau hydrométrie)")
-
-    frames = []
-    for s in st:
-        try:
-            df = hubeau.fetch_chronicle(s)
-        except hubeau.StationInconnue as e:
-            raise HTTPException(404, str(e))
-        if start:
-            df = df[df["date"] >= start]
-        if end:
-            df = df[df["date"] <= end]
-        if df.empty:
-            raise HTTPException(404, f"{s}: aucune donnée sur la période")
-        frames.append(df)
-    data = pd.concat(frames, ignore_index=True)
-
-    with _COMPUTE:
-        try:
-            res = card.extract(data, cards=cd, verbose=False)
-        except FileNotFoundError as e:
-            raise HTTPException(404, str(e))
-        except ValueError as e:
-            raise HTTPException(422, str(e))
+    st, cd = _parse_lists(stations, cards)
+    res = _run_extract(st, cd, start, end)
 
     dataEX = res["dataEX"]
     if isinstance(dataEX, dict):
         data_out = {k: _serialize(v, orient) for k, v in dataEX.items()}
     else:
         data_out = {cd[0]: _serialize(dataEX, orient)}
+    usage.log_usage(request, "extract", stations=len(st), cards=cd)
     return {
         "card_version": CARD_VERSION,
         "stations": st,
@@ -201,8 +214,60 @@ def extract(stations: str, cards: str,
         "period": {"start": start, "end": end},
         "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
         "orient": orient,
-        "metaEX": _serialize(res["metaEX"]),
-        "dataEX": data_out,
+        "meta": _serialize(res["metaEX"]),
+        "data": data_out,
+    }
+
+
+@app.get("/v1/trend", dependencies=[Depends(usage.rate_compute)])
+def trend(request: Request, stations: str, cards: str,
+          start: str | None = None, end: str | None = None,
+          mk: str = "INDE", level: float = Query(0.1, gt=0, lt=1),
+          orient: str = "records"):
+    """Diagnostic de stationnarité : extraction CARD puis test de
+    Mann-Kendall et pente de Sen (stase.trend) sur chaque série.
+
+    mk    : 'INDE' (standard), 'AR1' (autocorrélation, Hamed & Rao) ou
+            'LTP' (mémoire longue, Hamed 2008).
+    level : niveau de signification du test (défaut 0.1).
+    Fiches acceptées : sorties de forme 'series' uniquement (la
+    tendance d'un scalaire ou d'une courbe n'a pas de sens).
+    """
+    if orient not in ("records", "columns"):
+        raise HTTPException(422, "orient : 'records' ou 'columns'")
+    if mk not in ("INDE", "AR1", "LTP"):
+        raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
+    st, cd = _parse_lists(stations, cards)
+    meta_map = _card_meta_map()
+    for c in cd:
+        m = meta_map.get(c)
+        if m is not None and m["output"] != "series":
+            raise HTTPException(
+                422, f"la fiche {c} produit un résultat '{m['output']}' : "
+                     "la tendance ne s'applique qu'aux fiches 'series'")
+
+    res = _run_extract(st, cd, start, end)
+    dataEX = res["dataEX"]
+    if not isinstance(dataEX, dict):
+        dataEX = {cd[0]: dataEX}
+    trends = {}
+    with _COMPUTE:
+        for cid, df in dataEX.items():
+            tr = stase.trend(df, level=level, dependency=mk,
+                             meta=res["metaEX"], verbose=False)
+            trends[cid] = _serialize(tr, orient)
+
+    usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
+    return {
+        "card_version": CARD_VERSION,
+        "stations": st,
+        "cards": cd,
+        "period": {"start": start, "end": end},
+        "mk": mk, "level": level,
+        "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
+        "orient": orient,
+        "meta": _serialize(res["metaEX"]),
+        "data": trends,
     }
 
 

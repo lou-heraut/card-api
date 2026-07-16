@@ -16,3 +16,17 @@ for p in (
 ):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _test_env(monkeypatch, tmp_path):
+    """Quotas neutralisés (tous les tests partagent l'« IP » testclient)
+    et données/journal dans un dossier temporaire."""
+    from card_api import usage
+    usage._hits.clear()
+    monkeypatch.setattr(usage, "RATE_COMPUTE", 10_000)
+    monkeypatch.setattr(usage, "RATE_LIGHT", 10_000)
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))

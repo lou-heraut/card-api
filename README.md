@@ -1,57 +1,99 @@
 # card-api
 
 Service web des fiches [card](https://github.com/lou-heraut/card) :
-extraction de variables hydroclimatiques sur les débits Banque Hydro
-(via [Hub'Eau](https://hubeau.eaufrance.fr/)) et diagnostic de
-stationnarité (via [stase](https://github.com/lou-heraut/stase)).
+extraction de variables hydroclimatiques sur les débits de la Banque
+Hydro (via [Hub'Eau](https://hubeau.eaufrance.fr/)) et diagnostic de
+stationnarité Mann-Kendall / pente de Sen (via
+[stase](https://github.com/lou-heraut/stase)).
 
-Service public de recherche, ouvert et sans inscription (quota par
-IP) ; conception : `card/docs/dev/API.md`.
+Service public de recherche — INRAE, UR RiverLy. Ouvert, sans
+inscription (quota par IP) ; code GPL-3, données Hub'Eau en Licence
+Ouverte. Déploiement et développement : [INSTALL.md](INSTALL.md).
 
-## État
+## Les endpoints
 
-Étapes 1 et 2 :
+| Endpoint | Rôle |
+|---|---|
+| `GET /v1/cards` | catalogue des 226 fiches, filtrable par facettes |
+| `GET /v1/cards/{id}` | détail d'une fiche (fr/en) + lien vers son YAML |
+| `GET /v1/stations` | recherche de stations hydrométriques |
+| `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
+| `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
+| `/docs` | documentation interactive (OpenAPI) |
 
-- `GET /v1/cards` — catalogue filtrable par facettes de classification
-  (`?phenomenon=basses eaux&output=série`, `&operator=delta`...) ;
-- `GET /v1/cards/{id}` — détail d'une fiche (`?lang=fr|en`) ;
-- `GET /v1/stations?libelle=Austerlitz` — référentiel Hub'Eau (les
-  codes ont changé depuis la refonte Hydro : chercher ici) ;
-- `GET /v1/extract?stations=F700000103&cards=QA,VCN10&start=&end=` —
-  chroniques Hub'Eau (QmnJ, converties en m³/s) → extraction card ;
-  cache local 24 h par station ; fiches à entrée Q uniquement ;
-- `GET /v1/health` — sonde de vie ;
-- `/docs` — documentation interactive (OpenAPI).
+## Exemples
 
-À venir (cf. API.md) : `/v1/trend`, quotas IP, motif job, journal
-d'usage. Test live : `CARD_API_LIVE=1 pytest tests/test_live_hubeau.py`.
-
-## Développement
-
-Une fois (installe card, stase et card-api en mode éditable dans le
-venv — les modifications des trois repos sont prises en compte sans
-réinstaller) :
+### Trouver sa station (les codes ont changé depuis la refonte Hydro !)
 
 ```bash
-python3 -m venv .python_env
-.python_env/bin/pip install -e ../../EXstat_project/stase -e ../card -e .[dev]
+curl "https://API/v1/stations?libelle=Austerlitz"
+# → F700000103 | La Seine à Paris - Austerlitz [>2006]
 ```
 
-Puis :
+### Trouver ses fiches par facette de classification
 
 ```bash
-.python_env/bin/uvicorn card_api.main:app --reload   # http://127.0.0.1:8000/docs
-.python_env/bin/python -m pytest
+curl "https://API/v1/cards?phenomenon=basses%20eaux&output=série"
+curl "https://API/v1/cards?operator=delta&search=VCN"
+curl "https://API/v1/cards/VCN10?lang=fr"
 ```
 
-(En image Docker, card et stase sont installés depuis GitHub à
-révision épinglée — cf. Dockerfile.)
+### Extraire — Python
 
-## Déploiement (VM)
+```python
+import requests, pandas as pd
 
-```bash
-# éditer Caddyfile : y mettre le nom de domaine de la VM
-docker compose up -d --build
+r = requests.get("https://API/v1/extract", params={
+    "stations": "F700000103",
+    "cards": "QA,VCN10",
+    "start": "1990-01-01",
+    "orient": "columns",          # directement ingérable par pandas
+}).json()
+
+vcn10 = pd.DataFrame(r["data"]["VCN10"])
+meta = pd.DataFrame(r["meta"])    # unités, noms fr/en, classification
+unit = meta.loc[meta.variable_en == "VCN10", "unit_fr"].iloc[0]
+vcn10.plot(x="date", y="VCN10", ylabel=f"VCN10 [{unit}]")
 ```
 
-Mise à jour : `git pull && docker compose up -d --build`.
+### Extraire — R
+
+```r
+library(jsonlite)
+r <- fromJSON(paste0("https://API/v1/extract?",
+                     "stations=F700000103&cards=QA&orient=columns"))
+qa <- as.data.frame(r$data$QA)
+plot(as.Date(qa$date), qa$QA, type = "l",
+     ylab = r$meta$unit_fr[r$meta$variable_en == "QA"])
+```
+
+### Tendance (à la MAKAHO)
+
+```python
+r = requests.get("https://API/v1/trend", params={
+    "stations": "F700000103,K0550010",
+    "cards": "VCN10",
+    "mk": "INDE",                 # ou AR1, LTP
+    "level": 0.1,
+}).json()
+pd.DataFrame(r["data"]["VCN10"])
+# → une ligne par station : H (tendance significative ?), p-value,
+#   pente de Sen (absolue et relative), période analysée
+```
+
+Deux formats de réponse : `orient=records` (défaut, liste d'objets,
+comme Hub'Eau) ou `orient=columns` (colonnaire : `{colonne:
+[valeurs]}`, plus compact, une ligne pour recharger en DataFrame).
+Chaque réponse embarque `meta` (unités, noms bilingues,
+classification), la source des données et les versions — elle se
+suffit à elle-même.
+
+## Bon voisinage
+
+- Quota public par IP ; en cas de `429`, l'en-tête `Retry-After`
+  indique quand réessayer. Besoin massif (centaines de stations) :
+  demandez une clé de priorité (gratuite) — ouvrez une issue.
+- Les chroniques sont mises en cache 24 h côté serveur : répéter une
+  requête ne re-télécharge pas Hub'Eau.
+- Fiches à entrée `Q` uniquement (le service ne fournit que des
+  débits) ; la tendance ne s'applique qu'aux fiches de forme `series`.
