@@ -1,4 +1,4 @@
-# Interface de déploiement — usage : make <cible>
+# Interface de déploiement. Usage : make <cible>
 # Prérequis : docker + docker compose, fichier .env (cf. .env.example).
 
 .PHONY: help env up update logs status stats down test
@@ -11,7 +11,7 @@ help:            ## liste des cibles
 env:             ## crée .env depuis l'exemple (à éditer ensuite)
 	@test -f .env || (cp .env.example .env \
 	  && sed -i "s/changez-moi/$$(openssl rand -hex 16)/" .env \
-	  && echo ".env créé (sel généré) — éditer DOMAIN puis: make up")
+	  && echo ".env créé (sel généré), éditer DOMAIN puis: make up")
 
 up: env          ## construit et lance (première fois ou après modif locale)
 	docker compose up -d --build

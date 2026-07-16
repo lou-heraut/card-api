@@ -13,7 +13,7 @@ Quota : fenêtre glissante de 60 s par adresse IP, en mémoire (pas de
 Redis en v1). En dépassement : 429 + Retry-After.
 
 Journal : une ligne JSON par requête de calcul dans
-$CARD_API_DATA/usage.jsonl — l'IP n'est jamais écrite, seul un hachage
+$CARD_API_DATA/usage.jsonl ; l'IP n'est jamais écrite, seul un hachage
 salé (sel = $CARD_API_SALT, sinon aléatoire au démarrage) permet de
 compter les utilisateurs distincts sans pouvoir les identifier.
 """
@@ -63,7 +63,7 @@ def check_rate(request: Request, limit: int):
         if len(q) >= limit:
             retry = int(WINDOW - (now - q[0])) + 1
             raise HTTPException(
-                429, f"quota public atteint ({limit} requêtes/minute) — "
+                429, f"quota public atteint ({limit} requêtes/minute) : "
                      "réessayez dans quelques instants ; besoin massif : "
                      "demandez une clé de priorité",
                 headers={"Retry-After": str(retry)})

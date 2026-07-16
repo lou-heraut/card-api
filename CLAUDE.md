@@ -1,4 +1,4 @@
-# CLAUDE.md — card-api
+# CLAUDE.md (card-api)
 
 Service web FastAPI des fiches [card](../card/) sur les débits Hub'Eau,
 avec diagnostic de stationnarité via [stase](../../EXstat_project/stase/).
@@ -10,7 +10,7 @@ sans clé, quotas IP, journal anonymisé, commercial écarté).
 ```
 src/card_api/
   main.py     # endpoints /v1 : cards, cards/{id}, stations, extract,
-              #   trend (mk défaut AR1), health — réponses {data, meta}
+              #   trend (mk défaut AR1), health ; réponses {data, meta}
   hubeau.py   # client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
               #   pagination next, codes post-refonte) + cache 24 h
   usage.py    # quotas IP (fenêtre glissante, 429+Retry-After)
@@ -26,7 +26,7 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 
 ## Règles propres au service
 
-- Fiches à entrée `Q` uniquement (refus explicite sinon — l'auto-mapping
+- Fiches à entrée `Q` uniquement (refus explicite sinon : l'auto-mapping
   de colonnes de card masquerait l'erreur) ; tendance sur les fiches
   `output: series` uniquement (validation par la classification).
 - Public par défaut, jamais d'inscription ; le journal ne stocke JAMAIS
@@ -34,6 +34,8 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
   d'impact pour les financements).
 - L'image Docker épingle card/stase par révision (`CARD_REF`/`STASE_REF`
   dans .env) : mise à jour des versions = choix délibéré.
+- Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
+  réponses) : reformuler. Perçu comme un marqueur de texte IA.
 
 ## État (2026-07-16) et suite
 

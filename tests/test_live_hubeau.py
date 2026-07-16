@@ -1,4 +1,4 @@
-"""Test live contre Hub'Eau — exécuté seulement si CARD_API_LIVE=1."""
+"""Test live contre Hub'Eau, exécuté seulement si CARD_API_LIVE=1."""
 
 import os
 

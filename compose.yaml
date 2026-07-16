@@ -1,4 +1,4 @@
-# Déploiement VM — interface : le Makefile (make up / update / logs...).
+# Déploiement VM ; interface : le Makefile (make up / update / logs...).
 # Configuration : fichier .env (copier .env.example).
 
 services:

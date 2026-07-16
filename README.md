@@ -6,7 +6,7 @@ Hydro (via [Hub'Eau](https://hubeau.eaufrance.fr/)) et diagnostic de
 stationnarité Mann-Kendall / pente de Sen (via
 [stase](https://github.com/lou-heraut/stase)).
 
-Service public de recherche — INRAE, UR RiverLy. Ouvert, sans
+Service public de recherche (INRAE, UR RiverLy). Ouvert, sans
 inscription (quota par IP) ; code GPL-3, données Hub'Eau en Licence
 Ouverte. Déploiement et développement : [INSTALL.md](INSTALL.md).
 
@@ -38,7 +38,7 @@ curl "https://API/v1/cards?operator=delta&search=VCN"
 curl "https://API/v1/cards/VCN10?lang=fr"
 ```
 
-### Extraire — Python
+### Extraire en Python
 
 ```python
 import requests, pandas as pd
@@ -56,7 +56,7 @@ unit = meta.loc[meta.variable_en == "VCN10", "unit_fr"].iloc[0]
 vcn10.plot(x="date", y="VCN10", ylabel=f"VCN10 [{unit}]")
 ```
 
-### Extraire — R
+### Extraire en R
 
 ```r
 library(jsonlite)
@@ -85,14 +85,14 @@ Deux formats de réponse : `orient=records` (défaut, liste d'objets,
 comme Hub'Eau) ou `orient=columns` (colonnaire : `{colonne:
 [valeurs]}`, plus compact, une ligne pour recharger en DataFrame).
 Chaque réponse embarque `meta` (unités, noms bilingues,
-classification), la source des données et les versions — elle se
+classification), la source des données et les versions : elle se
 suffit à elle-même.
 
 ## Bon voisinage
 
 - Quota public par IP ; en cas de `429`, l'en-tête `Retry-After`
   indique quand réessayer. Besoin massif (centaines de stations) :
-  demandez une clé de priorité (gratuite) — ouvrez une issue.
+  demandez une clé de priorité (gratuite) en ouvrant une issue.
 - Les chroniques sont mises en cache 24 h côté serveur : répéter une
   requête ne re-télécharge pas Hub'Eau.
 - Fiches à entrée `Q` uniquement (le service ne fournit que des
