@@ -18,13 +18,18 @@ src/card_api/
                 #   bascule auto des demandes > plafonds synchrones
   hubeau.py     # client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
                 #   pagination next, codes post-refonte) + cache 24 h
-  usage.py      # quotas IP (fenêtre glissante, 429+Retry-After)
-                #   + journal usage.jsonl (IP hachée salée, log_event)
+  usage.py      # quotas IP (fenêtre glissante, 429+Retry-After),
+                #   priority_of (X-API-Key/key=, 401 si inconnue),
+                #   journal usage.jsonl (IP hachée salée, log_event)
+  keys.py       # clés de priorité : data/keys.json, CLI add/list/revoke
+                #   (make key/keys/key-revoke) ; effet = quotas levés,
+                #   plafonds PRIORITY_*, jobs en tête de file
   serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
   stats.py      # tableau de bord terminal (make stats / make watch) :
                 #   sparklines, heatmap 12 semaines, file, disque
-tests/          # 21 hors-ligne (Hub'Eau simulé ; jobs ; validation
-                #   MAKAHO, précision machine) + 2 live (CARD_API_LIVE=1)
+tests/          # 27 hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
+                #   validation MAKAHO, précision machine) + 2 live
+.github/        # template d'issue « clé de priorité »
 Makefile        # ops : make env/up/update/logs/status/stats/watch
 compose.yaml    # api + caddy (HTTPS auto) ; config dans .env (cf. .env.example)
 ```
@@ -52,7 +57,7 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 quotas, journal, .env + Makefile) ; validation croisée MAKAHO
 (tests/test_makaho.py) et paramètre sampling= ; **motif job fait**
 (jobs publics, bascule auto, provenance, health enrichi, tableau de
-bord stats.py). **Reste** : clés de priorité (tête de file + plafonds
-levés, attribution manuelle : se branche sur jobs.submit(priority=)),
-durcissement ReadTimeout Hub'Eau (retry/504), premier déploiement
-réel sur la VM utilisateur (make env / make up).
+bord stats.py) ; clés de priorité faites (keys.py, issue template) ;
+Hub'Eau durci (retry x3 puis 504 propre, HubEauIndisponible).
+**Reste** : premier déploiement réel sur la VM utilisateur
+(make env / make up).

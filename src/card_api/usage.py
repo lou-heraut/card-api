@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 
+from . import keys as keys_mod
 from .hubeau import data_dir
 
 WINDOW = 60.0                                   # secondes
@@ -52,6 +53,22 @@ def ip_hash(ip: str) -> str:
     return hashlib.sha256((_SALT + ip).encode()).hexdigest()[:12]
 
 
+def priority_of(request: Request) -> dict | None:
+    """Clé de priorité de la requête (en-tête X-API-Key ou paramètre
+    key=). None sans clé ; 401 explicite si la clé est inconnue (mieux
+    qu'une dégradation silencieuse en trafic public)."""
+    token = (request.headers.get("x-api-key")
+             or request.query_params.get("key"))
+    if not token:
+        return None
+    info = keys_mod.load().get(token)
+    if info is None:
+        raise HTTPException(
+            401, "clé de priorité inconnue (révoquée ?) : retirez-la "
+                 "pour un accès public, ou demandez-en une nouvelle")
+    return info
+
+
 def check_rate(request: Request, limit: int):
     """Fenêtre glissante : au plus `limit` requêtes par IP et par minute."""
     ip = client_ip(request)
@@ -71,11 +88,13 @@ def check_rate(request: Request, limit: int):
 
 
 def rate_compute(request: Request):
-    check_rate(request, RATE_COMPUTE)
+    if priority_of(request) is None:
+        check_rate(request, RATE_COMPUTE)
 
 
 def rate_light(request: Request):
-    check_rate(request, RATE_LIGHT)
+    if priority_of(request) is None:
+        check_rate(request, RATE_LIGHT)
 
 
 def _append(entry: dict):

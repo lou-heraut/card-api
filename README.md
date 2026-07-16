@@ -19,6 +19,9 @@ Ouverte. Déploiement et développement : [INSTALL.md](INSTALL.md).
 | `GET /v1/stations` | recherche de stations hydrométriques |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
 | `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
+| `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
+| `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
+| `GET /v1/health` | santé du service (file de calcul, disque) |
 | `/docs` | documentation interactive (OpenAPI) |
 
 ## Exemples
@@ -118,8 +121,11 @@ suffit à elle-même.
 ## Bon voisinage
 
 - Quota public par IP ; en cas de `429`, l'en-tête `Retry-After`
-  indique quand réessayer. Besoin massif (centaines de stations) :
-  demandez une clé de priorité (gratuite) en ouvrant une issue.
+  indique quand réessayer. Besoin massif (centaines de stations,
+  usage récurrent) : demandez une clé de priorité gratuite en
+  [ouvrant une issue](../../issues/new?template=cle-de-priorite.yml),
+  puis passez-la en en-tête `X-API-Key` (ou paramètre `key=`) : quotas
+  levés, plafonds relevés, jobs en tête de file.
 - Les chroniques sont mises en cache 24 h côté serveur : répéter une
   requête ne re-télécharge pas Hub'Eau.
 - Fiches à entrée `Q` uniquement (le service ne fournit que des

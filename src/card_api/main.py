@@ -17,6 +17,7 @@ par IP et journal d'usage anonymisé (usage.py).
 import re
 import shutil
 
+import httpx
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
@@ -123,7 +124,14 @@ def stations(libelle: str | None = None, code: str | None = None,
     Hydro, les anciens codes Banque Hydro ne sont plus valides."""
     if not any((libelle, code, departement)):
         raise HTTPException(422, "donner au moins libelle, code ou departement")
-    return {"stations": hubeau.search_stations(libelle, code, departement, size)}
+    try:
+        return {"stations": hubeau.search_stations(libelle, code,
+                                                   departement, size)}
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            504, f"Hub'Eau ne répond pas ({type(e).__name__}) : "
+                 "réessayez dans quelques minutes",
+            headers={"Retry-After": "300"})
 
 
 def _split(value) -> list[str]:
@@ -152,16 +160,20 @@ def _check_cards_series(cd):
                      "la tendance ne s'applique qu'aux fiches 'series'")
 
 
-def _parse_lists(stations, cards):
+def _parse_lists(stations, cards, prio=None):
     st, cd = _split(stations), _split(cards)
     if not st or not cd:
         raise HTTPException(422, "stations et cards sont requis")
-    if len(st) > jobs.JOB_STATIONS or len(cd) > jobs.JOB_CARDS:
+    max_st = jobs.PRIORITY_STATIONS if prio else jobs.JOB_STATIONS
+    max_cd = jobs.PRIORITY_CARDS if prio else jobs.JOB_CARDS
+    if len(st) > max_st or len(cd) > max_cd:
+        hint = ("" if prio else
+                " ; besoin plus large : demandez une clé de priorité")
         raise HTTPException(
-            422, f"au plus {jobs.JOB_STATIONS} stations et "
-                 f"{jobs.JOB_CARDS} fiches par demande (au-delà de "
-                 f"{jobs.SYNC_STATIONS} stations ou {jobs.SYNC_CARDS} "
-                 "fiches, la demande devient un job)")
+            422, f"au plus {max_st} stations et {max_cd} fiches par "
+                 f"demande (au-delà de {jobs.SYNC_STATIONS} stations ou "
+                 f"{jobs.SYNC_CARDS} fiches, la demande devient un "
+                 f"job){hint}")
     _check_cards_q(cd)
     return st, cd
 
@@ -181,20 +193,23 @@ def _job_response(job: dict) -> JSONResponse:
         })
 
 
-def _maybe_job(request, endpoint, st, cd, **params):
+def _maybe_job(request, endpoint, st, cd, prio=None, **params):
     """Bascule automatique : au-dessus des plafonds synchrones, la
-    demande devient un job (202 + ticket) au lieu d'un refus."""
+    demande devient un job (202 + ticket) au lieu d'un refus. Une clé
+    de priorité met le job en tête de file."""
     if len(st) <= jobs.SYNC_STATIONS and len(cd) <= jobs.SYNC_CARDS:
         return None
     job_params = {"endpoint": endpoint, "stations": st, "cards": cd,
                   **{k: v for k, v in params.items() if v is not None}}
     try:
-        job = jobs.submit(job_params, user=usage.ip_hash(
-            usage.client_ip(request)))
+        job = jobs.submit(job_params,
+                          user=usage.ip_hash(usage.client_ip(request)),
+                          priority=-1 if prio else 0)
     except RuntimeError as e:
         raise HTTPException(503, str(e), headers={"Retry-After": "300"})
+    extra = {"key": prio["name"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=endpoint,
-                    stations=len(st), cards=cd)
+                    stations=len(st), cards=cd, **extra)
     return _job_response(job)
 
 
@@ -213,6 +228,8 @@ def _run_extract(st, cd, start, end, sampling=None):
             df = hubeau.fetch_chronicle(s)
         except hubeau.StationInconnue as e:
             raise HTTPException(404, str(e))
+        except hubeau.HubEauIndisponible as e:
+            raise HTTPException(504, str(e), headers={"Retry-After": "300"})
         if start:
             df = df[df["date"] >= start]
         if end:
@@ -256,9 +273,10 @@ def extract(request: Request, stations: str, cards: str,
     if orient not in ("records", "columns"):
         raise HTTPException(422, "orient : 'records' ou 'columns'")
     _check_sampling(sampling)
-    st, cd = _parse_lists(stations, cards)
-    ticket = _maybe_job(request, "extract", st, cd, start=start, end=end,
-                        sampling=sampling, orient=orient)
+    prio = usage.priority_of(request)
+    st, cd = _parse_lists(stations, cards, prio)
+    ticket = _maybe_job(request, "extract", st, cd, prio, start=start,
+                        end=end, sampling=sampling, orient=orient)
     if ticket is not None:
         return ticket
     res = _run_extract(st, cd, start, end, sampling)
@@ -306,10 +324,12 @@ def trend(request: Request, stations: str, cards: str,
     if mk not in ("INDE", "AR1", "LTP"):
         raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
     _check_sampling(sampling)
-    st, cd = _parse_lists(stations, cards)
+    prio = usage.priority_of(request)
+    st, cd = _parse_lists(stations, cards, prio)
     _check_cards_series(cd)
-    ticket = _maybe_job(request, "trend", st, cd, start=start, end=end,
-                        sampling=sampling, mk=mk, level=level, orient=orient)
+    ticket = _maybe_job(request, "trend", st, cd, prio, start=start,
+                        end=end, sampling=sampling, mk=mk, level=level,
+                        orient=orient)
     if ticket is not None:
         return ticket
 
@@ -371,7 +391,8 @@ def create_job(request: Request, req: JobRequest):
     if not (0 < req.level < 1):
         raise HTTPException(422, "level : dans (0, 1)")
     _check_sampling(req.sampling)
-    st, cd = _parse_lists(req.stations, req.cards)
+    prio = usage.priority_of(request)
+    st, cd = _parse_lists(req.stations, req.cards, prio)
     if req.endpoint == "trend":
         _check_cards_series(cd)
     params = {"endpoint": req.endpoint, "stations": st, "cards": cd}
@@ -385,12 +406,14 @@ def create_job(request: Request, req: JobRequest):
         params.update(mk=req.mk, level=req.level)
     params["orient"] = req.orient
     try:
-        job = jobs.submit(params, user=usage.ip_hash(
-            usage.client_ip(request)))
+        job = jobs.submit(params,
+                          user=usage.ip_hash(usage.client_ip(request)),
+                          priority=-1 if prio else 0)
     except RuntimeError as e:
         raise HTTPException(503, str(e), headers={"Retry-After": "300"})
+    extra = {"key": prio["name"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=req.endpoint,
-                    stations=len(st), cards=cd)
+                    stations=len(st), cards=cd, **extra)
     return _job_response(job)
 
 

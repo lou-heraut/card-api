@@ -1,0 +1,34 @@
+name: Demande de clé de priorité
+description: >
+  Besoin massif (centaines de stations, usage récurrent) ? Une clé de
+  priorité gratuite lève les quotas et fait passer vos jobs en tête de
+  file. Attribution manuelle, réponse rapide.
+title: "Clé de priorité : "
+labels: ["clé-de-priorité"]
+body:
+  - type: input
+    id: qui
+    attributes:
+      label: Qui êtes-vous ?
+      description: Nom et organisme (la clé est nominative).
+      placeholder: "Prénom Nom, laboratoire / organisme"
+    validations:
+      required: true
+  - type: textarea
+    id: usage
+    attributes:
+      label: Usage prévu
+      description: >
+        Ordre de grandeur : combien de stations, quelles fiches,
+        à quelle fréquence ?
+      placeholder: "ex. ~300 stations RRSE x 10 fiches d'étiage, une
+        fois par mois"
+    validations:
+      required: true
+  - type: input
+    id: contexte
+    attributes:
+      label: Contexte (facultatif)
+      description: Projet, publication ou financement associé.
+    validations:
+      required: false

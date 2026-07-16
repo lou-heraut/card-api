@@ -45,6 +45,9 @@ JOB_STATIONS = int(os.environ.get("CARD_API_JOB_STATIONS", 100))
 JOB_CARDS = int(os.environ.get("CARD_API_JOB_CARDS", 50))
 JOB_TTL_DAYS = float(os.environ.get("CARD_API_JOB_TTL_DAYS", 7))
 JOB_QUEUE_MAX = int(os.environ.get("CARD_API_JOB_QUEUE_MAX", 100))
+# Plafonds des porteurs de clé de priorité (tête de file en sus)
+PRIORITY_STATIONS = int(os.environ.get("CARD_API_PRIORITY_STATIONS", 1000))
+PRIORITY_CARDS = int(os.environ.get("CARD_API_PRIORITY_CARDS", 226))
 WORKERS = 2
 
 # Concurrence de calcul bornée, partagée entre synchrone et jobs

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question sur les fiches CARD (définitions, classification)
+    url: https://github.com/lou-heraut/card/issues
+    about: Les fiches vivent dans le repo card, posez-y les questions de contenu.

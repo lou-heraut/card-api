@@ -41,19 +41,46 @@ class StationInconnue(ValueError):
     pass
 
 
+class HubEauIndisponible(RuntimeError):
+    """Hub'Eau ne répond pas (timeout ou 5xx persistant après retries)."""
+
+
+def _get_retry(client, url, params=None, attempts=3):
+    """GET avec réessais sur timeout/erreur réseau/5xx (Hub'Eau traîne
+    parfois) : pause croissante, puis erreur propre plutôt qu'un
+    timeout brut qui remonterait en 500."""
+    last = None
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(2 * attempt)
+        try:
+            r = client.get(url, params=params)
+            r.raise_for_status()
+            return r
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code < 500:
+                raise
+            last = exc
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last = exc
+    raise HubEauIndisponible(
+        f"Hub'Eau ne répond pas ({type(last).__name__}) : "
+        "réessayez dans quelques minutes"
+    )
+
+
 def _fetch_all(url, params):
     """Suit la pagination `next` de Hub'Eau, renvoie la liste des lignes."""
     rows = []
     with httpx.Client(timeout=60) as client:
-        r = client.get(url, params=params)
+        r = _get_retry(client, url, params)
         while True:
-            r.raise_for_status()
             payload = r.json()
             rows.extend(payload.get("data") or [])
             nxt = payload.get("next")
             if not nxt:
                 return rows
-            r = client.get(nxt)
+            r = _get_retry(client, nxt)
 
 
 def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:

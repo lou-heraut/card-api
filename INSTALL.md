@@ -60,12 +60,22 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs (public ; les clés de priorité les lèveront) |
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
+| `CARD_API_PRIORITY_STATIONS` / `CARD_API_PRIORITY_CARDS` | 1000 / 226 | plafonds des porteurs de clé de priorité |
 | `CARD_REF` / `STASE_REF` | main | révisions de card/stase dans l'image |
 | `CARD_API_DATA` | `/data` (volume) | cache des chroniques, jobs et journal (ne pas toucher en Docker) |
 
 Suivi : `make status` (santé, file, disque via /v1/health), `make stats`
 (tableau de bord terminal : activité 30 jours, heatmap, file de
 calcul), `make watch` (le même, rafraîchi en continu).
+
+Clés de priorité (attribution manuelle, demandées via l'issue
+« Clé de priorité » du repo) : `make key name="Prénom Nom, labo"`
+crée et affiche le jeton à transmettre, `make keys` liste,
+`make key-revoke key=<jeton>` révoque. Stockage :
+`$CARD_API_DATA/keys.json` (jamais sous git). Le porteur la passe en
+en-tête `X-API-Key` ou en paramètre `key=` : quotas par minute levés,
+plafonds `PRIORITY_*`, jobs en tête de file. Le journal enregistre le
+nom de la clé, jamais le jeton.
 
 ## Journal d'usage
 

@@ -1,7 +1,7 @@
 # Interface de déploiement. Usage : make <cible>
 # Prérequis : docker + docker compose, fichier .env (cf. .env.example).
 
-.PHONY: help env up update logs status stats watch down test
+.PHONY: help env up update logs status stats watch key keys key-revoke down test
 .ONESHELL:
 
 help:            ## liste des cibles
@@ -35,6 +35,15 @@ stats:           ## tableau de bord (usage, file de calcul, disque)
 
 watch:           ## tableau de bord rafraîchi en continu (Ctrl-C pour sortir)
 	@docker compose exec api python -m card_api.stats --watch
+
+key:             ## crée une clé de priorité : make key name="Prénom Nom, labo"
+	@docker compose exec api python -m card_api.keys add "$(name)"
+
+keys:            ## liste les clés de priorité
+	@docker compose exec api python -m card_api.keys list
+
+key-revoke:      ## révoque une clé : make key-revoke key=<jeton>
+	@docker compose exec api python -m card_api.keys revoke "$(key)"
 
 down:            ## arrête le service
 	docker compose down
