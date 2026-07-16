@@ -1,0 +1,8 @@
+"variable_en","unit_en","name_en","description_en","method_en","sampling_period_en","topic_en","variable_fr","unit_fr","name_fr","description_fr","method_fr","sampling_period_fr","topic_fr","is_experimental","input_vars","preferred_sampling_period","is_date","to_normalise","palette","script_path"
+"dtLF","day","Duration of low flows","Duration of the longest continuous sequence with 10-day mean flows below the threshold set at the maximum of VCN10","1. no temporal aggregation - 10-day centered moving average
+2. annual aggregation [Month of maximum monthly flows] - minimum (extraction from the series of VCN10)
+3. no temporal aggregation - the maximum of the previous series is taken as the threshold
+4. annual aggregation [Month of maximum monthly flows] - number of days in the longest period below the previous threshold","01-01","Flow, Low Flows, Duration","dtBE","jour","Durée des basses eaux","Durée de la plus longue séquence continue avec des débits moyens sur 10 jours sous le seuil fixé au maximum des VCN10","1. aucune agrégation temporelle - moyenne mobile centrée sur 10 jours
+2. agrégation annuelle [Mois du maximum des débits mensuels] - minimum (extraction de la série des VCN10
+3. aucune agrégation temporelle - le maximum de la précédente série est pris comme seuil
+4. agrégation annuelle [Mois du maximum des débits mensuels] - nombre de jours de la plus longue période sous le précédent seuil","01-01","Débit, Basses Eaux, Durée",FALSE,"Q","01-01",FALSE,FALSE,"#003C30 #01665E #35978F #80CDC1 #C7EAE5 #F6E8C3 #DFC27D #BF812D #8C510A #543005","004_Basses Eaux/013_dtLF.R"

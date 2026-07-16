@@ -5,3 +5,4 @@ __pycache__/
 *~
 *.pdf
 .env
+data_makaho/
