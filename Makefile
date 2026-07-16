@@ -1,7 +1,7 @@
 # Interface de déploiement. Usage : make <cible>
 # Prérequis : docker + docker compose, fichier .env (cf. .env.example).
 
-.PHONY: help env up update logs status stats down test
+.PHONY: help env up update logs status stats watch down test
 .ONESHELL:
 
 help:            ## liste des cibles
@@ -30,20 +30,11 @@ status:          ## état des conteneurs + sonde de vie
 	  print(urllib.request.urlopen('http://localhost:8000/v1/health').read().decode())" \
 	  || echo "API injoignable"
 
-stats:           ## statistiques d'usage (journal anonymisé)
-	@docker compose exec api python - <<-'EOF'
-	import json, collections
-	try:
-	    lines = [json.loads(l) for l in open("/data/usage.jsonl")]
-	except FileNotFoundError:
-	    print("aucun usage enregistré"); raise SystemExit
-	by_ep = collections.Counter(e["endpoint"] for e in lines)
-	users = len({e["user"] for e in lines})
-	cards = collections.Counter(c for e in lines for c in e.get("cards", []))
-	print(f"{len(lines)} requêtes de calcul, {users} utilisateurs distincts")
-	print("par endpoint :", dict(by_ep))
-	print("fiches les plus demandées :", cards.most_common(10))
-	EOF
+stats:           ## tableau de bord (usage, file de calcul, disque)
+	@docker compose exec api python -m card_api.stats
+
+watch:           ## tableau de bord rafraîchi en continu (Ctrl-C pour sortir)
+	@docker compose exec api python -m card_api.stats --watch
 
 down:            ## arrête le service
 	docker compose down
