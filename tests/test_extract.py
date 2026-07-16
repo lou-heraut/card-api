@@ -53,7 +53,8 @@ def test_extract_errors():
         "stations": "X0000000", "cards": "QA"}).status_code == 404
     assert client.get("/v1/extract", params={
         "stations": "K0550010", "cards": "FICHE_INEXISTANTE"}).status_code == 404
-    too_many = ",".join(f"K{i:07d}" for i in range(11))
+    # au-delà du plafond JOB (le plafond synchrone, lui, bascule en job)
+    too_many = ",".join(f"K{i:07d}" for i in range(101))
     assert client.get("/v1/extract", params={
         "stations": too_many, "cards": "QA"}).status_code == 422
 

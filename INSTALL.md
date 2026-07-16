@@ -54,10 +54,18 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 |---|---|---|
 | `DOMAIN` | aucun (requis) | domaine public, injecté dans le Caddyfile |
 | `CARD_API_SALT` | aucun (requis, généré par `make env`) | sel du hachage des IP du journal ; fixe en prod pour des comptes d'utilisateurs distincts stables |
-| `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend) par IP/minute |
+| `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend/jobs) par IP/minute |
 | `CARD_API_RATE_LIGHT` | 60 | requêtes de catalogue par IP/minute |
+| `CARD_API_SYNC_STATIONS` / `CARD_API_SYNC_CARDS` | 10 / 20 | plafonds des réponses immédiates ; au-delà, bascule en job |
+| `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs (public ; les clés de priorité les lèveront) |
+| `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
+| `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
 | `CARD_REF` / `STASE_REF` | main | révisions de card/stase dans l'image |
-| `CARD_API_DATA` | `/data` (volume) | cache des chroniques + journal (ne pas toucher en Docker) |
+| `CARD_API_DATA` | `/data` (volume) | cache des chroniques, jobs et journal (ne pas toucher en Docker) |
+
+Suivi : `make status` (santé, file, disque via /v1/health), `make stats`
+(tableau de bord terminal : activité 30 jours, heatmap, file de
+calcul), `make watch` (le même, rafraîchi en continu).
 
 ## Journal d'usage
 

@@ -14,22 +14,22 @@ des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
 par IP et journal d'usage anonymisé (usage.py).
 """
 
-import math
 import re
-import threading
+import shutil
 
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 import card
 
-from . import hubeau, usage
+from . import hubeau, jobs, usage
+from .serialize import clean, serialize
 
-MAX_STATIONS = 10          # par requête publique (clés de priorité : plus tard)
-MAX_CARDS = 20
 _SAMPLING_RE = re.compile(r"^(preferred|\d{2}-\d{2})$")
-_COMPUTE = threading.Semaphore(2)      # concurrence bornée des calculs
+SOURCE = "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s"
 
 
 def _card_meta_map():
@@ -69,10 +69,6 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
-def _clean(records):
-    """NaN -> null pour le JSON."""
-    return [{k: (None if isinstance(v, float) and math.isnan(v) else v)
-             for k, v in r.items()} for r in records]
 
 
 @app.get("/v1/cards", dependencies=[Depends(usage.rate_light)])
@@ -98,7 +94,7 @@ def cards(domain: str | None = None,
     return {
         "card_version": CARD_VERSION,
         "count": int(len(df)),
-        "cards": _clean(df.head(limit).to_dict(orient="records")),
+        "cards": clean(df.head(limit).to_dict(orient="records")),
     }
 
 
@@ -130,13 +126,13 @@ def stations(libelle: str | None = None, code: str | None = None,
     return {"stations": hubeau.search_stations(libelle, code, departement, size)}
 
 
-def _parse_lists(stations, cards):
-    st = [s.strip() for s in stations.split(",") if s.strip()]
-    cd = [c.strip() for c in cards.split(",") if c.strip()]
-    if not (0 < len(st) <= MAX_STATIONS):
-        raise HTTPException(422, f"1 à {MAX_STATIONS} stations par requête")
-    if not (0 < len(cd) <= MAX_CARDS):
-        raise HTTPException(422, f"1 à {MAX_CARDS} fiches par requête")
+def _split(value) -> list[str]:
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    return [s.strip() for s in value.split(",") if s.strip()]
+
+
+def _check_cards_q(cd):
     meta_map = _card_meta_map()
     for c in cd:
         m = meta_map.get(c)
@@ -144,7 +140,62 @@ def _parse_lists(stations, cards):
             raise HTTPException(
                 422, f"la fiche {c} requiert {m['input_vars']} : ce service "
                      "ne fournit que des débits journaliers (Q, Hub'Eau)")
+
+
+def _check_cards_series(cd):
+    meta_map = _card_meta_map()
+    for c in cd:
+        m = meta_map.get(c)
+        if m is not None and m["output"] != "series":
+            raise HTTPException(
+                422, f"la fiche {c} produit un résultat '{m['output']}' : "
+                     "la tendance ne s'applique qu'aux fiches 'series'")
+
+
+def _parse_lists(stations, cards):
+    st, cd = _split(stations), _split(cards)
+    if not st or not cd:
+        raise HTTPException(422, "stations et cards sont requis")
+    if len(st) > jobs.JOB_STATIONS or len(cd) > jobs.JOB_CARDS:
+        raise HTTPException(
+            422, f"au plus {jobs.JOB_STATIONS} stations et "
+                 f"{jobs.JOB_CARDS} fiches par demande (au-delà de "
+                 f"{jobs.SYNC_STATIONS} stations ou {jobs.SYNC_CARDS} "
+                 "fiches, la demande devient un job)")
+    _check_cards_q(cd)
     return st, cd
+
+
+def _job_response(job: dict) -> JSONResponse:
+    return JSONResponse(
+        status_code=202,
+        headers={"Location": f"/v1/jobs/{job['id']}"},
+        content={
+            "job": job["id"],
+            "status": job["status"],
+            "status_url": f"/v1/jobs/{job['id']}",
+            "result_url": f"/v1/jobs/{job['id']}/result",
+            "detail": "demande mise en file : suivre status_url, le "
+                      "résultat reste disponible "
+                      f"{jobs.JOB_TTL_DAYS:g} jours",
+        })
+
+
+def _maybe_job(request, endpoint, st, cd, **params):
+    """Bascule automatique : au-dessus des plafonds synchrones, la
+    demande devient un job (202 + ticket) au lieu d'un refus."""
+    if len(st) <= jobs.SYNC_STATIONS and len(cd) <= jobs.SYNC_CARDS:
+        return None
+    job_params = {"endpoint": endpoint, "stations": st, "cards": cd,
+                  **{k: v for k, v in params.items() if v is not None}}
+    try:
+        job = jobs.submit(job_params, user=usage.ip_hash(
+            usage.client_ip(request)))
+    except RuntimeError as e:
+        raise HTTPException(503, str(e), headers={"Retry-After": "300"})
+    usage.log_usage(request, "jobs", job=job["id"], target=endpoint,
+                    stations=len(st), cards=cd)
+    return _job_response(job)
 
 
 def _check_sampling(sampling):
@@ -170,7 +221,7 @@ def _run_extract(st, cd, start, end, sampling=None):
             raise HTTPException(404, f"{s}: aucune donnée sur la période")
         frames.append(df)
     data = pd.concat(frames, ignore_index=True)
-    with _COMPUTE:
+    with jobs.COMPUTE:
         try:
             return card.extract(data, cards=cd, sampling_period=sampling,
                                 verbose=False)
@@ -180,19 +231,6 @@ def _run_extract(st, cd, start, end, sampling=None):
             raise HTTPException(422, str(e))
 
 
-def _serialize(df, orient="records"):
-    """records (défaut, style Hub'Eau) ou columns (colonnaire, compact,
-    rechargeable en DataFrame d'une ligne)."""
-    out = df.copy()
-    for c in out.columns:
-        if pd.api.types.is_datetime64_any_dtype(out[c]):
-            out[c] = out[c].dt.strftime("%Y-%m-%d")
-    out = out.astype(object).where(out.notna(), None)
-    if orient == "columns":
-        return {c: out[c].tolist() for c in out.columns}
-    return _clean(out.to_dict(orient="records"))
-
-
 @app.get("/v1/extract", dependencies=[Depends(usage.rate_compute)])
 def extract(request: Request, stations: str, cards: str,
             start: str | None = None, end: str | None = None,
@@ -200,9 +238,12 @@ def extract(request: Request, stations: str, cards: str,
             orient: str = "records"):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
-    stations : codes séparés par des virgules (max 10).
-    cards    : ids de fiches séparés par des virgules (max 20) ;
+    stations : codes séparés par des virgules.
+    cards    : ids de fiches séparés par des virgules ;
                fiches à entrée Q uniquement (données hydrométriques).
+    Au-dessus des plafonds synchrones (défaut 10 stations, 20 fiches),
+    la demande devient un job : réponse 202 avec un ticket à suivre
+    (cf. /v1/jobs/{id}).
     start/end: bornes AAAA-MM-JJ optionnelles (défaut : tout).
     sampling : écrase la fenêtre annuelle des fiches. 'preferred' :
                fenêtre fixe déclarée par chaque fiche (reproductible,
@@ -216,12 +257,16 @@ def extract(request: Request, stations: str, cards: str,
         raise HTTPException(422, "orient : 'records' ou 'columns'")
     _check_sampling(sampling)
     st, cd = _parse_lists(stations, cards)
+    ticket = _maybe_job(request, "extract", st, cd, start=start, end=end,
+                        sampling=sampling, orient=orient)
+    if ticket is not None:
+        return ticket
     res = _run_extract(st, cd, start, end, sampling)
 
     extracted = res["data"]
     if not isinstance(extracted, dict):
         extracted = {cd[0]: extracted}
-    data_out = {k: _serialize(v, orient) for k, v in extracted.items()}
+    data_out = {k: serialize(v, orient) for k, v in extracted.items()}
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
     return {
         "card_version": CARD_VERSION,
@@ -229,9 +274,9 @@ def extract(request: Request, stations: str, cards: str,
         "cards": cd,
         "period": {"start": start, "end": end},
         "sampling": sampling,
-        "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
+        "source": SOURCE,
         "orient": orient,
-        "meta": _serialize(res["meta"]),
+        "meta": serialize(res["meta"]),
         "data": data_out,
     }
 
@@ -262,21 +307,19 @@ def trend(request: Request, stations: str, cards: str,
         raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
     _check_sampling(sampling)
     st, cd = _parse_lists(stations, cards)
-    meta_map = _card_meta_map()
-    for c in cd:
-        m = meta_map.get(c)
-        if m is not None and m["output"] != "series":
-            raise HTTPException(
-                422, f"la fiche {c} produit un résultat '{m['output']}' : "
-                     "la tendance ne s'applique qu'aux fiches 'series'")
+    _check_cards_series(cd)
+    ticket = _maybe_job(request, "trend", st, cd, start=start, end=end,
+                        sampling=sampling, mk=mk, level=level, orient=orient)
+    if ticket is not None:
+        return ticket
 
     res = _run_extract(st, cd, start, end, sampling)
-    with _COMPUTE:
+    with jobs.COMPUTE:
         try:
             tr = card.trend(res, level=level, dependency=mk)
         except ValueError as e:
             raise HTTPException(422, str(e))
-    trends = {cid: _serialize(df, orient) for cid, df in tr["data"].items()}
+    trends = {cid: serialize(df, orient) for cid, df in tr["data"].items()}
 
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
     return {
@@ -286,14 +329,121 @@ def trend(request: Request, stations: str, cards: str,
         "period": {"start": start, "end": end},
         "sampling": sampling,
         "mk": mk, "level": level,
-        "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
+        "source": SOURCE,
         "orient": orient,
-        "meta": _serialize(res["meta"]),
+        "meta": serialize(res["meta"]),
         "data": trends,
     }
 
 
+# ── Jobs : demandes massives en file de calcul ──────────────────────────────
+
+class JobRequest(BaseModel):
+    endpoint: str                        # "extract" | "trend"
+    stations: str | list[str]
+    cards: str | list[str]
+    start: str | None = None
+    end: str | None = None
+    sampling: str | None = None
+    mk: str = "AR1"
+    level: float = 0.1
+    orient: str = "records"
+
+
+@app.post("/v1/jobs", status_code=202,
+          dependencies=[Depends(usage.rate_compute)])
+def create_job(request: Request, req: JobRequest):
+    """Dépose une demande massive en file de calcul (public, sans clé).
+
+    Mêmes paramètres que /v1/extract et /v1/trend, plafonds plus hauts
+    (défaut 100 stations, 50 fiches). Réponse : 202 + ticket ; suivre
+    status_url puis récupérer result_url (résultat gelé avec bloc de
+    provenance, conservé quelques jours). Les demandes au-dessus des
+    plafonds synchrones passées à /v1/extract ou /v1/trend basculent
+    ici automatiquement.
+    """
+    if req.endpoint not in ("extract", "trend"):
+        raise HTTPException(422, "endpoint : 'extract' ou 'trend'")
+    if req.orient not in ("records", "columns"):
+        raise HTTPException(422, "orient : 'records' ou 'columns'")
+    if req.mk not in ("INDE", "AR1", "LTP"):
+        raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
+    if not (0 < req.level < 1):
+        raise HTTPException(422, "level : dans (0, 1)")
+    _check_sampling(req.sampling)
+    st, cd = _parse_lists(req.stations, req.cards)
+    if req.endpoint == "trend":
+        _check_cards_series(cd)
+    params = {"endpoint": req.endpoint, "stations": st, "cards": cd}
+    if req.start:
+        params["start"] = req.start
+    if req.end:
+        params["end"] = req.end
+    if req.sampling:
+        params["sampling"] = req.sampling
+    if req.endpoint == "trend":
+        params.update(mk=req.mk, level=req.level)
+    params["orient"] = req.orient
+    try:
+        job = jobs.submit(params, user=usage.ip_hash(
+            usage.client_ip(request)))
+    except RuntimeError as e:
+        raise HTTPException(503, str(e), headers={"Retry-After": "300"})
+    usage.log_usage(request, "jobs", job=job["id"], target=req.endpoint,
+                    stations=len(st), cards=cd)
+    return _job_response(job)
+
+
+@app.get("/v1/jobs/{job_id}", dependencies=[Depends(usage.rate_light)])
+def job_status(job_id: str, response: Response):
+    """Statut et progression d'un job (queued, running, done, failed)."""
+    job = jobs.load(job_id)
+    if job is None:
+        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+    if job["status"] in ("queued", "running"):
+        response.headers["Retry-After"] = "10"
+    return {
+        "job": job["id"],
+        "status": job["status"],
+        "progress": job["progress"],
+        "created": job["created"],
+        "started": job["started"],
+        "finished": job["finished"],
+        "error": job["error"],
+        "result_url": f"/v1/jobs/{job['id']}/result",
+    }
+
+
+@app.get("/v1/jobs/{job_id}/result",
+         dependencies=[Depends(usage.rate_light)])
+def job_result(job_id: str):
+    """Résultat d'un job terminé (même format que l'endpoint synchrone,
+    plus un bloc de provenance : paramètres, versions, date des
+    données)."""
+    job = jobs.load(job_id)
+    if job is None:
+        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+    if job["status"] == "failed":
+        raise HTTPException(409, f"job en échec : {job['error']}")
+    if job["status"] != "done":
+        raise HTTPException(
+            409, f"job pas encore terminé (statut : {job['status']}), "
+                 f"suivre /v1/jobs/{job_id}")
+    raw = jobs.result_bytes(job_id)
+    if raw is None:
+        raise HTTPException(404, f"résultat expiré : {job_id}")
+    return Response(content=raw, media_type="application/json")
+
+
 @app.get("/v1/health")
 def health():
-    """Sonde de vie (déploiement, supervision)."""
-    return {"status": "ok", "card_version": CARD_VERSION}
+    """Sonde de vie et charge (déploiement, supervision) : état de la
+    file de calcul et du disque, lisible par n'importe quelle sonde."""
+    du = shutil.disk_usage(hubeau.data_dir())
+    return {
+        "status": "ok",
+        "card_version": CARD_VERSION,
+        "jobs": jobs.queue_stats(),
+        "disk": {"used_pct": round(du.used / du.total * 100, 1),
+                 "free_gb": round(du.free / 1e9, 1)},
+    }

@@ -9,16 +9,24 @@ sans clé, quotas IP, journal anonymisé, commercial écarté).
 
 ```
 src/card_api/
-  main.py     # endpoints /v1 : cards, cards/{id}, stations, extract,
-              #   trend (mk défaut AR1), health ; réponses {data, meta}
-  hubeau.py   # client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
-              #   pagination next, codes post-refonte) + cache 24 h
-  usage.py    # quotas IP (fenêtre glissante, 429+Retry-After)
-              #   + journal usage.jsonl (IP hachée salée)
-tests/        # 15 hors-ligne (Hub'Eau simulé ; validation MAKAHO sur
-              #   data/makaho/, précision machine) + 2 live (CARD_API_LIVE=1)
-Makefile      # interface ops : make env/up/update/logs/status/stats
-compose.yaml  # api + caddy (HTTPS auto) ; config dans .env (cf. .env.example)
+  main.py       # endpoints /v1 : cards, cards/{id}, stations, extract,
+                #   trend (mk défaut AR1, sampling=preferred|MM-JJ),
+                #   jobs (POST + statut + result), health (file, disque)
+  jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
+                #   202+Location, progression, résultat gelé avec bloc
+                #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
+                #   bascule auto des demandes > plafonds synchrones
+  hubeau.py     # client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
+                #   pagination next, codes post-refonte) + cache 24 h
+  usage.py      # quotas IP (fenêtre glissante, 429+Retry-After)
+                #   + journal usage.jsonl (IP hachée salée, log_event)
+  serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
+  stats.py      # tableau de bord terminal (make stats / make watch) :
+                #   sparklines, heatmap 12 semaines, file, disque
+tests/          # 21 hors-ligne (Hub'Eau simulé ; jobs ; validation
+                #   MAKAHO, précision machine) + 2 live (CARD_API_LIVE=1)
+Makefile        # ops : make env/up/update/logs/status/stats/watch
+compose.yaml    # api + caddy (HTTPS auto) ; config dans .env (cf. .env.example)
 ```
 
 Dev : `pip install -e ../../EXstat_project/stase -e ../card -e .[dev]`
@@ -38,10 +46,13 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
 
-## État (2026-07-16) et suite
+## État (2026-07-16, nuit) et suite
 
-Étapes 1–3 d'API.md faites : catalogue, stations, extract, trend,
-quotas, journal, .env + Makefile. **Reste (étape 4)** : motif job
-(`/v1/jobs/{id}`) pour les grosses demandes, clés de priorité
-(passage devant + plafonds levés, attribution manuelle), premier
-déploiement réel sur la VM utilisateur (make env / make up).
+Étapes 1–3 d'API.md faites (catalogue, stations, extract, trend,
+quotas, journal, .env + Makefile) ; validation croisée MAKAHO
+(tests/test_makaho.py) et paramètre sampling= ; **motif job fait**
+(jobs publics, bascule auto, provenance, health enrichi, tableau de
+bord stats.py). **Reste** : clés de priorité (tête de file + plafonds
+levés, attribution manuelle : se branche sur jobs.submit(priority=)),
+durcissement ReadTimeout Hub'Eau (retry/504), premier déploiement
+réel sur la VM utilisateur (make env / make up).

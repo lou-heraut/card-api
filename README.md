@@ -86,6 +86,28 @@ pd.DataFrame(r["data"]["VCN10"])
 #   pente de Sen (absolue et relative), période analysée
 ```
 
+### Grosses demandes : le motif job
+
+Au-dessus de 10 stations ou 20 fiches, la demande devient un job (sans
+inscription, comme tout le reste) : la réponse `202` donne un ticket,
+le calcul se fait en file, le résultat reste téléchargeable plusieurs
+jours avec un bloc de provenance (paramètres, versions, date des
+données) qui le rend citable et reproductible.
+
+```python
+job = requests.post("https://API/v1/jobs", json={
+    "endpoint": "trend",
+    "stations": liste_de_codes,       # jusqu'à 100
+    "cards": ["QA", "VCN10"],
+    "sampling": "preferred",
+}).json()
+# suivre job["status_url"] (queued -> running -> done, avec progression)
+# puis récupérer job["result_url"]
+```
+
+Les appels `GET /v1/extract` et `/v1/trend` trop gros basculent
+automatiquement sur ce circuit (réponse `202` au lieu d'un refus).
+
 Deux formats de réponse : `orient=records` (défaut, liste d'objets,
 comme Hub'Eau) ou `orient=columns` (colonnaire : `{colonne:
 [valeurs]}`, plus compact, une ligne pour recharger en DataFrame).

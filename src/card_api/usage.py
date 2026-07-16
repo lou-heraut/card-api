@@ -78,15 +78,28 @@ def rate_light(request: Request):
     check_rate(request, RATE_LIGHT)
 
 
-def log_usage(request: Request, endpoint: str, **fields):
-    """Journal JSONL anonymisé (jamais l'IP en clair)."""
-    entry = {
-        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "user": ip_hash(client_ip(request)),
-        "endpoint": endpoint,
-        **fields,
-    }
+def _append(entry: dict):
     path = data_dir() / "usage.jsonl"
     with _lock:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def log_usage(request: Request, endpoint: str, **fields):
+    """Journal JSONL anonymisé (jamais l'IP en clair)."""
+    _append({
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "user": ip_hash(client_ip(request)),
+        "endpoint": endpoint,
+        **fields,
+    })
+
+
+def log_event(kind: str, **fields):
+    """Événement de service (fin de job...) : même journal, sans
+    requête donc sans utilisateur."""
+    _append({
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "event": kind,
+        **fields,
+    })
