@@ -7,7 +7,7 @@
 # card-api is free software: you can redistribute it and/or modify it
 # under the terms of the license in the LICENSE file of this repository.
 
-"""card-api — service web des fiches CARD (v1).
+"""card-api : service web des fiches CARD (v1).
 
 Conception : docs/dev/API.md du repo card. Découverte du catalogue et
 des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
@@ -22,7 +22,6 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 
 import card
-import stase
 
 from . import hubeau, usage
 
@@ -32,7 +31,7 @@ _COMPUTE = threading.Semaphore(2)      # concurrence bornée des calculs
 
 
 def _card_meta_map():
-    """{id de fiche: {input_vars, output}} — calculé une fois.
+    """{id de fiche: {input_vars, output}}, calculé une fois.
     input_vars : refuser les fiches non-débit sur les données Hub'Eau
     (l'affectation automatique de colonnes de la bibliothèque mapperait
     sinon Q sur n'importe quelle variable requise unique).
@@ -61,7 +60,7 @@ app = FastAPI(
     version="0.1.0",
     description=(
         "Extraction de variables hydroclimatiques (fiches CARD) sur les "
-        "données Hub'Eau. Service public de recherche — INRAE, UR RiverLy. "
+        "données Hub'Eau. Service public de recherche (INRAE, UR RiverLy). "
         "Code GPL-3 : https://github.com/lou-heraut/card"
     ),
 )
@@ -87,7 +86,7 @@ def cards(domain: str | None = None,
           search: str | None = None,
           limit: int = Query(default=1000, le=1000)):
     """Catalogue des fiches (une ligne par variable), filtres par facette
-    de classification, dans les deux langues — mêmes filtres que
+    de classification, dans les deux langues ; mêmes filtres que
     card.list_cards()."""
     df = card.list_cards(domain=domain, phenomenon=phenomenon,
                          aspect=aspect, season=season, output=output,
@@ -190,7 +189,7 @@ def extract(request: Request, stations: str, cards: str,
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
     stations : codes séparés par des virgules (max 10).
-    cards    : ids de fiches séparés par des virgules (max 20) —
+    cards    : ids de fiches séparés par des virgules (max 20) ;
                fiches à entrée Q uniquement (données hydrométriques).
     start/end: bornes AAAA-MM-JJ optionnelles (défaut : tout).
     orient   : 'records' (défaut, liste d'objets, style Hub'Eau) ou
@@ -224,9 +223,9 @@ def trend(request: Request, stations: str, cards: str,
           mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
           orient: str = "records"):
     """Diagnostic de stationnarité : extraction CARD puis test de
-    Mann-Kendall et pente de Sen (stase.trend) sur chaque série.
+    Mann-Kendall et pente de Sen (card.trend) sur chaque série.
 
-    mk    : 'AR1' (défaut — robuste à l'autocorrélation d'ordre 1,
+    mk    : 'AR1' (défaut, robuste à l'autocorrélation d'ordre 1,
             fréquente sur les séries annuelles d'étiage ; Hamed & Rao
             1998), 'INDE' (test standard, hypothèse d'indépendance) ou
             'LTP' (mémoire longue, Hamed 2008).
@@ -248,15 +247,12 @@ def trend(request: Request, stations: str, cards: str,
                      "la tendance ne s'applique qu'aux fiches 'series'")
 
     res = _run_extract(st, cd, start, end)
-    extracted = res["data"]
-    if not isinstance(extracted, dict):
-        extracted = {cd[0]: extracted}
-    trends = {}
     with _COMPUTE:
-        for cid, df in extracted.items():
-            tr = stase.trend(df, level=level, dependency=mk,
-                             meta=res["meta"], verbose=False)
-            trends[cid] = _serialize(tr, orient)
+        try:
+            tr = card.trend(res, level=level, dependency=mk)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+    trends = {cid: _serialize(df, orient) for cid, df in tr["data"].items()}
 
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
     return {

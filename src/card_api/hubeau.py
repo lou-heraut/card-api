@@ -64,7 +64,9 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
     cache = data_dir() / "chroniques" / f"{station}.csv.gz"
     if not refresh and cache.exists() \
             and time.time() - cache.stat().st_mtime < CACHE_TTL:
-        return pd.read_csv(cache, parse_dates=["date"])
+        # dtype id : un code tout-numérique relu en int64 ne serait plus
+        # détecté comme identifiant de série (détection par type)
+        return pd.read_csv(cache, parse_dates=["date"], dtype={"id": str})
 
     rows = _fetch_all(f"{BASE}/obs_elab", {
         "code_entite": station,
@@ -75,7 +77,7 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
     })
     if not rows:
         raise StationInconnue(
-            f"aucune chronique QmnJ pour {station!r} — les codes ont changé "
+            f"aucune chronique QmnJ pour {station!r} : les codes ont changé "
             "depuis la refonte Hydro, cherchez le nouveau code via "
             "/v1/stations"
         )
