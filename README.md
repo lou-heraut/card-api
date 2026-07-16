@@ -73,6 +73,11 @@ plot(as.Date(qa$date), qa$QA, type = "l",
 r = requests.get("https://API/v1/trend", params={
     "stations": "F700000103,K0550010",
     "cards": "VCN10",
+    "sampling": "preferred",      # fenêtre fixe de chaque fiche
+                                  # (protocole MAKAHO) ; défaut : fenêtre
+                                  # de la fiche, adaptative par station
+                                  # pour les fiches d'étiage/crue ;
+                                  # ou "MM-JJ" pour l'imposer (ex. 09-01)
     "mk": "AR1",                  # défaut ; ou INDE, LTP
     "level": 0.1,
 }).json()

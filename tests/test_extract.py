@@ -107,3 +107,29 @@ def test_rate_limit_and_usage_log(monkeypatch, tmp_path):
     entry = json.loads(log[0])
     assert entry["endpoint"] == "extract" and "user" in entry
     assert "." not in entry["user"] and len(entry["user"]) == 12   # hash, pas l'IP
+
+
+def test_extract_sampling_override():
+    """sampling=preferred et sampling=MM-JJ décalent la fenêtre annuelle
+    des fiches adaptatives (QJXA : mois du minimum par défaut)."""
+    def month(r):
+        dates = [row["date"] for row in r.json()["data"]["QJXA"]]
+        months = pd.Series(pd.to_datetime(dates)).dt.month
+        return months.mode()[0]
+
+    base = {"stations": "K0550010", "cards": "QJXA"}
+    r_def = client.get("/v1/extract", params=base)
+    r_pref = client.get("/v1/extract", params={**base, "sampling": "preferred"})
+    r_exp = client.get("/v1/extract", params={**base, "sampling": "03-01"})
+    assert r_def.status_code == r_pref.status_code == r_exp.status_code == 200
+    assert month(r_pref) == 9                  # preferred de QJXA : 09-01
+    assert month(r_exp) == 3
+    assert month(r_def) != 9                   # adaptatif (régime simulé)
+    assert r_pref.json()["sampling"] == "preferred"
+
+
+def test_extract_sampling_invalid():
+    r = client.get("/v1/extract", params={
+        "stations": "K0550010", "cards": "QA", "sampling": "septembre"})
+    assert r.status_code == 422
+    assert "preferred" in r.json()["detail"]

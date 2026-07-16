@@ -15,6 +15,7 @@ par IP et journal d'usage anonymisé (usage.py).
 """
 
 import math
+import re
 import threading
 
 import pandas as pd
@@ -27,6 +28,7 @@ from . import hubeau, usage
 
 MAX_STATIONS = 10          # par requête publique (clés de priorité : plus tard)
 MAX_CARDS = 20
+_SAMPLING_RE = re.compile(r"^(preferred|\d{2}-\d{2})$")
 _COMPUTE = threading.Semaphore(2)      # concurrence bornée des calculs
 
 
@@ -145,7 +147,15 @@ def _parse_lists(stations, cards):
     return st, cd
 
 
-def _run_extract(st, cd, start, end):
+def _check_sampling(sampling):
+    if sampling is not None and not _SAMPLING_RE.match(sampling):
+        raise HTTPException(
+            422, f"sampling invalide : {sampling!r}. Valeurs acceptées : "
+                 "'preferred' (fenêtre fixe déclarée par chaque fiche) "
+                 "ou 'MM-JJ' (ex. '09-01')")
+
+
+def _run_extract(st, cd, start, end, sampling=None):
     frames = []
     for s in st:
         try:
@@ -162,7 +172,8 @@ def _run_extract(st, cd, start, end):
     data = pd.concat(frames, ignore_index=True)
     with _COMPUTE:
         try:
-            return card.extract(data, cards=cd, verbose=False)
+            return card.extract(data, cards=cd, sampling_period=sampling,
+                                verbose=False)
         except FileNotFoundError as e:
             raise HTTPException(404, str(e))
         except ValueError as e:
@@ -185,6 +196,7 @@ def _serialize(df, orient="records"):
 @app.get("/v1/extract", dependencies=[Depends(usage.rate_compute)])
 def extract(request: Request, stations: str, cards: str,
             start: str | None = None, end: str | None = None,
+            sampling: str | None = None,
             orient: str = "records"):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
@@ -192,13 +204,19 @@ def extract(request: Request, stations: str, cards: str,
     cards    : ids de fiches séparés par des virgules (max 20) ;
                fiches à entrée Q uniquement (données hydrométriques).
     start/end: bornes AAAA-MM-JJ optionnelles (défaut : tout).
+    sampling : écrase la fenêtre annuelle des fiches. 'preferred' :
+               fenêtre fixe déclarée par chaque fiche (reproductible,
+               protocole MAKAHO) ; 'MM-JJ' (ex. '09-01') : année
+               hydrologique imposée. Défaut : fenêtre de la fiche
+               (adaptative par station pour les fiches d'étiage/crue).
     orient   : 'records' (défaut, liste d'objets, style Hub'Eau) ou
                'columns' (colonnaire : {colonne: [valeurs]}, compact).
     """
     if orient not in ("records", "columns"):
         raise HTTPException(422, "orient : 'records' ou 'columns'")
+    _check_sampling(sampling)
     st, cd = _parse_lists(stations, cards)
-    res = _run_extract(st, cd, start, end)
+    res = _run_extract(st, cd, start, end, sampling)
 
     extracted = res["data"]
     if not isinstance(extracted, dict):
@@ -210,6 +228,7 @@ def extract(request: Request, stations: str, cards: str,
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
+        "sampling": sampling,
         "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
         "orient": orient,
         "meta": _serialize(res["meta"]),
@@ -220,11 +239,15 @@ def extract(request: Request, stations: str, cards: str,
 @app.get("/v1/trend", dependencies=[Depends(usage.rate_compute)])
 def trend(request: Request, stations: str, cards: str,
           start: str | None = None, end: str | None = None,
+          sampling: str | None = None,
           mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
           orient: str = "records"):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (card.trend) sur chaque série.
 
+    sampling : écrase la fenêtre annuelle des fiches ('preferred' ou
+            'MM-JJ', cf. /v1/extract) ; les analyses MAKAHO
+            correspondent à sampling=preferred.
     mk    : 'AR1' (défaut, robuste à l'autocorrélation d'ordre 1,
             fréquente sur les séries annuelles d'étiage ; Hamed & Rao
             1998), 'INDE' (test standard, hypothèse d'indépendance) ou
@@ -237,6 +260,7 @@ def trend(request: Request, stations: str, cards: str,
         raise HTTPException(422, "orient : 'records' ou 'columns'")
     if mk not in ("INDE", "AR1", "LTP"):
         raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
+    _check_sampling(sampling)
     st, cd = _parse_lists(stations, cards)
     meta_map = _card_meta_map()
     for c in cd:
@@ -246,7 +270,7 @@ def trend(request: Request, stations: str, cards: str,
                 422, f"la fiche {c} produit un résultat '{m['output']}' : "
                      "la tendance ne s'applique qu'aux fiches 'series'")
 
-    res = _run_extract(st, cd, start, end)
+    res = _run_extract(st, cd, start, end, sampling)
     with _COMPUTE:
         try:
             tr = card.trend(res, level=level, dependency=mk)
@@ -260,6 +284,7 @@ def trend(request: Request, stations: str, cards: str,
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
+        "sampling": sampling,
         "mk": mk, "level": level,
         "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
         "orient": orient,
