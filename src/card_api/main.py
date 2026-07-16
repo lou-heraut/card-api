@@ -15,10 +15,34 @@ aux étapes suivantes.
 """
 
 import math
+import threading
 
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 
 import card
+
+from . import hubeau
+
+MAX_STATIONS = 10          # par requête publique (clés de priorité : plus tard)
+MAX_CARDS = 20
+_COMPUTE = threading.Semaphore(2)      # concurrence bornée des calculs
+
+
+def _input_vars_map():
+    """{id de fiche: input_vars} — calculé une fois au premier appel.
+    Sert à refuser explicitement les fiches non-débit sur les données
+    Hub'Eau (l'affectation automatique de colonnes de la bibliothèque
+    mapperait sinon Q sur n'importe quelle variable requise unique)."""
+    global _INPUTS
+    try:
+        return _INPUTS
+    except NameError:
+        from pathlib import Path
+        df = card.list_cards()
+        _INPUTS = {Path(p).stem: iv
+                   for p, iv in zip(df["script_path"], df["input_vars"])}
+        return _INPUTS
 
 try:
     from importlib.metadata import version as _pkg_version
@@ -85,6 +109,88 @@ def card_detail(card_id: str, lang: str = "fr"):
         meta["yaml"] = ("https://github.com/lou-heraut/card/blob/main/"
                         f"src/card/cards/{rel}")
     return {"card_version": CARD_VERSION, "lang": lang, "card": meta}
+
+
+@app.get("/v1/stations")
+def stations(libelle: str | None = None, code: str | None = None,
+             departement: str | None = None, size: int = Query(20, le=100)):
+    """Recherche de stations hydrométriques (référentiel Hub'Eau).
+    Utile aussi pour retrouver les nouveaux codes : depuis la refonte
+    Hydro, les anciens codes Banque Hydro ne sont plus valides."""
+    if not any((libelle, code, departement)):
+        raise HTTPException(422, "donner au moins libelle, code ou departement")
+    return {"stations": hubeau.search_stations(libelle, code, departement, size)}
+
+
+def _records(df):
+    out = df.copy()
+    for c in out.columns:
+        if pd.api.types.is_datetime64_any_dtype(out[c]):
+            out[c] = out[c].dt.strftime("%Y-%m-%d")
+    return _clean(out.to_dict(orient="records"))
+
+
+@app.get("/v1/extract")
+def extract(stations: str, cards: str,
+            start: str | None = None, end: str | None = None):
+    """Extrait des variables CARD sur des chroniques Hub'Eau.
+
+    stations : codes séparés par des virgules (max 10).
+    cards    : ids de fiches séparés par des virgules (max 20) —
+               fiches à entrée Q uniquement (données hydrométriques).
+    start/end: bornes AAAA-MM-JJ optionnelles (défaut : tout).
+    """
+    st = [s.strip() for s in stations.split(",") if s.strip()]
+    cd = [c.strip() for c in cards.split(",") if c.strip()]
+    if not (0 < len(st) <= MAX_STATIONS):
+        raise HTTPException(422, f"1 à {MAX_STATIONS} stations par requête")
+    if not (0 < len(cd) <= MAX_CARDS):
+        raise HTTPException(422, f"1 à {MAX_CARDS} fiches par requête")
+    inputs = _input_vars_map()
+    for c in cd:
+        iv = inputs.get(c)
+        if iv is not None and iv != "Q":
+            raise HTTPException(
+                422, f"la fiche {c} requiert {iv} : ce service ne fournit "
+                     "que des débits journaliers (Q, Hub'Eau hydrométrie)")
+
+    frames = []
+    for s in st:
+        try:
+            df = hubeau.fetch_chronicle(s)
+        except hubeau.StationInconnue as e:
+            raise HTTPException(404, str(e))
+        if start:
+            df = df[df["date"] >= start]
+        if end:
+            df = df[df["date"] <= end]
+        if df.empty:
+            raise HTTPException(404, f"{s}: aucune donnée sur la période")
+        frames.append(df)
+    data = pd.concat(frames, ignore_index=True)
+
+    with _COMPUTE:
+        try:
+            res = card.extract(data, cards=cd, verbose=False)
+        except FileNotFoundError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
+    dataEX = res["dataEX"]
+    if isinstance(dataEX, dict):
+        data_out = {k: _records(v) for k, v in dataEX.items()}
+    else:
+        data_out = {cd[0]: _records(dataEX)}
+    return {
+        "card_version": CARD_VERSION,
+        "stations": st,
+        "cards": cd,
+        "period": {"start": start, "end": end},
+        "source": "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s",
+        "metaEX": _records(res["metaEX"]),
+        "dataEX": data_out,
+    }
 
 
 @app.get("/v1/health")

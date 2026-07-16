@@ -10,16 +10,21 @@ IP) ; conception : `card/docs/dev/API.md`.
 
 ## État
 
-Étape 1 — découverte du catalogue, sans réseau :
+Étapes 1 et 2 :
 
 - `GET /v1/cards` — catalogue filtrable par facettes de classification
   (`?phenomenon=basses eaux&output=série`, `&operator=delta`...) ;
 - `GET /v1/cards/{id}` — détail d'une fiche (`?lang=fr|en`) ;
+- `GET /v1/stations?libelle=Austerlitz` — référentiel Hub'Eau (les
+  codes ont changé depuis la refonte Hydro : chercher ici) ;
+- `GET /v1/extract?stations=F700000103&cards=QA,VCN10&start=&end=` —
+  chroniques Hub'Eau (QmnJ, converties en m³/s) → extraction card ;
+  cache local 24 h par station ; fiches à entrée Q uniquement ;
 - `GET /v1/health` — sonde de vie ;
 - `/docs` — documentation interactive (OpenAPI).
 
-À venir (cf. API.md) : `/v1/stations`, `/v1/extract`, `/v1/trend`,
-quotas, cache, journal d'usage.
+À venir (cf. API.md) : `/v1/trend`, quotas IP, motif job, journal
+d'usage. Test live : `CARD_API_LIVE=1 pytest tests/test_live_hubeau.py`.
 
 ## Développement
 
