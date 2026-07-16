@@ -15,7 +15,7 @@ src/card_api/
               #   pagination next, codes post-refonte) + cache 24 h
   usage.py    # quotas IP (fenêtre glissante, 429+Retry-After)
               #   + journal usage.jsonl (IP hachée salée)
-tests/        # 15 hors-ligne (Hub'Eau simulé ; validation MaKaHo sur
+tests/        # 15 hors-ligne (Hub'Eau simulé ; validation MAKAHO sur
               #   data/makaho/, précision machine) + 2 live (CARD_API_LIVE=1)
 Makefile      # interface ops : make env/up/update/logs/status/stats
 compose.yaml  # api + caddy (HTTPS auto) ; config dans .env (cf. .env.example)

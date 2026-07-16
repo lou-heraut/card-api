@@ -1,12 +1,12 @@
-"""Validation croisée avec MaKaHo (https://makaho.sk8.inrae.fr/).
+"""Validation croisée avec MAKAHO (https://makaho.sk8.inrae.fr/).
 
-Les exports de tests/data/makaho/ ont été générés par MaKaHo le
+Les exports de tests/data/makaho/ ont été générés par MAKAHO le
 2026-07-16 (EXstat/CARD R, stations RRSE, période 1968-09-01 à
 2024-08-31, année hydrologique 09-01, significativité 0.1, option
 Hamed & Rao AR1) pour quatre analyses : QA, tQJXA, dtLF, QSA_DJF.
 
 Partie hors-ligne (toujours exécutée) : stase.trend sur les séries
-agrégées de MaKaHo (dataEX) doit reproduire leurs tendances (trendEX)
+agrégées de MAKAHO (dataEX) doit reproduire leurs tendances (trendEX)
 à la précision machine ; cela valide le port MK/Sen indépendamment de
 la source de données.
 
@@ -14,6 +14,18 @@ Partie live (CARD_API_LIVE=1) : le pipeline complet de l'API (Hub'Eau
 -> extract -> trend) comparé aux mêmes exports ; la source diffère
 (scrape HydroPortail vs API Hub'Eau), la concordance est donc mesurée
 avec tolérance.
+
+Point de protocole (vérifié le 2026-07-16 sur les 4 exports) : MAKAHO
+n'utilise PAS l'échantillonnage adaptatif des fiches ; il impose le
+preferred_sampling_period de chaque fiche à toutes les stations
+(sampling_period_overwrite de CARD-R : 09-01 pour tQJXA, 01-01 pour
+dtLF), et c'est documenté dans la colonne sampling_period_en de ses
+metaEX. Toute comparaison sur fiche adaptative doit reproduire ces
+fenêtres fixes. Validation à trois voies faite sur les mêmes
+chroniques Hub'Eau : CARD-R vs card/stase identiques (séries 94-100 %,
+H 99-100 %, résidus = divergences documentées ORIGINE_R.md) ; les
+écarts restants vs MAKAHO sont dus à la source de données
+(révisions HydroPortail/Hub'Eau), pas à l'implémentation.
 """
 
 import os
@@ -26,8 +38,8 @@ import stase
 
 MAKAHO = Path(__file__).parent / "data" / "makaho"
 
-# (dossier, relative de la variable, période de tendance MaKaHo)
-# QSA_DJF : le premier hiver (déc. 1967 absent) est exclu par MaKaHo,
+# (dossier, relative de la variable, période de tendance MAKAHO)
+# QSA_DJF : le premier hiver (déc. 1967 absent) est exclu par MAKAHO,
 # le dernier (2024) est gardé ; les autres analyses couvrent tout
 # leur dataEX.
 CASES = [
@@ -61,7 +73,7 @@ def test_trend_reproduces_makaho(var, relative, period):
                     reason="test réseau : lancer avec CARD_API_LIVE=1")
 def test_api_pipeline_agrees_with_makaho_subset():
     """Pipeline complet sur un sous-ensemble de stations RRSE : la
-    tendance QA de l'API doit concorder avec MaKaHo malgré le
+    tendance QA de l'API doit concorder avec MAKAHO malgré le
     changement de source de données."""
     from fastapi.testclient import TestClient
     from card_api.main import app
