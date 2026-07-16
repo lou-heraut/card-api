@@ -23,13 +23,24 @@ quotas, cache, journal d'usage.
 
 ## Développement
 
+Une fois (installe card, stase et card-api en mode éditable dans le
+venv — les modifications des trois repos sont prises en compte sans
+réinstaller) :
+
+```bash
+python3 -m venv .python_env
+.python_env/bin/pip install -e ../../EXstat_project/stase -e ../card -e .[dev]
+```
+
+Puis :
+
 ```bash
 .python_env/bin/uvicorn card_api.main:app --reload   # http://127.0.0.1:8000/docs
 .python_env/bin/python -m pytest
 ```
 
-(card et stase sont rendus importables par `tests/conftest.py` en dev ;
-en image Docker ils sont installés depuis GitHub à révision épinglée.)
+(En image Docker, card et stase sont installés depuis GitHub à
+révision épinglée — cf. Dockerfile.)
 
 ## Déploiement (VM)
 
