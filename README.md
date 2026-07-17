@@ -45,6 +45,7 @@ curl "https://API/v1/cards/VCN10?lang=fr"
 
 ```python
 import requests, pandas as pd
+import matplotlib.pyplot as plt
 
 r = requests.get("https://API/v1/extract", params={
     "stations": "F700000103",
@@ -56,7 +57,9 @@ r = requests.get("https://API/v1/extract", params={
 vcn10 = pd.DataFrame(r["data"]["VCN10"])
 meta = pd.DataFrame(r["meta"])    # unités, noms fr/en, classification
 unit = meta.loc[meta.variable_en == "VCN10", "unit_fr"].iloc[0]
-vcn10.plot(x="date", y="VCN10", ylabel=f"VCN10 [{unit}]")
+vcn10.plot(x="date", y="VCN10", style="o",  # points : une valeur par an,
+           ylabel=f"VCN10 [{unit}]")           # pas un signal continu
+plt.show()
 ```
 
 ### Extraire en R
@@ -66,7 +69,7 @@ library(jsonlite)
 r <- fromJSON(paste0("https://API/v1/extract?",
                      "stations=F700000103&cards=QA&orient=columns"))
 qa <- as.data.frame(r$data$QA)
-plot(as.Date(qa$date), qa$QA, type = "l",
+plot(as.Date(qa$date), qa$QA,   # des points : une valeur par an
      ylab = r$meta$unit_fr[r$meta$variable_en == "QA"])
 ```
 
