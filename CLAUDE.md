@@ -62,9 +62,14 @@ quotas, journal, .env + Makefile) ; validation croisée MAKAHO
 (jobs publics, bascule auto, provenance, health enrichi, tableau de
 bord stats.py) ; clés de priorité faites (keys.py, issue template) ;
 Hub'Eau durci (retry x3 puis 504 propre, HubEauIndisponible).
-Déploiement réorienté Apache (2026-07-17) : la VM de l'utilisateur a
-déjà un Apache pour d'autres services, donc frontal = Apache
-(make apache) et le conteneur Caddy est un profil opt-in pour VM nue.
-**Reste** : premier déploiement réel sur la VM utilisateur
-(make env, make up, make apache ; DOMAIN = IP en attendant le nom de
-domaine, donc HTTP seulement pour l'instant).
+**DÉPLOYÉ le 2026-07-17** sur la VM de l'utilisateur derrière son
+Apache existant (make apache ; port local 8001 via CARD_API_PORT,
+8000 étant pris par une autre API ; DOMAIN = IP en attendant le nom
+de domaine, donc HTTP). /v1/trend accepte series=true (séries
+extraites jointes au diagnostic) ; examples/carte_tendance_QA.R =
+parcours complet clé + job 228 stations RRSE + carte (reprise par
+ticket via JOB, jeton dans examples/cle_locale.txt gitignoré).
+**Questions ouvertes** (arbitrages à venir, détail :
+../card/docs/dev/CHANTIERS.md §1) : listing des jobs par clé,
+entropie des tickets, RGPD des clés nominatives (le journal stocke
+le nom de la clé). **Reste aussi** : nom de domaine + certbot.
