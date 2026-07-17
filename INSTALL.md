@@ -21,6 +21,19 @@ CARD_API_LIVE=1 .python_env/bin/python -m pytest tests/test_live_hubeau.py
 
 ## Déploiement (VM)
 
+Prérequis sur une VM nue : Docker + le plugin compose v2. Le script
+officiel installe les deux quelle que soit la distribution :
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER"    # puis se déconnecter/reconnecter
+```
+
+Il faut aussi que le DNS du futur `DOMAIN` pointe vers la VM et que
+les ports 80 et 443 soient ouverts en entrée (certificat HTTPS
+automatique de Caddy) ; sur une VM institutionnelle, penser au
+pare-feu.
+
 Le Makefile est l'interface ; la configuration vit dans `.env`
 (gitignoré, rien de propre à la VM n'est dans le code).
 
@@ -37,9 +50,6 @@ cd /opt/card-api
 make env        # crée .env (sel aléatoire généré), éditer DOMAIN
 make up         # construit et lance (api + caddy, HTTPS automatique)
 ```
-
-Pour utiliser docker sans sudo : `sudo usermod -aG docker $USER`,
-puis se déconnecter/reconnecter (sinon préfixer les make de sudo).
 
 Au quotidien :
 
