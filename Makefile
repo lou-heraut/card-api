@@ -51,9 +51,12 @@ logs:            ## suit les logs de l'API
 
 status:          ## état des conteneurs + sonde de vie
 	@docker compose ps
-	@docker compose exec api python -c "import urllib.request; \
-	  print(urllib.request.urlopen('http://localhost:8000/v1/health').read().decode())" \
-	  || echo "API injoignable"
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+	  docker compose exec api python -c "import urllib.request; \
+	    print(urllib.request.urlopen('http://localhost:8000/v1/health').read().decode())" \
+	    2>/dev/null && exit 0; \
+	  sleep 1; \
+	done; echo "API injoignable après 10 s"; exit 1
 
 stats:           ## tableau de bord (usage, file de calcul, disque)
 	@docker compose exec api python -m card_api.stats
