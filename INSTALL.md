@@ -22,14 +22,24 @@ CARD_API_LIVE=1 .python_env/bin/python -m pytest tests/test_live_hubeau.py
 ## Déploiement (VM)
 
 Le Makefile est l'interface ; la configuration vit dans `.env`
-(gitignoré, rien de propre à la VM n'est dans le code) :
+(gitignoré, rien de propre à la VM n'est dans le code).
+
+Clone en HTTPS, jamais en SSH : le repo est public, la VM n'a besoin
+d'aucun identifiant et ne doit jamais en porter (une clé SSH
+personnelle sur un serveur donnerait à ce serveur le droit d'écrire
+sur vos repos). Le dossier appartient à l'utilisateur courant pour
+que `make update` tourne ensuite sans sudo :
 
 ```bash
-sudo git clone git@github.com:lou-heraut/card-api.git /opt/card-api
+sudo mkdir -p /opt/card-api && sudo chown "$USER": /opt/card-api
+git clone https://github.com/lou-heraut/card-api.git /opt/card-api
 cd /opt/card-api
 make env        # crée .env (sel aléatoire généré), éditer DOMAIN
 make up         # construit et lance (api + caddy, HTTPS automatique)
 ```
+
+Pour utiliser docker sans sudo : `sudo usermod -aG docker $USER`,
+puis se déconnecter/reconnecter (sinon préfixer les make de sudo).
 
 Au quotidien :
 
