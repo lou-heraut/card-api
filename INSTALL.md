@@ -27,10 +27,13 @@ sous-commande `docker compose` du Makefile ; le paquet
 
 ```bash
 # Ubuntu : tout est dans les dépôts
+sudo apt update
 sudo apt install docker.io docker-compose-v2
+# docker-compose-v2 introuvable ? activer le dépôt universe :
+#   sudo add-apt-repository universe && sudo apt update
 
-# Debian : compose v2 absent des dépôts de base ; passer par le dépôt
-# apt officiel de Docker (docs.docker.com/engine/install/debian), puis
+# Debian (ou Ubuntu via le dépôt officiel Docker) : suivre
+# docs.docker.com/engine/install/<debian|ubuntu>, puis
 sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 # dans les deux cas :
