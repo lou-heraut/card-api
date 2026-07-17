@@ -4,42 +4,51 @@
 # (10 couleurs divergentes brun -> vert, classes centrées sur zéro,
 # classes extrêmes ouvertes vers +/- l'infini).
 #
-# Préparation :
-#   - une clé de priorité est NÉCESSAIRE ici : 228 stations dépassent
-#     le plafond public des jobs (100). L'administrateur la crée sur
-#     la VM :  make key name="Prénom Nom, labo"
-#     puis :   export CARD_API_KEY=<jeton>
-#   - adresse du service :  export CARD_API_URL=http://...
+# Paramètres : le bloc ci-dessous (pensé pour un lancement depuis un
+# IDE, depuis la racine du repo ; Rscript examples/... marche aussi).
 #
-# Usage, depuis la racine du repo (pour tests/data/makaho/QA/meta.csv) :
-#   Rscript examples/carte_tendance_QA.R
+#   - le jeton de clé de priorité va dans examples/cle_locale.txt
+#     (une seule ligne, fichier gitignoré) : JAMAIS de secret dans un
+#     fichier suivi par git. La clé est nécessaire au dépôt : 228
+#     stations dépassent le plafond public des jobs (100).
+#     L'administrateur la crée sur la VM : make key name="Prénom Nom, labo"
+#   - reprise : le calcul tourne côté serveur et le résultat reste
+#     disponible plusieurs jours. Pour récupérer plus tard un job déjà
+#     déposé (ordinateur éteint entre-temps...), renseigner JOB avec
+#     le ticket affiché au dépôt : le script saute le dépôt et va
+#     directement au résultat. Pas besoin de clé pour ça.
 
 library(jsonlite)
 library(httr)
 
-API <- Sys.getenv("CARD_API_URL", "http://147.100.222.13")
-KEY <- Sys.getenv("CARD_API_KEY", "")
-if (KEY == "") stop("définir CARD_API_KEY (cf. en-tête du script)")
+API <- "http://147.100.222.13"
+JOB <- ""     # ticket d'un job déjà déposé, ex. "a1b2c3d4" ; "" = déposer
+KEY <- if (file.exists("examples/cle_locale.txt"))
+  trimws(readLines("examples/cle_locale.txt", n = 1)) else ""
 
 # ── Les stations : réseau RRSE du jeu de validation MAKAHO ──────────────────
 meta <- read.csv("tests/data/makaho/QA/meta.csv")
-cat(nrow(meta), "stations RRSE\n")
 
 # ── Dépôt du job : tendance de QA, fenêtre fixe des fiches ──────────────────
-r <- POST(paste0(API, "/v1/jobs"),
-          add_headers(`X-API-Key` = KEY),
-          body = list(endpoint = "trend",
-                      stations = meta$code,
-                      cards = "QA",
-                      sampling = "preferred"),  # fenêtre fixe déclarée (09-01)
-          encode = "json")                      # -> comparable entre stations
-stopifnot(status_code(r) == 202)
-ticket <- content(r)
-cat("job", ticket$job, "déposé\n")
+if (JOB == "") {
+  if (KEY == "") stop("jeton manquant : examples/cle_locale.txt (cf. en-tête)")
+  cat(nrow(meta), "stations RRSE\n")
+  r <- POST(paste0(API, "/v1/jobs"),
+            add_headers(`X-API-Key` = KEY),
+            body = list(endpoint = "trend",
+                        stations = meta$code,
+                        cards = "QA",
+                        sampling = "preferred"), # fenêtre fixe déclarée (09-01)
+            encode = "json")                     # -> comparable entre stations
+  stopifnot(status_code(r) == 202)
+  JOB <- content(r)$job
+  cat("job", JOB, "déposé : noter ce ticket pour reprendre plus tard\n")
+}
 
 # ── Suivi jusqu'au résultat ──────────────────────────────────────────────────
+job_url <- paste0(API, "/v1/jobs/", JOB)
 repeat {
-  st <- fromJSON(paste0(API, ticket$status_url, "?key=", KEY))
+  st <- fromJSON(job_url)
   cat(sprintf("\r%s : %d/%d (%s)      ", st$status,
               st$progress$done, st$progress$total, st$progress$phase))
   if (st$status %in% c("done", "failed")) break
@@ -48,7 +57,7 @@ repeat {
 cat("\n")
 stopifnot(st$status == "done")
 
-res <- fromJSON(paste0(API, ticket$result_url, "?key=", KEY))
+res <- fromJSON(paste0(job_url, "/result"))
 tr <- res$data$QA                     # une ligne par station : H, p, a...
 
 # ── Palette de la fiche QA (voyage dans le meta de la réponse) ───────────────
