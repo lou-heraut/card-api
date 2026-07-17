@@ -231,6 +231,7 @@ def _execute(job: dict, progress) -> dict:
         progress(total, total, "extraction")
         res = card.extract(data, cards=p["cards"],
                            sampling_period=p.get("sampling"), verbose=False)
+        extracted = res["data"]
         if p["endpoint"] == "trend":
             progress(total, total, "tendance")
             tr = card.trend(res, level=p.get("level", 0.1),
@@ -259,4 +260,7 @@ def _execute(job: dict, progress) -> dict:
     if p["endpoint"] == "trend":
         out["mk"] = p.get("mk", "AR1")
         out["level"] = p.get("level", 0.1)
+        if p.get("series"):
+            out["series"] = {k: serialize(v, orient)
+                             for k, v in extracted.items()}
     return out

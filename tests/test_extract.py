@@ -92,6 +92,24 @@ def test_trend_endpoint():
     assert "series" in r2.json()["detail"]
 
 
+def test_trend_series_embeds_extracted_series():
+    # sans l'option : pas de clé series
+    base = client.get("/v1/trend", params={
+        "stations": "K0550010", "cards": "QA"}).json()
+    assert "series" not in base
+    # avec : les séries extraites accompagnent la tendance,
+    # identiques à ce que /v1/extract renvoie sur la même demande
+    r = client.get("/v1/trend", params={
+        "stations": "K0550010", "cards": "QA", "series": "true",
+        "orient": "columns"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["data"]["QA"]          # la tendance est toujours là
+    extract = client.get("/v1/extract", params={
+        "stations": "K0550010", "cards": "QA", "orient": "columns"}).json()
+    assert body["series"]["QA"] == extract["data"]["QA"]
+
+
 def test_rate_limit_and_usage_log(monkeypatch, tmp_path):
     from card_api import usage
     usage._hits.clear()

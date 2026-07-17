@@ -307,6 +307,7 @@ def trend(request: Request, stations: str, cards: str,
           start: str | None = None, end: str | None = None,
           sampling: str | None = None,
           mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
+          series: bool = False,
           orient: str = "records"):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (card.trend) sur chaque série.
@@ -319,6 +320,10 @@ def trend(request: Request, stations: str, cards: str,
             1998), 'INDE' (test standard, hypothèse d'indépendance) ou
             'LTP' (mémoire longue, Hamed 2008).
     level : niveau de signification du test (défaut 0.1).
+    series: true pour joindre sous 'series' les séries extraites sur
+            lesquelles la tendance a été calculée (mêmes données
+            garanties : tout vient du même calcul ; pratique pour
+            tracer points + tendance sans second appel).
     Fiches acceptées : sorties de forme 'series' uniquement (la
     tendance d'un scalaire ou d'une courbe n'a pas de sens).
     """
@@ -332,7 +337,7 @@ def trend(request: Request, stations: str, cards: str,
     _check_cards_series(cd)
     ticket = _maybe_job(request, "trend", st, cd, prio, start=start,
                         end=end, sampling=sampling, mk=mk, level=level,
-                        orient=orient)
+                        series=series or None, orient=orient)
     if ticket is not None:
         return ticket
 
@@ -345,7 +350,7 @@ def trend(request: Request, stations: str, cards: str,
     trends = {cid: serialize(df, orient) for cid, df in tr["data"].items()}
 
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
-    return {
+    out = {
         "card_version": CARD_VERSION,
         "stations": st,
         "cards": cd,
@@ -357,6 +362,10 @@ def trend(request: Request, stations: str, cards: str,
         "meta": serialize(res["meta"]),
         "data": trends,
     }
+    if series:
+        out["series"] = {cid: serialize(df, orient)
+                         for cid, df in res["data"].items()}
+    return out
 
 
 # ── Jobs : demandes massives en file de calcul ──────────────────────────────
@@ -370,6 +379,7 @@ class JobRequest(BaseModel):
     sampling: str | None = None
     mk: str = "AR1"
     level: float = 0.1
+    series: bool = False                 # trend : joindre les séries extraites
     orient: str = "records"
 
 
@@ -407,6 +417,8 @@ def create_job(request: Request, req: JobRequest):
         params["sampling"] = req.sampling
     if req.endpoint == "trend":
         params.update(mk=req.mk, level=req.level)
+        if req.series:
+            params["series"] = True
     params["orient"] = req.orient
     try:
         job = jobs.submit(params,

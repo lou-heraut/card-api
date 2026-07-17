@@ -10,7 +10,8 @@ sans clé, quotas IP, journal anonymisé, commercial écarté).
 ```
 src/card_api/
   main.py       # endpoints /v1 : cards, cards/{id}, stations, extract,
-                #   trend (mk défaut AR1, sampling=preferred|MM-JJ),
+                #   trend (mk défaut AR1, sampling=preferred|MM-JJ,
+                #   series=true joint les séries extraites au diagnostic),
                 #   jobs (POST + statut + result), health (file, disque)
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc

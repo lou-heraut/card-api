@@ -86,10 +86,25 @@ r = requests.get("https://API/v1/trend", params={
                                   # ou "MM-JJ" pour l'imposer (ex. 09-01)
     "mk": "AR1",                  # défaut ; ou INDE, LTP
     "level": 0.1,
+    "series": "true",             # joint les séries extraites sous
+                                  # 'series' : points et tendance issus
+                                  # du même calcul, aucun doute possible
 }).json()
 pd.DataFrame(r["data"]["VCN10"])
 # → une ligne par station : H (tendance significative ?), p-value,
 #   pente de Sen (absolue et relative), période analysée
+```
+
+Figure points + tendance (une station) :
+
+```python
+tr = pd.DataFrame(r["data"]["VCN10"]).set_index("id").loc["F700000103"]
+s = pd.DataFrame(r["series"]["VCN10"]).query("id == 'F700000103'")
+dates = pd.to_datetime(s["date"])
+plt.plot(dates, s["VCN10"], "o")            # points : une valeur par an
+years = (dates - pd.Timestamp("1970-01-01")).dt.days / 365.25
+plt.plot(dates, tr["a"] * years + tr["b"], "--")     # droite de Sen
+plt.show()
 ```
 
 ### Grosses demandes : le motif job

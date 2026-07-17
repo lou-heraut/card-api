@@ -47,9 +47,11 @@ def _wait_done(job_id, timeout=30.0):
 
 def test_job_trend_matches_sync():
     params = {"stations": "K0550010,F7000001", "cards": "QA"}
-    sync = client.get("/v1/trend", params=params).json()
+    sync = client.get("/v1/trend",
+                      params={**params, "series": "true"}).json()
 
-    r = client.post("/v1/jobs", json={"endpoint": "trend", **params})
+    r = client.post("/v1/jobs",
+                    json={"endpoint": "trend", "series": True, **params})
     assert r.status_code == 202
     jid = r.json()["job"]
     assert r.headers["location"] == f"/v1/jobs/{jid}"
@@ -60,6 +62,7 @@ def test_job_trend_matches_sync():
     assert res.status_code == 200
     body = res.json()
     assert body["data"] == sync["data"]                 # même calcul exact
+    assert body["series"] == sync["series"]     # séries extraites jointes
     prov = body["job"]
     assert prov["id"] == jid
     assert prov["data_fetched_at"]
