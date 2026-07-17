@@ -7,8 +7,8 @@ stationnarité Mann-Kendall / pente de Sen (via
 [stase](https://github.com/lou-heraut/stase)).
 
 Service public de recherche (INRAE, UR RiverLy). Ouvert, sans
-inscription (quota par IP) ; code GPL-3, données Hub'Eau en Licence
-Ouverte. Déploiement et développement : [INSTALL.md](INSTALL.md).
+inscription ; code GPL-3, données Hub'Eau en Licence Ouverte.
+Déploiement et développement : [INSTALL.md](INSTALL.md).
 
 ## Les endpoints
 
@@ -24,99 +24,137 @@ Ouverte. Déploiement et développement : [INSTALL.md](INSTALL.md).
 | `GET /v1/health` | santé du service (file de calcul, disque) |
 | `/docs` | documentation interactive (OpenAPI) |
 
-## Exemples
+Chaque réponse est en JSON et se suffit à elle-même : `data` (les
+résultats), `meta` (unités, noms français et anglais, classification),
+la source des données et les versions des logiciels. Deux formats au
+choix : `orient=records` (défaut, une liste d'objets, comme Hub'Eau)
+ou `orient=columns` (colonnaire, `{colonne: [valeurs]}`, plus
+compact).
 
-### Trouver sa station (les codes ont changé depuis la refonte Hydro !)
+## Préparer sa demande
+
+### La station
+
+La recherche interroge le référentiel hydrométrique Hub'Eau par nom,
+code ou département, et renvoie pour chaque station son code, son
+libellé, ses coordonnées et son état de service. C'est aussi le moyen
+de retrouver le code actuel d'une station connue sous son ancien code
+Banque Hydro.
 
 ```bash
 curl "https://API/v1/stations?libelle=Austerlitz"
 # → F700000103 | La Seine à Paris - Austerlitz [>2006]
+curl "https://API/v1/stations?departement=07&size=100"
 ```
 
-### Trouver ses fiches par facette de classification
+### Les fiches
+
+Chaque fiche définit une variable calculable sur la chronique de
+débit : module, étiages, crues, saisonnalité... Le catalogue se
+filtre par facettes de classification (`domain`, `phenomenon`,
+`season`, `output`...) ou par texte libre, en français ou en anglais :
 
 ```bash
 curl "https://API/v1/cards?phenomenon=basses%20eaux&output=série"
 curl "https://API/v1/cards?operator=delta&search=VCN"
-curl "https://API/v1/cards/VCN10?lang=fr"
+curl "https://API/v1/cards/VCN10?lang=fr"      # détail d'une fiche
 ```
 
-### Extraire en Python
+## Cas d'usage
+
+Le même fil en Python puis en R : extraire des indicateurs annuels,
+en tracer un, puis diagnostiquer sa tendance et superposer points et
+droite de Sen. Les indicateurs annuels se tracent en points (une
+valeur par an), pas en ligne continue.
+
+Deux paramètres méritent un mot :
+
+- `sampling=preferred` fige la fenêtre annuelle de calcul sur celle
+  que chaque fiche déclare (par exemple l'année hydrologique 09-01
+  pour les crues). Par défaut, les fiches d'étiage et de crue adaptent
+  leur fenêtre à chaque station ; `preferred` rend les résultats
+  directement comparables entre stations et reproductibles.
+- `series=true` sur `/v1/trend` joint à la réponse, sous `series`,
+  les séries extraites sur lesquelles la tendance a été calculée :
+  points et diagnostic issus du même calcul, sans second appel.
+
+### En Python
 
 ```python
 import requests, pandas as pd
 import matplotlib.pyplot as plt
 
-r = requests.get("https://API/v1/extract", params={
+API = "https://API"
+
+# Extraction : module (QA) et étiage (VCN10) de la Seine à Paris
+r = requests.get(f"{API}/v1/extract", params={
     "stations": "F700000103",
     "cards": "QA,VCN10",
     "start": "1990-01-01",
-    "orient": "columns",          # directement ingérable par pandas
+    "orient": "columns",              # directement ingérable par pandas
 }).json()
 
 vcn10 = pd.DataFrame(r["data"]["VCN10"])
-meta = pd.DataFrame(r["meta"])    # unités, noms fr/en, classification
+meta = pd.DataFrame(r["meta"])
 unit = meta.loc[meta.variable_en == "VCN10", "unit_fr"].iloc[0]
-vcn10.plot(x="date", y="VCN10", style="o",  # points : une valeur par an,
-           ylabel=f"VCN10 [{unit}]")           # pas un signal continu
+vcn10.plot(x="date", y="VCN10", style="o", ylabel=f"VCN10 [{unit}]")
+plt.show()
+
+# Tendance du VCN10 : une ligne par station (H : tendance
+# significative ? p-value, pente de Sen absolue `a` et relative)
+r = requests.get(f"{API}/v1/trend", params={
+    "stations": "F700000103",
+    "cards": "VCN10",
+    "sampling": "preferred",
+    "series": "true",
+}).json()
+
+tr = pd.DataFrame(r["data"]["VCN10"]).iloc[0]
+s = pd.DataFrame(r["series"]["VCN10"])
+dates = pd.to_datetime(s["date"])
+years = (dates - pd.Timestamp("1970-01-01")).dt.days / 365.25
+plt.plot(dates, s["VCN10"], "o")
+plt.plot(dates, tr["a"] * years + tr["b"], "--")   # droite de Sen
 plt.show()
 ```
 
-### Extraire en R
+### En R
 
 ```r
 library(jsonlite)
-r <- fromJSON(paste0("https://API/v1/extract?",
-                     "stations=F700000103&cards=QA&orient=columns"))
-qa <- as.data.frame(r$data$QA)
-plot(as.Date(qa$date), qa$QA,   # des points : une valeur par an
-     ylab = r$meta$unit_fr[r$meta$variable_en == "QA"])
+API <- "https://API"
+
+# Extraction : module (QA) et étiage (VCN10) de la Seine à Paris
+# (orient par défaut 'records' : fromJSON en fait des data.frame)
+r <- fromJSON(paste0(API, "/v1/extract?stations=F700000103",
+                     "&cards=QA,VCN10&start=1990-01-01"))
+vcn10 <- r$data$VCN10
+unit <- r$meta$unit_fr[r$meta$variable_en == "VCN10"]
+plot(as.Date(vcn10$date), vcn10$VCN10,
+     ylab = paste0("VCN10 [", unit, "]"))
+
+# Tendance du VCN10 : une ligne par station (H : tendance
+# significative ? p-value, pente de Sen absolue `a` et relative)
+r <- fromJSON(paste0(API, "/v1/trend?stations=F700000103",
+                     "&cards=VCN10&sampling=preferred&series=true"))
+tr <- r$data$VCN10[1, ]
+s <- r$series$VCN10
+dates <- as.Date(s$date)
+years <- as.numeric(dates) / 365.25
+plot(dates, s$VCN10)
+lines(dates, tr$a * years + tr$b, lty = 2)      # droite de Sen
 ```
 
-### Tendance (à la MAKAHO)
+### Grosses demandes : les jobs
+
+Au-dessus de 10 stations ou 20 fiches, la demande devient un job,
+sans inscription : la réponse `202` donne un ticket, le calcul se
+fait en file, le résultat reste téléchargeable plusieurs jours avec
+un bloc de provenance (paramètres, versions, date des données) qui le
+rend citable et reproductible.
 
 ```python
-r = requests.get("https://API/v1/trend", params={
-    "stations": "F700000103,K0550010",
-    "cards": "VCN10",
-    "sampling": "preferred",      # fenêtre fixe de chaque fiche
-                                  # (protocole MAKAHO) ; défaut : fenêtre
-                                  # de la fiche, adaptative par station
-                                  # pour les fiches d'étiage/crue ;
-                                  # ou "MM-JJ" pour l'imposer (ex. 09-01)
-    "mk": "AR1",                  # défaut ; ou INDE, LTP
-    "level": 0.1,
-    "series": "true",             # joint les séries extraites sous
-                                  # 'series' : points et tendance issus
-                                  # du même calcul, aucun doute possible
-}).json()
-pd.DataFrame(r["data"]["VCN10"])
-# → une ligne par station : H (tendance significative ?), p-value,
-#   pente de Sen (absolue et relative), période analysée
-```
-
-Figure points + tendance (une station) :
-
-```python
-tr = pd.DataFrame(r["data"]["VCN10"]).set_index("id").loc["F700000103"]
-s = pd.DataFrame(r["series"]["VCN10"]).query("id == 'F700000103'")
-dates = pd.to_datetime(s["date"])
-plt.plot(dates, s["VCN10"], "o")            # points : une valeur par an
-years = (dates - pd.Timestamp("1970-01-01")).dt.days / 365.25
-plt.plot(dates, tr["a"] * years + tr["b"], "--")     # droite de Sen
-plt.show()
-```
-
-### Grosses demandes : le motif job
-
-Au-dessus de 10 stations ou 20 fiches, la demande devient un job (sans
-inscription, comme tout le reste) : la réponse `202` donne un ticket,
-le calcul se fait en file, le résultat reste téléchargeable plusieurs
-jours avec un bloc de provenance (paramètres, versions, date des
-données) qui le rend citable et reproductible.
-
-```python
-job = requests.post("https://API/v1/jobs", json={
+job = requests.post(f"{API}/v1/jobs", json={
     "endpoint": "trend",
     "stations": liste_de_codes,       # jusqu'à 100
     "cards": ["QA", "VCN10"],
@@ -129,22 +167,22 @@ job = requests.post("https://API/v1/jobs", json={
 Les appels `GET /v1/extract` et `/v1/trend` trop gros basculent
 automatiquement sur ce circuit (réponse `202` au lieu d'un refus).
 
-Deux formats de réponse : `orient=records` (défaut, liste d'objets,
-comme Hub'Eau) ou `orient=columns` (colonnaire : `{colonne:
-[valeurs]}`, plus compact, une ligne pour recharger en DataFrame).
-Chaque réponse embarque `meta` (unités, noms bilingues,
-classification), la source des données et les versions : elle se
-suffit à elle-même.
+## Quotas et clés de priorité
 
-## Bon voisinage
+Le service est public avec un quota par IP et par minute ; en cas de
+dépassement (`429`), l'en-tête `Retry-After` indique quand réessayer.
+Les chroniques sont mises en cache 24 h côté serveur : répéter une
+requête ne re-télécharge rien depuis Hub'Eau.
 
-- Quota public par IP ; en cas de `429`, l'en-tête `Retry-After`
-  indique quand réessayer. Besoin massif (centaines de stations,
-  usage récurrent) : demandez une clé de priorité gratuite en
-  [ouvrant une issue](../../issues/new?template=cle-de-priorite.yml),
-  puis passez-la en en-tête `X-API-Key` (ou paramètre `key=`) : quotas
-  levés, plafonds relevés, jobs en tête de file.
-- Les chroniques sont mises en cache 24 h côté serveur : répéter une
-  requête ne re-télécharge pas Hub'Eau.
-- Fiches à entrée `Q` uniquement (le service ne fournit que des
-  débits) ; la tendance ne s'applique qu'aux fiches de forme `series`.
+Pour un besoin massif ou récurrent (centaines de stations, chaînes de
+traitement), demandez une clé de priorité gratuite en
+[ouvrant une issue](../../issues/new?template=cle-de-priorite.yml).
+Elle se passe en en-tête `X-API-Key` ou en paramètre `key=` : quotas
+par minute levés, plafonds relevés (jusqu'à 1000 stations par job),
+jobs en tête de file.
+
+## Périmètre
+
+Le service ne fournit que des débits journaliers (fiches à entrée
+`Q`) ; le diagnostic de tendance ne s'applique qu'aux fiches de forme
+`series` (la tendance d'un scalaire ou d'une courbe n'a pas de sens).
