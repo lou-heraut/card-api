@@ -30,8 +30,10 @@ src/card_api/
 tests/          # 27 hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
                 #   validation MAKAHO, précision machine) + 2 live
 .github/        # template d'issue « clé de priorité »
-Makefile        # ops : make env/up/update/logs/status/stats/watch
-compose.yaml    # api + caddy (HTTPS auto) ; config dans .env (cf. .env.example)
+Makefile        # ops : make env/up/apache/update/logs/status/stats/watch
+compose.yaml    # api sur 127.0.0.1:8000 ; frontal = Apache de la VM
+                #   (make apache, vhost généré depuis DOMAIN) ou profil
+                #   caddy (COMPOSE_PROFILES=caddy, VM nue) ; .env
 ```
 
 Dev : `pip install -e ../../EXstat_project/stase -e ../card -e .[dev]`
@@ -51,7 +53,7 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
 
-## État (2026-07-16, nuit) et suite
+## État (2026-07-17) et suite
 
 Étapes 1–3 d'API.md faites (catalogue, stations, extract, trend,
 quotas, journal, .env + Makefile) ; validation croisée MAKAHO
@@ -59,5 +61,9 @@ quotas, journal, .env + Makefile) ; validation croisée MAKAHO
 (jobs publics, bascule auto, provenance, health enrichi, tableau de
 bord stats.py) ; clés de priorité faites (keys.py, issue template) ;
 Hub'Eau durci (retry x3 puis 504 propre, HubEauIndisponible).
+Déploiement réorienté Apache (2026-07-17) : la VM de l'utilisateur a
+déjà un Apache pour d'autres services, donc frontal = Apache
+(make apache) et le conteneur Caddy est un profil opt-in pour VM nue.
 **Reste** : premier déploiement réel sur la VM utilisateur
-(make env / make up).
+(make env, make up, make apache ; DOMAIN = IP en attendant le nom de
+domaine, donc HTTP seulement pour l'instant).

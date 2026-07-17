@@ -43,11 +43,6 @@ sudo usermod -aG docker "$USER"    # puis se déconnecter/reconnecter
 (Le script `curl -fsSL https://get.docker.com | sudo sh` automatise
 la mise en place du dépôt officiel si l'on préfère.)
 
-Il faut aussi que le DNS du futur `DOMAIN` pointe vers la VM et que
-les ports 80 et 443 soient ouverts en entrée (certificat HTTPS
-automatique de Caddy) ; sur une VM institutionnelle, penser au
-pare-feu.
-
 Le Makefile est l'interface ; la configuration vit dans `.env`
 (gitignoré, rien de propre à la VM n'est dans le code).
 
@@ -62,8 +57,45 @@ sudo mkdir -p /opt/card-api && sudo chown "$USER": /opt/card-api
 git clone https://github.com/lou-heraut/card-api.git /opt/card-api
 cd /opt/card-api
 make env        # crée .env (sel aléatoire généré), éditer DOMAIN
-make up         # construit et lance (api + caddy, HTTPS automatique)
+make up         # construit et lance l'API sur 127.0.0.1:8000
 ```
+
+`DOMAIN` dans `.env` = le nom de domaine public, ou l'IP de la VM en
+attendant d'en avoir un (dans ce cas HTTP seulement : aucun
+certificat ne peut être émis pour une IP nue).
+
+À ce stade l'API tourne mais n'écoute que la boucle locale
+(`curl http://127.0.0.1:8000/v1/health` pour vérifier). C'est le
+frontal web qui l'expose au monde ; deux cas :
+
+### La VM a déjà un serveur Apache (cas classique)
+
+```bash
+make apache     # génère le vhost depuis DOMAIN, l'active, recharge Apache
+```
+
+La cible écrit `/etc/apache2/sites-available/card-api.conf` (un
+reverse proxy `*:80` vers `127.0.0.1:8000`), active `mod_proxy`,
+vérifie la syntaxe et recharge Apache sans toucher aux autres sites.
+Elle est rejouable : changement de domaine = éditer `DOMAIN` dans
+`.env` puis relancer `make apache`.
+
+HTTPS, dès qu'un vrai nom de domaine pointe sur la VM :
+
+```bash
+sudo apt install certbot python3-certbot-apache   # une fois
+sudo certbot --apache -d $DOMAIN                  # crée le vhost 443
+```
+
+certbot renouvelle ensuite le certificat tout seul.
+
+### VM nue, sans serveur web : frontal Caddy autoportant
+
+Décommenter `COMPOSE_PROFILES=caddy` dans `.env`, puis `make up` :
+docker compose lance aussi un conteneur Caddy qui prend les ports 80
+et 443 avec HTTPS automatique. Prérequis : le DNS de `DOMAIN` pointe
+vers la VM (pas d'IP dans ce mode), ports 80/443 ouverts en entrée
+(sur une VM institutionnelle, penser au pare-feu).
 
 Au quotidien :
 
@@ -86,7 +118,8 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `DOMAIN` | aucun (requis) | domaine public, injecté dans le Caddyfile |
+| `DOMAIN` | aucun (requis) | domaine public (ou IP de la VM, HTTP seulement) ; lu par `make apache` et par le Caddyfile |
+| `COMPOSE_PROFILES` | absent | `caddy` pour activer le frontal Caddy autoportant (VM nue) ; absent = frontal Apache de la VM (`make apache`) |
 | `CARD_API_SALT` | aucun (requis, généré par `make env`) | sel du hachage des IP du journal ; fixe en prod pour des comptes d'utilisateurs distincts stables |
 | `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend/jobs) par IP/minute |
 | `CARD_API_RATE_LIGHT` | 60 | requêtes de catalogue par IP/minute |

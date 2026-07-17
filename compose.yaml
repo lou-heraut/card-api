@@ -23,11 +23,18 @@ services:
       CARD_API_PRIORITY_CARDS: ${CARD_API_PRIORITY_CARDS:-226}
     volumes:
       - data:/data
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8000:8000"   # boucle locale seulement ; le frontal
+                                # (Apache de la VM ou Caddy ci-dessous)
+                                # expose au monde
 
+  # Frontal autoportant pour une VM nue, désactivé par défaut :
+  # décommenter COMPOSE_PROFILES=caddy dans .env pour l'activer.
+  # Si la VM a déjà un serveur web (Apache...), ne pas l'activer :
+  # utiliser make apache.
   caddy:
     image: caddy:2-alpine
+    profiles: ["caddy"]
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN:?définir DOMAIN dans .env}

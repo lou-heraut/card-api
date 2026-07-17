@@ -1,7 +1,7 @@
 # Interface de déploiement. Usage : make <cible>
 # Prérequis : docker + docker compose, fichier .env (cf. .env.example).
 
-.PHONY: help env up update logs status stats watch key keys key-revoke down test
+.PHONY: help env up apache update logs status stats watch key keys key-revoke down test
 .ONESHELL:
 
 help:            ## liste des cibles
@@ -15,6 +15,30 @@ env:             ## crée .env depuis l'exemple (à éditer ensuite)
 
 up: env          ## construit et lance (première fois ou après modif locale)
 	docker compose up -d --build
+
+apache:          ## génère et active le vhost Apache (DOMAIN lu dans .env)
+	@set -e
+	test -f .env || { echo "pas de .env : make env, puis éditer DOMAIN"; exit 1; }
+	DOMAIN=$$(sed -n 's/^DOMAIN=//p' .env)
+	test -n "$$DOMAIN" || { echo "DOMAIN manquant dans .env"; exit 1; }
+	printf '%s\n' \
+	  "# Généré par « make apache » (card-api) ; DOMAIN vient de .env." \
+	  "<VirtualHost *:80>" \
+	  "    ServerName $$DOMAIN" \
+	  "    ProxyPreserveHost On" \
+	  "    ProxyPass        / http://127.0.0.1:8000/" \
+	  "    ProxyPassReverse / http://127.0.0.1:8000/" \
+	  "</VirtualHost>" \
+	  | sudo tee /etc/apache2/sites-available/card-api.conf >/dev/null
+	sudo a2enmod -q proxy proxy_http
+	sudo a2ensite -q card-api
+	sudo apachectl configtest
+	sudo systemctl reload apache2
+	echo "vhost actif : http://$$DOMAIN/"
+	case "$$DOMAIN" in
+	  *[a-zA-Z]*) echo "HTTPS : sudo certbot --apache -d $$DOMAIN" ;;
+	  *) echo "HTTPS impossible sur une IP nue ; il faudra un nom de domaine." ;;
+	esac
 
 update:          ## met à jour le code et redéploie
 	git pull --ff-only
