@@ -9,9 +9,11 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 
+# Tarballs GitHub plutôt que git+https : l'image slim n'a pas git, et
+# pip installe une archive directement (branche, tag ou commit).
 RUN pip install --no-cache-dir \
-        "git+https://github.com/lou-heraut/stase@${STASE_REF}" \
-        "git+https://github.com/lou-heraut/card@${CARD_REF}" \
+        "https://github.com/lou-heraut/stase/archive/${STASE_REF}.tar.gz" \
+        "https://github.com/lou-heraut/card/archive/${CARD_REF}.tar.gz" \
     && pip install --no-cache-dir .
 
 # cache des chroniques + journal d'usage (volume, cf. compose.yaml)
