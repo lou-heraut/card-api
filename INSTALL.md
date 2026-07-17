@@ -119,6 +119,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `DOMAIN` | aucun (requis) | domaine public (ou IP de la VM, HTTP seulement) ; lu par `make apache` et par le Caddyfile |
+| `CARD_API_PORT` | 8000 | port hôte (boucle locale) du conteneur ; à changer si 8000 est déjà pris, `make apache` suit |
 | `COMPOSE_PROFILES` | absent | `caddy` pour activer le frontal Caddy autoportant (VM nue) ; absent = frontal Apache de la VM (`make apache`) |
 | `CARD_API_SALT` | aucun (requis, généré par `make env`) | sel du hachage des IP du journal ; fixe en prod pour des comptes d'utilisateurs distincts stables |
 | `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend/jobs) par IP/minute |

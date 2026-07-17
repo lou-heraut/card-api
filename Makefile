@@ -21,13 +21,14 @@ apache:          ## génère et active le vhost Apache (DOMAIN lu dans .env)
 	test -f .env || { echo "pas de .env : make env, puis éditer DOMAIN"; exit 1; }
 	DOMAIN=$$(sed -n 's/^DOMAIN=//p' .env)
 	test -n "$$DOMAIN" || { echo "DOMAIN manquant dans .env"; exit 1; }
+	PORT=$$(sed -n 's/^CARD_API_PORT=//p' .env); PORT=$${PORT:-8000}
 	printf '%s\n' \
 	  "# Généré par « make apache » (card-api) ; DOMAIN vient de .env." \
 	  "<VirtualHost *:80>" \
 	  "    ServerName $$DOMAIN" \
 	  "    ProxyPreserveHost On" \
-	  "    ProxyPass        / http://127.0.0.1:8000/" \
-	  "    ProxyPassReverse / http://127.0.0.1:8000/" \
+	  "    ProxyPass        / http://127.0.0.1:$$PORT/" \
+	  "    ProxyPassReverse / http://127.0.0.1:$$PORT/" \
 	  "</VirtualHost>" \
 	  | sudo tee /etc/apache2/sites-available/card-api.conf >/dev/null
 	sudo a2enmod -q proxy proxy_http

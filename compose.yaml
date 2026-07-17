@@ -24,9 +24,10 @@ services:
     volumes:
       - data:/data
     ports:
-      - "127.0.0.1:8000:8000"   # boucle locale seulement ; le frontal
-                                # (Apache de la VM ou Caddy ci-dessous)
-                                # expose au monde
+      # Boucle locale seulement ; le frontal (Apache de la VM ou Caddy
+      # ci-dessous) expose au monde. Port hôte réglable dans .env si
+      # 8000 est déjà pris (CARD_API_PORT).
+      - "127.0.0.1:${CARD_API_PORT:-8000}:8000"
 
   # Frontal autoportant pour une VM nue, désactivé par défaut :
   # décommenter COMPOSE_PROFILES=caddy dans .env pour l'activer.
