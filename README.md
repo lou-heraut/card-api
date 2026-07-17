@@ -6,6 +6,9 @@ Hydro (via [Hub'Eau](https://hubeau.eaufrance.fr/)) et diagnostic de
 stationnarité Mann-Kendall / pente de Sen (via
 [stase](https://github.com/lou-heraut/stase)).
 
+**Documentation interactive : [https://API/docs](https://API/docs)**
+(essai des requêtes dans le navigateur, schémas de réponse).
+
 Service public de recherche (INRAE, UR RiverLy). Ouvert, sans
 inscription ; code GPL-3, données Hub'Eau en Licence Ouverte.
 Déploiement et développement : [INSTALL.md](INSTALL.md).
@@ -80,29 +83,36 @@ Deux paramètres méritent un mot :
 
 ### En Python
 
+Extraction : module (QA) et étiage (VCN10) de la Seine à Paris.
+
 ```python
 import requests, pandas as pd
-import matplotlib.pyplot as plt
 
-API = "https://API"
-
-# Extraction : module (QA) et étiage (VCN10) de la Seine à Paris
-r = requests.get(f"{API}/v1/extract", params={
+r = requests.get("https://API/v1/extract", params={
     "stations": "F700000103",
     "cards": "QA,VCN10",
     "start": "1990-01-01",
     "orient": "columns",              # directement ingérable par pandas
 }).json()
+```
+
+Figure, avec l'unité lue dans les métadonnées :
+
+```python
+import matplotlib.pyplot as plt
 
 vcn10 = pd.DataFrame(r["data"]["VCN10"])
 meta = pd.DataFrame(r["meta"])
 unit = meta.loc[meta.variable_en == "VCN10", "unit_fr"].iloc[0]
 vcn10.plot(x="date", y="VCN10", style="o", ylabel=f"VCN10 [{unit}]")
 plt.show()
+```
 
-# Tendance du VCN10 : une ligne par station (H : tendance
-# significative ? p-value, pente de Sen absolue `a` et relative)
-r = requests.get(f"{API}/v1/trend", params={
+Tendance du VCN10 : une ligne par station (H : tendance
+significative ? p-value, pente de Sen absolue `a` et relative).
+
+```python
+r = requests.get("https://API/v1/trend", params={
     "stations": "F700000103",
     "cards": "VCN10",
     "sampling": "preferred",
@@ -110,39 +120,57 @@ r = requests.get(f"{API}/v1/trend", params={
 }).json()
 
 tr = pd.DataFrame(r["data"]["VCN10"]).iloc[0]
+```
+
+Points et droite de Sen sur la même figure :
+
+```python
 s = pd.DataFrame(r["series"]["VCN10"])
 dates = pd.to_datetime(s["date"])
 years = (dates - pd.Timestamp("1970-01-01")).dt.days / 365.25
 plt.plot(dates, s["VCN10"], "o")
-plt.plot(dates, tr["a"] * years + tr["b"], "--")   # droite de Sen
+plt.plot(dates, tr["a"] * years + tr["b"], "--")
 plt.show()
 ```
 
 ### En R
 
+Extraction : module (QA) et étiage (VCN10) de la Seine à Paris
+(format `records` par défaut : `fromJSON` en fait des data.frame).
+
 ```r
 library(jsonlite)
-API <- "https://API"
 
-# Extraction : module (QA) et étiage (VCN10) de la Seine à Paris
-# (orient par défaut 'records' : fromJSON en fait des data.frame)
-r <- fromJSON(paste0(API, "/v1/extract?stations=F700000103",
+r <- fromJSON(paste0("https://API/v1/extract?stations=F700000103",
                      "&cards=QA,VCN10&start=1990-01-01"))
+```
+
+Figure, avec l'unité lue dans les métadonnées :
+
+```r
 vcn10 <- r$data$VCN10
 unit <- r$meta$unit_fr[r$meta$variable_en == "VCN10"]
 plot(as.Date(vcn10$date), vcn10$VCN10,
      ylab = paste0("VCN10 [", unit, "]"))
+```
 
-# Tendance du VCN10 : une ligne par station (H : tendance
-# significative ? p-value, pente de Sen absolue `a` et relative)
-r <- fromJSON(paste0(API, "/v1/trend?stations=F700000103",
+Tendance du VCN10 : une ligne par station (H : tendance
+significative ? p-value, pente de Sen absolue `a` et relative).
+
+```r
+r <- fromJSON(paste0("https://API/v1/trend?stations=F700000103",
                      "&cards=VCN10&sampling=preferred&series=true"))
 tr <- r$data$VCN10[1, ]
+```
+
+Points et droite de Sen sur la même figure :
+
+```r
 s <- r$series$VCN10
 dates <- as.Date(s$date)
 years <- as.numeric(dates) / 365.25
 plot(dates, s$VCN10)
-lines(dates, tr$a * years + tr$b, lty = 2)      # droite de Sen
+lines(dates, tr$a * years + tr$b, lty = 2)
 ```
 
 ### Grosses demandes : les jobs
@@ -154,7 +182,7 @@ un bloc de provenance (paramètres, versions, date des données) qui le
 rend citable et reproductible.
 
 ```python
-job = requests.post(f"{API}/v1/jobs", json={
+job = requests.post("https://API/v1/jobs", json={
     "endpoint": "trend",
     "stations": liste_de_codes,       # jusqu'à 100
     "cards": ["QA", "VCN10"],
