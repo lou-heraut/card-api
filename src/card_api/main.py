@@ -54,8 +54,11 @@ def _card_meta_map():
 
 try:
     from importlib.metadata import version as _pkg_version
-    CARD_VERSION = _pkg_version("card")
-except Exception:                                    # dev, non installé
+    try:
+        CARD_VERSION = _pkg_version("card")
+    except Exception:       # distribution "card-stase" (PEP 541 en attente)
+        CARD_VERSION = _pkg_version("card-stase")
+except Exception:                                    # non installé
     CARD_VERSION = "dev"
 
 app = FastAPI(
