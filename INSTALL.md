@@ -21,13 +21,24 @@ CARD_API_LIVE=1 .python_env/bin/python -m pytest tests/test_live_hubeau.py
 
 ## Déploiement (VM)
 
-Prérequis sur une VM nue : Docker + le plugin compose v2. Le script
-officiel installe les deux quelle que soit la distribution :
+Prérequis sur une VM nue : Docker + le plugin compose v2 (la
+sous-commande `docker compose` du Makefile ; le paquet
+`docker-compose` sans -v2 est l'ancienne v1, insuffisante).
 
 ```bash
-curl -fsSL https://get.docker.com | sudo sh
+# Ubuntu : tout est dans les dépôts
+sudo apt install docker.io docker-compose-v2
+
+# Debian : compose v2 absent des dépôts de base ; passer par le dépôt
+# apt officiel de Docker (docs.docker.com/engine/install/debian), puis
+sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# dans les deux cas :
 sudo usermod -aG docker "$USER"    # puis se déconnecter/reconnecter
 ```
+
+(Le script `curl -fsSL https://get.docker.com | sudo sh` automatise
+la mise en place du dépôt officiel si l'on préfère.)
 
 Il faut aussi que le DNS du futur `DOMAIN` pointe vers la VM et que
 les ports 80 et 443 soient ouverts en entrée (certificat HTTPS
