@@ -135,6 +135,6 @@ p <- ggplot(carte, aes(lon, lat, shape = sens, fill = classe)) +
                          ", Mann-Kendall Hamed-Rao AR1, niveau 0.1"),
        x = "Longitude", y = "Latitude") +
   theme_minimal()
-ggsave("carte_tendance_QA.png", p, width = 7.5, height = 8, dpi = 300,
-       bg = "white")
-cat("carte écrite : carte_tendance_QA.png\n")
+ggsave("examples/carte_tendance_QA.png", p, width = 7.5, height = 8,
+       dpi = 300, bg = "white")
+cat("carte écrite : examples/carte_tendance_QA.png\n")
