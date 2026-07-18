@@ -52,7 +52,7 @@ logs:            ## suit les logs de l'API
 status:          ## état des conteneurs + sonde de vie
 	@docker compose ps
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-	  docker compose exec api python -c "import urllib.request; \
+	  docker compose exec -T api python -c "import urllib.request; \
 	    print(urllib.request.urlopen('http://localhost:8000/v1/health').read().decode())" \
 	    2>/dev/null && exit 0; \
 	  sleep 1; \
