@@ -134,20 +134,35 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 
 Suivi : `make status` (santé, file, disque via /v1/health), `make stats`
 (tableau de bord terminal : activité 30 jours, heatmap, file de
-calcul), `make watch` (le même, rafraîchi en continu).
+calcul), `make watch` (le même, rafraîchi en continu). Dans
+/v1/health, `disk` décrit le disque de la VM entière (c'est la place
+restante qui borne les jobs, le stockage des autres services compte
+dedans) et `data` l'empreinte propre de card-api.
+
+Alertes sans surveillance active (optionnel) :
+`scripts/veille_sante.py`, une sonde pour cron à lancer depuis une
+machine EXTÉRIEURE à la VM (une veille installée sur la VM meurt avec
+elle) ; seuils et notification ntfy.sh dans l'en-tête du script.
 
 Clés de priorité (attribution manuelle, demandées via l'issue
 « Clé de priorité » du repo) : `make key name="Prénom Nom, labo"`
 crée et affiche le jeton à transmettre, `make keys` liste,
 `make key-revoke key=<jeton, préfixe affiché par make keys, ou nom>` révoque. Stockage :
-`$CARD_API_DATA/keys.json` (jamais sous git). Le porteur la passe en
-en-tête `X-API-Key` ou en paramètre `key=` : quotas par minute levés,
-plafonds `PRIORITY_*`, jobs en tête de file. Le journal enregistre le
-nom de la clé, jamais le jeton.
+`$CARD_API_DATA/keys.json` (jamais sous git), qui ne garde que le
+hachage du jeton : il n'est affiché qu'à la création, perdu = en
+réémettre un. Le porteur le passe en en-tête `X-API-Key` (préférer
+l'en-tête à `key=`, qui laisse le jeton dans les logs du frontal) :
+quotas par minute levés, plafonds `PRIORITY_*`, jobs en tête de file,
+et `GET /v1/jobs` liste ses jobs. Le journal et les jobs
+n'enregistrent que le préfixe du jeton, jamais le jeton ni le nom.
 
 ## Journal d'usage
 
-`$CARD_API_DATA/usage.jsonl` : une ligne JSON par requête de calcul
-servie : horodatage, hachage salé de l'IP (jamais l'IP en clair),
-endpoint, nombre de stations, fiches demandées. Sert aux statistiques
-d'usage (bilans, dossiers de financement) sans identifier personne.
+`$CARD_API_DATA/usage-AAAA.jsonl`, un fichier par année (la rotation
+est structurelle ; la rétention se règle en supprimant les vieux
+fichiers, `make stats` lit tous les `usage*.jsonl` présents) : une
+ligne JSON par requête de calcul servie : horodatage, hachage salé de
+l'IP (jamais l'IP en clair), endpoint, nombre de stations, fiches
+demandées, préfixe de la clé de priorité le cas échéant. Sert aux
+statistiques d'usage (bilans, dossiers de financement) sans
+identifier personne.
