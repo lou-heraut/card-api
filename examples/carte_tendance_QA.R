@@ -1,8 +1,13 @@
 # Carte des tendances du module (QA) sur le réseau de référence RRSE
-# (228 stations) : dépôt d'un job /v1/jobs, suivi, puis carte des
-# pentes de Sen relatives avec la palette déclarée par la fiche QA
+# (228 stations) : dépôt d'un job /v1/jobs, suivi, puis carte ggplot2
+# des pentes de Sen relatives avec la palette déclarée par la fiche QA
 # (10 couleurs divergentes brun -> vert, classes centrées sur zéro,
-# classes extrêmes ouvertes vers +/- l'infini).
+# classes extrêmes ouvertes vers +/- l'infini). Symbologie MAKAHO :
+# triangle haut/bas = tendance significative à la hausse/baisse,
+# rond = non significative ; couleur = classe de pente dans tous les
+# cas. START/END par défaut = fenêtre des exports MAKAHO du jeu de
+# validation (même agrégation, même test : les cartes deviennent
+# comparables, aux révisions de données près, cf. tests/test_makaho.py).
 #
 # Paramètres : le bloc ci-dessous (pensé pour un lancement depuis un
 # IDE, depuis la racine du repo ; Rscript examples/... marche aussi).
@@ -21,9 +26,13 @@
 
 library(jsonlite)
 library(httr)
+library(tibble)
+library(ggplot2)
 
 API <- "http://147.100.222.13"
-JOB <- ""     # ticket d'un job déjà déposé, ex. "a1b2c3d4" ; "" = déposer
+JOB <- ""     # ticket d'un job déjà déposé ; "" = déposer
+START <- "1968-09-01"   # fenêtre MAKAHO RRSE ; "" = toute la chronique
+END   <- "2024-08-31"
 if (file.exists("examples/.env")) readRenviron("examples/.env")
 KEY <- Sys.getenv("CARD_API_KEY")
 
@@ -34,13 +43,15 @@ meta <- read.csv("tests/data/makaho/QA/meta.csv")
 if (JOB == "") {
   if (KEY == "") stop("jeton manquant : CARD_API_KEY dans examples/.env (cf. en-tête)")
   cat(nrow(meta), "stations RRSE\n")
+  corps <- list(endpoint = "trend",
+                stations = meta$code,
+                cards = "QA",
+                sampling = "preferred")  # fenêtre fixe déclarée (09-01),
+  if (nzchar(START)) corps$start <- START  # -> comparable entre stations
+  if (nzchar(END)) corps$end <- END
   r <- POST(paste0(API, "/v1/jobs"),
             add_headers(`X-API-Key` = KEY),
-            body = list(endpoint = "trend",
-                        stations = meta$code,
-                        cards = "QA",
-                        sampling = "preferred"), # fenêtre fixe déclarée (09-01)
-            encode = "json")                     # -> comparable entre stations
+            body = corps, encode = "json")
   stopifnot(status_code(r) == 202)
   JOB <- content(r)$job
   cat("job", JOB, "déposé : noter ce ticket pour reprendre plus tard\n")
@@ -72,21 +83,45 @@ pal <- strsplit(res$meta$palette[res$meta$variable_en == "QA"], " ")[[1]]
 rel <- tr$a_relative                                    # % / an
 b <- max(abs(c(tr$a_relative_min, tr$a_relative_max)))
 edges <- seq(-b, b, length.out = length(pal) - 1)
-classe <- cut(rel, breaks = c(-Inf, edges, Inf))
-
-# ── Carte : points pleins si tendance significative (H), vides sinon ─────────
-xy <- meta[match(tr$id, meta$code), c("lon_deg", "lat_deg")]
-png("carte_tendance_QA.png", width = 800, height = 800)
-plot(xy$lon_deg, xy$lat_deg, asp = 1.4, pch = 21, cex = 1.4,
-     bg = ifelse(tr$H, pal[classe], "white"), col = pal[classe], lwd = 2,
-     xlab = "Longitude", ylab = "Latitude",
-     main = "Tendance du module QA, pente de Sen relative (% / an)")
 labs <- c(sprintf("< %.2f", edges[1]),
           sprintf("%.2f à %.2f", head(edges, -1), tail(edges, -1)),
           sprintf("> %.2f", edges[length(edges)]))
-legend("bottomleft", legend = rev(labs), fill = rev(pal), bty = "n",
-       title = "% / an", cex = 0.8)
-legend("topright", legend = c("significative (H)", "non significative"),
-       pt.bg = c("grey40", "white"), col = "grey40", pch = 21, bty = "n")
-invisible(dev.off())
+
+# ── Tableau de tracé : une ligne par station ────────────────────────────────
+xy <- meta[match(tr$id, meta$code), ]
+carte <- tibble(
+  lon = xy$lon_deg,
+  lat = xy$lat_deg,
+  classe = cut(rel, breaks = c(-Inf, edges, Inf), labels = labs),
+  sens = factor(ifelse(!tr$H, "ns",
+                       ifelse(tr$a > 0, "hausse", "baisse")),
+                levels = c("hausse", "ns", "baisse")),
+)
+
+# ── Carte : triangle haut/bas = signif hausse/baisse, rond = non signif ──────
+prm <- res$job$params
+periode <- if (is.null(prm$start)) "toute la chronique" else
+  paste(prm$start, "à", prm$end)
+p <- ggplot(carte, aes(lon, lat, shape = sens, fill = classe)) +
+  geom_point(size = 2.6, colour = "grey25", stroke = 0.3) +
+  scale_shape_manual(
+    values = c(hausse = 24, ns = 21, baisse = 25),
+    labels = c(hausse = "hausse significative (H)",
+               ns = "non significative",
+               baisse = "baisse significative (H)"),
+    name = NULL) +
+  scale_fill_manual(values = setNames(pal, labs), name = "% / an",
+                    drop = FALSE) +
+  guides(fill = guide_legend(override.aes = list(shape = 21),
+                             reverse = TRUE, order = 2),
+         shape = guide_legend(override.aes = list(fill = "grey65"),
+                              order = 1)) +
+  coord_quickmap() +
+  labs(title = "Tendance du module QA, pente de Sen relative (% / an)",
+       subtitle = paste0("RRSE, ", periode,
+                         ", Mann-Kendall Hamed-Rao AR1, niveau 0.1"),
+       x = "Longitude", y = "Latitude") +
+  theme_minimal()
+ggsave("carte_tendance_QA.png", p, width = 7.5, height = 8, dpi = 300,
+       bg = "white")
 cat("carte écrite : carte_tendance_QA.png\n")
