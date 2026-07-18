@@ -37,14 +37,17 @@ if (file.exists("examples/.env")) readRenviron("examples/.env")
 KEY <- Sys.getenv("CARD_API_KEY")
 
 # ── Les stations : réseau RRSE du jeu de validation MAKAHO ──────────────────
-meta <- read.csv("tests/data/makaho/QA/meta.csv")
+# Seuls les codes sont lus : l'appartenance au RRSE est un choix
+# d'étude (aucun flag dans Hub'Eau), mais tout le reste (positions...)
+# vient du référentiel Hub'Eau via l'API, jamais d'un fichier local.
+codes <- read.csv("tests/data/makaho/QA/meta.csv")$code
 
 # ── Dépôt du job : tendance de QA, fenêtre fixe des fiches ──────────────────
 if (JOB == "") {
   if (KEY == "") stop("jeton manquant : CARD_API_KEY dans examples/.env (cf. en-tête)")
-  cat(nrow(meta), "stations RRSE\n")
+  cat(length(codes), "stations RRSE\n")
   corps <- list(endpoint = "trend",
-                stations = meta$code,
+                stations = codes,
                 cards = "QA",
                 sampling = "preferred")  # fenêtre fixe déclarée (09-01),
   if (nzchar(START)) corps$start <- START  # -> comparable entre stations
@@ -75,6 +78,16 @@ tr <- res$data$QA                     # une ligne par station : H, p, a...
 # ── Palette de la fiche QA (voyage dans le meta de la réponse) ───────────────
 pal <- strsplit(res$meta$palette[res$meta$variable_en == "QA"], " ")[[1]]
 
+# ── Positions : référentiel Hub'Eau via /v1/stations, 100 codes par appel ────
+pos <- do.call(rbind, lapply(
+  split(tr$id, (seq_along(tr$id) - 1) %/% 100),
+  function(chunk) fromJSON(content(GET(
+    paste0(API, "/v1/stations"),
+    query = list(code = paste(chunk, collapse = ","), size = 100)),
+    "text", encoding = "UTF-8"))$stations))
+xy <- pos[match(tr$id, pos$code_station), ]
+stopifnot(!anyNA(xy$longitude_station))
+
 # ── Classes : centrées sur 0, ouvertes aux extrêmes ─────────────────────────
 # a_relative est déjà en % de la moyenne par an ; a_relative_min/max =
 # quantiles 1 % / 99 % des pentes relatives entre stations
@@ -88,10 +101,9 @@ labs <- c(sprintf("< %.2f", edges[1]),
           sprintf("> %.2f", edges[length(edges)]))
 
 # ── Tableau de tracé : une ligne par station ────────────────────────────────
-xy <- meta[match(tr$id, meta$code), ]
 carte <- tibble(
-  lon = xy$lon_deg,
-  lat = xy$lat_deg,
+  lon = xy$longitude_station,
+  lat = xy$latitude_station,
   classe = cut(rel, breaks = c(-Inf, edges, Inf), labels = labs),
   sens = factor(ifelse(!tr$H, "ns",
                        ifelse(tr$a > 0, "hausse", "baisse")),
