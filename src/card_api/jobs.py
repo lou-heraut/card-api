@@ -13,8 +13,9 @@ Les demandes trop grosses pour une réponse synchrone reçoivent un
 ticket : 202 + Location, puis GET /v1/jobs/{id} (statut, progression)
 et GET /v1/jobs/{id}/result (résultat gelé, bloc de provenance
 inclus). Les jobs sont PUBLICS, sans clé, comme le reste du service ;
-les clés de priorité joueront plus tard sur l'ordre de la file et les
-plafonds.
+une clé de priorité met en tête de file, relève les plafonds et
+permet de lister ses propres jobs (le job garde le PRÉFIXE du jeton,
+jamais le jeton ni le nom).
 
 Mécanique v1 (pas de Redis) : file en mémoire bornée + threads
 workers, stockage dans $CARD_API_DATA/jobs/{id}/ (job.json +
@@ -108,9 +109,12 @@ def queue_stats() -> dict:
     return {"queued": queued, "running": running}
 
 
-def submit(params: dict, user: str, priority: int = 0) -> dict:
-    """Crée le job sur disque et le met en file. RuntimeError si la
-    file est pleine (le service protège sa VM au lieu d'accumuler)."""
+def submit(params: dict, user: str, priority: int = 0,
+           key: str | None = None) -> dict:
+    """Crée le job sur disque et le met en file. `key` = préfixe du
+    jeton de priorité (identifiant pseudonyme, pour GET /v1/jobs).
+    RuntimeError si la file est pleine (le service protège sa VM au
+    lieu d'accumuler)."""
     ensure_workers()
     purge_expired()
     if _queue.qsize() >= JOB_QUEUE_MAX:
@@ -118,12 +122,13 @@ def submit(params: dict, user: str, priority: int = 0) -> dict:
             f"file de calcul pleine ({JOB_QUEUE_MAX} jobs en attente) : "
             "réessayez plus tard"
         )
-    job_id = secrets.token_hex(4)
+    job_id = secrets.token_hex(8)
     job = {
         "id": job_id,
         "status": "queued",
         "params": params,
         "user": user,
+        "key": key,
         "priority": priority,
         "created": _now(),
         "started": None,
@@ -136,6 +141,29 @@ def submit(params: dict, user: str, priority: int = 0) -> dict:
     _save(job)
     _queue.put((priority, next(_seq), job_id))
     return job
+
+
+def list_for(prefix: str) -> list[dict]:
+    """Jobs déposés avec la clé de ce préfixe, du plus récent au plus
+    ancien (résumé sans les tickets d'autrui : GET /v1/jobs)."""
+    out = []
+    for d in jobs_dir().iterdir():
+        job = load(d.name)
+        if job is None or job.get("key") != prefix:
+            continue
+        p = job["params"]
+        out.append({
+            "job": job["id"],
+            "status": job["status"],
+            "created": job["created"],
+            "finished": job["finished"],
+            "endpoint": p["endpoint"],
+            "stations": len(p["stations"]),
+            "cards": p["cards"],
+            "status_url": f"/v1/jobs/{job['id']}",
+            "result_url": f"/v1/jobs/{job['id']}/result",
+        })
+    return sorted(out, key=lambda j: j["created"], reverse=True)
 
 
 def purge_expired():

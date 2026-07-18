@@ -205,9 +205,16 @@ requête ne re-télécharge rien depuis Hub'Eau.
 Pour un besoin massif ou récurrent (centaines de stations, chaînes de
 traitement), demandez une clé de priorité gratuite en
 [ouvrant une issue](../../issues/new?template=cle-de-priorite.yml).
-Elle se passe en en-tête `X-API-Key` ou en paramètre `key=` : quotas
-par minute levés, plafonds relevés (jusqu'à 1000 stations par job),
-jobs en tête de file.
+Elle se passe en en-tête `X-API-Key` (de préférence à `key=`, qui
+laisse la clé dans les logs web) : quotas par minute levés, plafonds
+relevés (jusqu'à 1000 stations par job), jobs en tête de file, et
+`GET /v1/jobs` liste vos jobs déposés avec la clé (tickets compris :
+pratique pour retrouver un résultat dont le ticket est égaré).
+
+Le jeton n'est communiqué qu'une fois, à la création (le serveur n'en
+garde qu'un hachage) : conservez-le, un jeton perdu se remplace. Le
+journal du service ne stocke jamais votre nom, seulement le préfixe
+du jeton.
 
 ## Périmètre
 

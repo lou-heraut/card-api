@@ -32,3 +32,15 @@ body:
       description: Projet, publication ou financement associé.
     validations:
       required: false
+  - type: markdown
+    attributes:
+      value: >
+        **Données personnelles.** Votre nom et organisme servent
+        uniquement à gérer l'attribution des clés (INRAE, UR RiverLy).
+        Ils sont conservés tant que la clé est active et effacés à sa
+        révocation, sur simple demande. Le journal technique du
+        service n'enregistre jamais ce nom : seul un identifiant
+        pseudonyme (préfixe du jeton) y figure, à des fins de
+        statistiques d'usage agrégées (preuve d'impact pour les
+        financements). Contact : louis.heraut@inrae.fr
+

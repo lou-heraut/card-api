@@ -1,5 +1,7 @@
 """Tests des clés de priorité : quota levé, plafonds relevés, tête de
-file, 401 explicite pour une clé inconnue ; et du retry Hub'Eau."""
+file, 401 explicite pour une clé inconnue, jeton haché (jamais en
+clair sur disque), listing « mes jobs » par clé ; et du retry
+Hub'Eau."""
 
 import time
 
@@ -70,6 +72,55 @@ def test_key_raises_job_caps_and_priority(token):
     jid = r.json()["job"]
     assert jobs.load(jid)["priority"] == -1
     assert _wait_done(jid, timeout=120)["status"] == "done"
+
+
+def test_token_never_stored_in_clear(token):
+    """Le jeton n'existe qu'à l'affichage de création : sur disque,
+    seul son hachage (sous le préfixe) ; perdu = réémettre."""
+    stored = (hubeau.data_dir() / "keys.json").read_text()
+    assert token not in stored
+    assert token[:keys.PREFIX] in stored
+    info = keys.lookup(token)
+    assert info["name"] == "Testeuse, labo X"
+    assert info["prefix"] == token[:keys.PREFIX]
+    assert keys.lookup(token[:keys.PREFIX] + "x" * 24) is None
+
+
+def test_revoke_by_prefix_name_or_token(token):
+    assert "révoquée" in keys.revoke(token[:4])          # préfixe abrégé
+    token = keys.add("Testeuse, labo X")
+    assert "révoquée" in keys.revoke(token)              # jeton complet
+    token = keys.add("Testeuse, labo X")
+    assert "révoquée" in keys.revoke("Testeuse, labo X")  # nom exact
+    assert keys.lookup(token) is None
+
+
+def test_job_list_by_key(token):
+    """GET /v1/jobs : réservé aux porteurs de clé, ne montre que les
+    jobs déposés avec cette clé ; le job stocke le préfixe, jamais le
+    jeton ni le nom."""
+    assert client.get("/v1/jobs").status_code == 401     # pas de liste publique
+    stations = ",".join(f"K{i:07d}" for i in range(jobs.SYNC_STATIONS + 1))
+    r = client.get("/v1/extract",
+                   params={"stations": stations, "cards": "QA"},
+                   headers={"X-API-Key": token})
+    jid = r.json()["job"]
+    anon = client.get("/v1/extract",
+                      params={"stations": stations, "cards": "QA"})
+    _wait_done(jid)
+    _wait_done(anon.json()["job"])
+
+    on_disk = (jobs.jobs_dir() / jid / "job.json").read_text()
+    assert token not in on_disk and "Testeuse" not in on_disk
+    assert jobs.load(jid)["key"] == token[:keys.PREFIX]
+
+    body = client.get("/v1/jobs", headers={"X-API-Key": token}).json()
+    assert body["key"] == token[:keys.PREFIX]
+    listed = {j["job"] for j in body["jobs"]}
+    assert jid in listed and anon.json()["job"] not in listed
+    mine = next(j for j in body["jobs"] if j["job"] == jid)
+    assert mine["endpoint"] == "extract"
+    assert mine["stations"] == jobs.SYNC_STATIONS + 1
 
 
 def test_hubeau_retry_then_clean_failure(monkeypatch):

@@ -8,4 +8,4 @@ __pycache__/
 data_makaho/
 data/
 carte_tendance_QA.png
-examples/cle_locale.txt
+examples/.env

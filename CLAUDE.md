@@ -12,7 +12,8 @@ src/card_api/
   main.py       # endpoints /v1 : cards, cards/{id}, stations, extract,
                 #   trend (mk défaut AR1, sampling=preferred|MM-JJ,
                 #   series=true joint les séries extraites au diagnostic),
-                #   jobs (POST + statut + result), health (file, disque)
+                #   jobs (POST + statut + result ; GET /v1/jobs = « mes
+                #   jobs » par clé, 401 sinon), health (file, disque)
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
@@ -22,9 +23,12 @@ src/card_api/
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After),
                 #   priority_of (X-API-Key/key=, 401 si inconnue),
                 #   journal usage.jsonl (IP hachée salée, log_event)
-  keys.py       # clés de priorité : data/keys.json, CLI add/list/revoke
-                #   (make key/keys/key-revoke) ; effet = quotas levés,
-                #   plafonds PRIORITY_*, jobs en tête de file
+  keys.py       # clés de priorité : jeton affiché UNE fois, keys.json
+                #   ne garde que {préfixe: hash SHA-256 + nom} ; le
+                #   préfixe est l'identifiant public (journal, job,
+                #   listing), le nom ne sort jamais de keys.json ; CLI
+                #   add/list/revoke (make key/keys/key-revoke) ; effet =
+                #   quotas levés, PRIORITY_*, tête de file, GET /v1/jobs
   serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
   stats.py      # tableau de bord terminal (make stats / make watch) :
                 #   sparklines, heatmap 12 semaines, file, disque
@@ -68,8 +72,12 @@ Apache existant (make apache ; port local 8001 via CARD_API_PORT,
 de domaine, donc HTTP). /v1/trend accepte series=true (séries
 extraites jointes au diagnostic) ; examples/carte_tendance_QA.R =
 parcours complet clé + job 228 stations RRSE + carte (reprise par
-ticket via JOB, jeton dans examples/cle_locale.txt gitignoré).
-**Questions ouvertes** (arbitrages à venir, détail :
-../card/docs/dev/CHANTIERS.md §1) : listing des jobs par clé,
-entropie des tickets, RGPD des clés nominatives (le journal stocke
-le nom de la clé). **Reste aussi** : nom de domaine + certbot.
+ticket via JOB, jeton CARD_API_KEY dans examples/.env gitignoré,
+modèle .env.example).
+**Chantier identité/RGPD fermé (2026-07-18)** : jetons hachés
+(affichés une fois), préfixe pseudonyme partout (journal, job,
+listing), GET /v1/jobs par clé, tickets token_hex(8), mention
+d'information RGPD dans le template d'issue. Non rétroactif : au
+prochain déploiement, recréer les clés (make key) et les jobs
+antérieurs ne sont pas listables par clé. **Reste** : nom de
+domaine + certbot.

@@ -15,7 +15,10 @@ Redis en v1). En dépassement : 429 + Retry-After.
 Journal : une ligne JSON par requête de calcul dans
 $CARD_API_DATA/usage.jsonl ; l'IP n'est jamais écrite, seul un hachage
 salé (sel = $CARD_API_SALT, sinon aléatoire au démarrage) permet de
-compter les utilisateurs distincts sans pouvoir les identifier.
+compter les utilisateurs distincts sans pouvoir les identifier. Même
+principe pour les clés de priorité : le journal reçoit le préfixe du
+jeton, jamais le nom (pseudonyme ; le lien préfixe-nom ne vit que
+dans keys.json et disparaît à la révocation).
 """
 
 import hashlib
@@ -56,12 +59,14 @@ def ip_hash(ip: str) -> str:
 def priority_of(request: Request) -> dict | None:
     """Clé de priorité de la requête (en-tête X-API-Key ou paramètre
     key=). None sans clé ; 401 explicite si la clé est inconnue (mieux
-    qu'une dégradation silencieuse en trafic public)."""
+    qu'une dégradation silencieuse en trafic public). Retourne
+    {prefix, name, created} ; seul le préfixe circule ensuite
+    (journal, jobs), jamais le nom ni le jeton."""
     token = (request.headers.get("x-api-key")
              or request.query_params.get("key"))
     if not token:
         return None
-    info = keys_mod.load().get(token)
+    info = keys_mod.lookup(token)
     if info is None:
         raise HTTPException(
             401, "clé de priorité inconnue (révoquée ?) : retirez-la "

@@ -207,10 +207,11 @@ def _maybe_job(request, endpoint, st, cd, prio=None, **params):
     try:
         job = jobs.submit(job_params,
                           user=usage.ip_hash(usage.client_ip(request)),
-                          priority=-1 if prio else 0)
+                          priority=-1 if prio else 0,
+                          key=prio["prefix"] if prio else None)
     except RuntimeError as e:
         raise HTTPException(503, str(e), headers={"Retry-After": "300"})
-    extra = {"key": prio["name"]} if prio else {}
+    extra = {"key": prio["prefix"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=endpoint,
                     stations=len(st), cards=cd, **extra)
     return _job_response(job)
@@ -423,13 +424,32 @@ def create_job(request: Request, req: JobRequest):
     try:
         job = jobs.submit(params,
                           user=usage.ip_hash(usage.client_ip(request)),
-                          priority=-1 if prio else 0)
+                          priority=-1 if prio else 0,
+                          key=prio["prefix"] if prio else None)
     except RuntimeError as e:
         raise HTTPException(503, str(e), headers={"Retry-After": "300"})
-    extra = {"key": prio["name"]} if prio else {}
+    extra = {"key": prio["prefix"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=req.endpoint,
                     stations=len(st), cards=cd, **extra)
     return _job_response(job)
+
+
+@app.get("/v1/jobs", dependencies=[Depends(usage.rate_light)])
+def job_list(request: Request):
+    """Jobs déposés avec la clé de priorité présentée (« mes jobs »,
+    forme du GET /jobs d'OGC API Processes restreinte à la clé).
+
+    Réservé aux porteurs de clé : sans comptes, une liste publique
+    exposerait les tickets et l'activité de tous. Présenter la clé en
+    en-tête X-API-Key de préférence à key= (les URLs finissent dans
+    les logs du frontal web)."""
+    prio = usage.priority_of(request)
+    if prio is None:
+        raise HTTPException(
+            401, "listing réservé aux porteurs de clé de priorité : "
+                 "présentez la vôtre en en-tête X-API-Key (les jobs "
+                 "restent consultables un par un via leur ticket)")
+    return {"key": prio["prefix"], "jobs": jobs.list_for(prio["prefix"])}
 
 
 @app.get("/v1/jobs/{job_id}", dependencies=[Depends(usage.rate_light)])

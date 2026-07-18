@@ -7,11 +7,12 @@
 # Paramètres : le bloc ci-dessous (pensé pour un lancement depuis un
 # IDE, depuis la racine du repo ; Rscript examples/... marche aussi).
 #
-#   - le jeton de clé de priorité va dans examples/cle_locale.txt
-#     (une seule ligne, fichier gitignoré) : JAMAIS de secret dans un
-#     fichier suivi par git. La clé est nécessaire au dépôt : 228
-#     stations dépassent le plafond public des jobs (100).
-#     L'administrateur la crée sur la VM : make key name="Prénom Nom, labo"
+#   - le jeton de clé de priorité va dans examples/.env (fichier
+#     gitignoré, modèle : examples/.env.example) sous la forme
+#     CARD_API_KEY=... : JAMAIS de secret dans un fichier suivi par
+#     git. La clé est nécessaire au dépôt : 228 stations dépassent le
+#     plafond public des jobs (100). L'administrateur la crée sur la
+#     VM : make key name="Prénom Nom, labo"
 #   - reprise : le calcul tourne côté serveur et le résultat reste
 #     disponible plusieurs jours. Pour récupérer plus tard un job déjà
 #     déposé (ordinateur éteint entre-temps...), renseigner JOB avec
@@ -23,15 +24,15 @@ library(httr)
 
 API <- "http://147.100.222.13"
 JOB <- ""     # ticket d'un job déjà déposé, ex. "a1b2c3d4" ; "" = déposer
-KEY <- if (file.exists("examples/cle_locale.txt"))
-  trimws(readLines("examples/cle_locale.txt", n = 1)) else ""
+if (file.exists("examples/.env")) readRenviron("examples/.env")
+KEY <- Sys.getenv("CARD_API_KEY")
 
 # ── Les stations : réseau RRSE du jeu de validation MAKAHO ──────────────────
 meta <- read.csv("tests/data/makaho/QA/meta.csv")
 
 # ── Dépôt du job : tendance de QA, fenêtre fixe des fiches ──────────────────
 if (JOB == "") {
-  if (KEY == "") stop("jeton manquant : examples/cle_locale.txt (cf. en-tête)")
+  if (KEY == "") stop("jeton manquant : CARD_API_KEY dans examples/.env (cf. en-tête)")
   cat(nrow(meta), "stations RRSE\n")
   r <- POST(paste0(API, "/v1/jobs"),
             add_headers(`X-API-Key` = KEY),
