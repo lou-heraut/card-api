@@ -50,8 +50,10 @@ if (JOB == "") {
   corps <- list(endpoint = "trend",
                 stations = codes,
                 cards = "QA",
-                sampling = "preferred")  # fenêtre fixe déclarée (09-01),
-  if (nzchar(START)) corps$start <- START  # -> comparable entre stations
+                sampling = "preferred",  # fenêtre fixe déclarée (09-01),
+                                         # -> comparable entre stations
+                stations_meta = TRUE)    # référentiel Hub'Eau (positions...)
+  if (nzchar(START)) corps$start <- START  #    joint au résultat
   if (nzchar(END)) corps$end <- END
   r <- POST(paste0(API, "/v1/jobs"),
             add_headers(`X-API-Key` = KEY),
@@ -79,14 +81,10 @@ tr <- res$data$QA                     # une ligne par station : H, p, a...
 # ── Palette de la fiche QA (voyage dans le meta de la réponse) ───────────────
 pal <- strsplit(res$meta$palette[res$meta$variable_en == "QA"], " ")[[1]]
 
-# ── Positions : référentiel Hub'Eau via /v1/stations, 100 codes par appel ────
-pos <- do.call(rbind, lapply(
-  split(tr$id, (seq_along(tr$id) - 1) %/% 100),
-  function(chunk) fromJSON(content(GET(
-    paste0(API, "/v1/stations"),
-    query = list(code = paste(chunk, collapse = ","), size = 100)),
-    "text", encoding = "UTF-8"))$stations))
-xy <- pos[match(tr$id, pos$code_station), ]
+# ── Positions : référentiel Hub'Eau joint au résultat (stations_meta) ────────
+if (is.null(res$stations_meta))
+  stop("job déposé sans stations_meta = TRUE : redéposer (JOB <- \"\")")
+xy <- res$stations_meta[match(tr$id, res$stations_meta$code_station), ]
 stopifnot(!anyNA(xy$longitude_station))
 
 # ── Classes : centrées sur 0, ouvertes aux extrêmes ─────────────────────────

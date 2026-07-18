@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: >-
+  Si vous utilisez ce service ou son code, merci de citer ce dépôt.
+  Un identifiant pérenne (dépôt HAL adossé à Software Heritage)
+  viendra compléter cette référence.
+type: software
+title: "card-api : service web des fiches CARD sur les débits Hub'Eau"
+abstract: >-
+  Extraction de variables hydroclimatiques standardisées (fiches CARD)
+  et diagnostic de stationnarité (Mann-Kendall, pente de Sen) sur les
+  débits journaliers Hub'Eau, en service web public sans inscription.
+authors:
+  - family-names: "Héraut"
+    given-names: "Louis"
+    email: "louis.heraut@inrae.fr"
+    affiliation: "INRAE, UR RiverLy, Villeurbanne, France"
+version: "0.1.0"
+date-released: "2026-07-17"
+repository-code: "https://github.com/lou-heraut/card-api"
+license: "GPL-3.0-only"
+keywords:
+  - hydrologie
+  - débits
+  - étiage
+  - tendance
+  - Mann-Kendall
+  - Hub'Eau

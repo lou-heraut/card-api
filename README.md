@@ -221,3 +221,15 @@ du jeton.
 Le service ne fournit que des débits journaliers (fiches à entrée
 `Q`) ; le diagnostic de tendance ne s'applique qu'aux fiches de forme
 `series` (la tendance d'un scalaire ou d'une courbe n'a pas de sens).
+
+## Citer
+
+Les métadonnées de citation sont dans [CITATION.cff](CITATION.cff)
+(bouton « Cite this repository » de GitHub) et
+[codemeta.json](codemeta.json) (moissonné par Software Heritage et
+HAL ; identifiant pérenne à venir par ce canal). Dans une
+publication, citez aussi la source des données (Hub'Eau hydrométrie,
+eaufrance, Licence Ouverte) et la version de card utilisée : chaque
+réponse du service la porte (`card_version`), les résultats de jobs y
+ajoutent un bloc de provenance complet (paramètres, date des
+données).

@@ -11,9 +11,12 @@ sans clé, quotas IP, journal anonymisé, commercial écarté).
 src/card_api/
   main.py       # endpoints /v1 : cards, cards/{id}, stations, extract,
                 #   trend (mk défaut AR1, sampling=preferred|MM-JJ,
-                #   series=true joint les séries extraites au diagnostic),
-                #   jobs (POST + statut + result ; GET /v1/jobs = « mes
-                #   jobs » par clé, 401 sinon), health (file, disque)
+                #   series=true joint les séries extraites au diagnostic ;
+                #   stations_meta=true joint le référentiel Hub'Eau des
+                #   stations : résultat autoportant), jobs (POST + statut
+                #   + result + DELETE dismiss par ticket ; GET /v1/jobs =
+                #   « mes jobs » par clé, 401 sinon), health (file,
+                #   disque VM entière vs empreinte data du service)
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
@@ -22,7 +25,8 @@ src/card_api/
                 #   pagination next, codes post-refonte) + cache 24 h
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After),
                 #   priority_of (X-API-Key/key=, 401 si inconnue),
-                #   journal usage.jsonl (IP hachée salée, log_event)
+                #   journal usage-AAAA.jsonl (rotation annuelle ; IP
+                #   hachée salée, préfixe de clé, log_event)
   keys.py       # clés de priorité : jeton affiché UNE fois, keys.json
                 #   ne garde que {préfixe: hash SHA-256 + nom} ; le
                 #   préfixe est l'identifiant public (journal, job,
@@ -32,9 +36,14 @@ src/card_api/
   serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
   stats.py      # tableau de bord terminal (make stats / make watch) :
                 #   sparklines, heatmap 12 semaines, file, disque
-tests/          # 27 hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
-                #   validation MAKAHO, précision machine) + 2 live
-.github/        # template d'issue « clé de priorité »
+tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
+                #   validation MAKAHO, précision machine) + live
+scripts/        # veille_sante.py : sonde cron à lancer HORS VM
+                #   (ntfy.sh optionnel ; une veille sur la VM meurt
+                #   avec elle)
+.github/        # template d'issue « clé de priorité » (mention RGPD)
+CITATION.cff    # citabilité ; codemeta.json = canal Software
+                #   Heritage / HAL (pas de Zenodo, choix utilisateur)
 Makefile        # ops : make env/up/apache/update/logs/status/stats/watch
 compose.yaml    # api sur 127.0.0.1:8000 ; frontal = Apache de la VM
                 #   (make apache, vhost généré depuis DOMAIN) ou profil
@@ -79,5 +88,11 @@ modèle .env.example).
 listing), GET /v1/jobs par clé, tickets token_hex(8), mention
 d'information RGPD dans le template d'issue. Non rétroactif : au
 prochain déploiement, recréer les clés (make key) et les jobs
-antérieurs ne sont pas listables par clé. **Reste** : nom de
-domaine + certbot.
+antérieurs ne sont pas listables par clé. **Batch ops/FAIR
+(2026-07-18)** : journal en rotation annuelle, health désambiguïsé
+(disque VM vs data), DELETE des jobs, stations_meta=true,
+CITATION.cff + codemeta.json, scripts/veille_sante.py ; sauvegarde du
+volume écartée (clés réémissibles, jobs éphémères, journal petit).
+**Reste** : nom de domaine + certbot (l'utilisateur s'en charge),
+puis HTTPS obligatoire avant de diffuser des clés (le jeton transite
+en clair en HTTP).

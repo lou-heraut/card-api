@@ -103,7 +103,52 @@ def test_job_validation_and_unknown():
     assert client.get("/v1/jobs/deadbeef").status_code == 404
 
 
-def test_health_reports_queue_and_disk():
+def test_stations_meta_joined_sync_and_job(monkeypatch):
+    """stations_meta=true joint les fiches du référentiel Hub'Eau au
+    résultat, en synchrone comme en job : résultat autoportant."""
+    def fake_ref(libelle=None, code=None, departement=None, size=20):
+        return [{"code_station": c, "longitude_station": 1.0,
+                 "latitude_station": 45.0} for c in code.split(",")]
+    monkeypatch.setattr(hubeau, "search_stations", fake_ref)
+
+    params = {"stations": "K0550010,F7000001", "cards": "QA"}
+    r = client.get("/v1/extract", params={**params, "stations_meta": "true"})
+    assert {s["code_station"] for s in r.json()["stations_meta"]} \
+        == {"K0550010", "F7000001"}
+    assert "stations_meta" not in client.get("/v1/extract",
+                                             params=params).json()
+
+    r = client.post("/v1/jobs", json={"endpoint": "trend",
+                                      "stations_meta": True, **params})
+    jid = r.json()["job"]
+    assert _wait_done(jid)["status"] == "done"
+    body = client.get(f"/v1/jobs/{jid}/result").json()
+    assert {s["code_station"] for s in body["stations_meta"]} \
+        == {"K0550010", "F7000001"}
+    assert body["job"]["params"]["stations_meta"] is True    # provenance
+
+
+def test_job_delete_dismiss():
+    """DELETE /v1/jobs/{id} : le ticket vaut capacité de suppression ;
+    un job en cours n'est pas annulable (409)."""
+    r = client.post("/v1/jobs", json={
+        "endpoint": "extract", "stations": "K0550010", "cards": "QA"})
+    jid = r.json()["job"]
+    _wait_done(jid)
+    assert client.delete(f"/v1/jobs/{jid}").status_code == 204
+    assert client.get(f"/v1/jobs/{jid}").status_code == 404
+    assert client.delete(f"/v1/jobs/{jid}").status_code == 404
+
+    fake = {"id": "cafe0000cafe0000", "status": "running"}
+    (jobs.jobs_dir() / fake["id"]).mkdir()
+    jobs._save(fake)
+    assert client.delete(f"/v1/jobs/{fake['id']}").status_code == 409
+    jobs.delete(fake["id"])
+
+
+def test_health_reports_queue_disk_and_data():
     body = client.get("/v1/health").json()
     assert set(body["jobs"]) == {"queued", "running"}
     assert body["disk"]["free_gb"] > 0
+    assert set(body["data"]) == {"total_mb", "cache_mb", "jobs_mb"}
+    assert body["data"]["total_mb"] >= body["data"]["jobs_mb"]

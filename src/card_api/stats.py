@@ -12,7 +12,7 @@
     python -m card_api.stats            # instantané
     python -m card_api.stats --watch    # rafraîchi en continu
 
-Lit le journal anonymisé (usage.jsonl), l'état de la file de calcul
+Lit le journal anonymisé (usage*.jsonl), l'état de la file de calcul
 (data/jobs/) et le disque. Aucune dépendance : sparklines, heatmap
 façon GitHub et barres en caractères Unicode.
 """
@@ -78,9 +78,8 @@ def _fmt_size(n):
 # ── lecture des sources ──────────────────────────────────────────────────────
 
 def _journal():
-    p = data_dir() / "usage.jsonl"
-    entries = []
-    if p.exists():
+    entries = []           # usage*.jsonl : fichiers annuels + legacy
+    for p in sorted(data_dir().glob("usage*.jsonl")):
         for line in p.read_text(encoding="utf-8").splitlines():
             try:
                 entries.append(json.loads(line))

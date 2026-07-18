@@ -1,0 +1,45 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "card-api",
+  "description": "Service web des fiches CARD : extraction de variables hydroclimatiques standardisées et diagnostic de stationnarité (Mann-Kendall, pente de Sen) sur les débits journaliers Hub'Eau, public et sans inscription.",
+  "version": "0.1.0",
+  "datePublished": "2026-07-17",
+  "codeRepository": "https://github.com/lou-heraut/card-api",
+  "issueTracker": "https://github.com/lou-heraut/card-api/issues",
+  "license": "https://spdx.org/licenses/GPL-3.0-only",
+  "programmingLanguage": {
+    "@type": "ComputerLanguage",
+    "name": "Python"
+  },
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Louis",
+      "familyName": "Héraut",
+      "email": "louis.heraut@inrae.fr",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "INRAE, UR RiverLy, Villeurbanne, France"
+      }
+    }
+  ],
+  "keywords": [
+    "hydrologie",
+    "débits",
+    "étiage",
+    "tendance",
+    "Mann-Kendall",
+    "Hub'Eau"
+  ],
+  "relatedLink": [
+    "https://github.com/lou-heraut/card"
+  ],
+  "operatingSystem": "Linux",
+  "softwareRequirements": [
+    "Python >= 3.12",
+    "FastAPI",
+    "card",
+    "stase"
+  ]
+}

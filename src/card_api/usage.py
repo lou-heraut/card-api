@@ -12,8 +12,10 @@
 Quota : fenêtre glissante de 60 s par adresse IP, en mémoire (pas de
 Redis en v1). En dépassement : 429 + Retry-After.
 
-Journal : une ligne JSON par requête de calcul dans
-$CARD_API_DATA/usage.jsonl ; l'IP n'est jamais écrite, seul un hachage
+Journal : une ligne JSON par requête de calcul, segmenté par année
+($CARD_API_DATA/usage-AAAA.jsonl : la rotation est structurelle, la
+rétention se règle en supprimant les vieux fichiers) ; l'IP n'est
+jamais écrite, seul un hachage
 salé (sel = $CARD_API_SALT, sinon aléatoire au démarrage) permet de
 compter les utilisateurs distincts sans pouvoir les identifier. Même
 principe pour les clés de priorité : le journal reçoit le préfixe du
@@ -103,7 +105,7 @@ def rate_light(request: Request):
 
 
 def _append(entry: dict):
-    path = data_dir() / "usage.jsonl"
+    path = data_dir() / f"usage-{datetime.now(timezone.utc).year}.jsonl"
     with _lock:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

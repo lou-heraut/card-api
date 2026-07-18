@@ -119,6 +119,15 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
     return df
 
 
+def stations_referential(codes: list[str]) -> list[dict]:
+    """Fiches du référentiel (libellé, position...) d'une liste de
+    codes, par paquets de 100 (plafond de taille Hub'Eau)."""
+    out = []
+    for i in range(0, len(codes), 100):
+        out += search_stations(code=",".join(codes[i:i + 100]), size=100)
+    return out
+
+
 def search_stations(libelle=None, code=None, departement=None, size=20):
     """Recherche dans le référentiel des stations hydrométriques."""
     params = {"size": min(int(size), 100),

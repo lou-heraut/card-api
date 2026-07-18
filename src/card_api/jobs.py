@@ -166,6 +166,12 @@ def list_for(prefix: str) -> list[dict]:
     return sorted(out, key=lambda j: j["created"], reverse=True)
 
 
+def delete(job_id: str):
+    """Supprime un job et son résultat (dismiss). Un job en file ainsi
+    supprimé est simplement sauté par le worker (load -> None)."""
+    shutil.rmtree(jobs_dir() / job_id, ignore_errors=True)
+
+
 def purge_expired():
     """Supprime les jobs plus vieux que JOB_TTL_DAYS."""
     limit = time.time() - JOB_TTL_DAYS * 86400
@@ -291,4 +297,7 @@ def _execute(job: dict, progress) -> dict:
         if p.get("series"):
             out["series"] = {k: serialize(v, orient)
                              for k, v in extracted.items()}
+    if p.get("stations_meta"):
+        progress(total, total, "référentiel stations")
+        out["stations_meta"] = hubeau.stations_referential(p["stations"])
     return out

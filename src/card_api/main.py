@@ -217,6 +217,19 @@ def _maybe_job(request, endpoint, st, cd, prio=None, **params):
     return _job_response(job)
 
 
+def _stations_meta(st):
+    """Fiches du référentiel Hub'Eau des stations demandées, jointes
+    à la réponse sous 'stations_meta' : un résultat autoportant (une
+    carte ne demande aucun fichier local ni second appel)."""
+    try:
+        return hubeau.stations_referential(st)
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            504, f"Hub'Eau ne répond pas ({type(e).__name__}) : "
+                 "réessayez dans quelques minutes",
+            headers={"Retry-After": "300"})
+
+
 def _check_sampling(sampling):
     if sampling is not None and not _SAMPLING_RE.match(sampling):
         raise HTTPException(
@@ -256,6 +269,7 @@ def _run_extract(st, cd, start, end, sampling=None):
 def extract(request: Request, stations: str, cards: str,
             start: str | None = None, end: str | None = None,
             sampling: str | None = None,
+            stations_meta: bool = False,
             orient: str = "records"):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
@@ -271,6 +285,10 @@ def extract(request: Request, stations: str, cards: str,
                protocole MAKAHO) ; 'MM-JJ' (ex. '09-01') : année
                hydrologique imposée. Défaut : fenêtre de la fiche
                (adaptative par station pour les fiches d'étiage/crue).
+    stations_meta : true pour joindre sous 'stations_meta' les fiches
+               du référentiel Hub'Eau des stations demandées (libellé,
+               longitude/latitude...) : résultat autoportant, une
+               carte ne demande aucun fichier local.
     orient   : 'records' (défaut, liste d'objets, style Hub'Eau) ou
                'columns' (colonnaire : {colonne: [valeurs]}, compact).
     """
@@ -280,7 +298,8 @@ def extract(request: Request, stations: str, cards: str,
     prio = usage.priority_of(request)
     st, cd = _parse_lists(stations, cards, prio)
     ticket = _maybe_job(request, "extract", st, cd, prio, start=start,
-                        end=end, sampling=sampling, orient=orient)
+                        end=end, sampling=sampling,
+                        stations_meta=stations_meta or None, orient=orient)
     if ticket is not None:
         return ticket
     res = _run_extract(st, cd, start, end, sampling)
@@ -290,7 +309,7 @@ def extract(request: Request, stations: str, cards: str,
         extracted = {cd[0]: extracted}
     data_out = {k: serialize(v, orient) for k, v in extracted.items()}
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
-    return {
+    out = {
         "card_version": CARD_VERSION,
         "stations": st,
         "cards": cd,
@@ -301,6 +320,9 @@ def extract(request: Request, stations: str, cards: str,
         "meta": serialize(res["meta"]),
         "data": data_out,
     }
+    if stations_meta:
+        out["stations_meta"] = _stations_meta(st)
+    return out
 
 
 @app.get("/v1/trend", dependencies=[Depends(usage.rate_compute)])
@@ -309,6 +331,7 @@ def trend(request: Request, stations: str, cards: str,
           sampling: str | None = None,
           mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
           series: bool = False,
+          stations_meta: bool = False,
           orient: str = "records"):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (card.trend) sur chaque série.
@@ -325,6 +348,8 @@ def trend(request: Request, stations: str, cards: str,
             lesquelles la tendance a été calculée (mêmes données
             garanties : tout vient du même calcul ; pratique pour
             tracer points + tendance sans second appel).
+    stations_meta : true pour joindre les fiches du référentiel
+            Hub'Eau des stations (cf. /v1/extract).
     Fiches acceptées : sorties de forme 'series' uniquement (la
     tendance d'un scalaire ou d'une courbe n'a pas de sens).
     """
@@ -338,7 +363,8 @@ def trend(request: Request, stations: str, cards: str,
     _check_cards_series(cd)
     ticket = _maybe_job(request, "trend", st, cd, prio, start=start,
                         end=end, sampling=sampling, mk=mk, level=level,
-                        series=series or None, orient=orient)
+                        series=series or None,
+                        stations_meta=stations_meta or None, orient=orient)
     if ticket is not None:
         return ticket
 
@@ -366,6 +392,8 @@ def trend(request: Request, stations: str, cards: str,
     if series:
         out["series"] = {cid: serialize(df, orient)
                          for cid, df in res["data"].items()}
+    if stations_meta:
+        out["stations_meta"] = _stations_meta(st)
     return out
 
 
@@ -381,6 +409,7 @@ class JobRequest(BaseModel):
     mk: str = "AR1"
     level: float = 0.1
     series: bool = False                 # trend : joindre les séries extraites
+    stations_meta: bool = False          # joindre le référentiel des stations
     orient: str = "records"
 
 
@@ -416,6 +445,8 @@ def create_job(request: Request, req: JobRequest):
         params["end"] = req.end
     if req.sampling:
         params["sampling"] = req.sampling
+    if req.stations_meta:
+        params["stations_meta"] = True
     if req.endpoint == "trend":
         params.update(mk=req.mk, level=req.level)
         if req.series:
@@ -493,15 +524,53 @@ def job_result(job_id: str):
     return Response(content=raw, media_type="application/json")
 
 
+def _tree_mb(path) -> float:
+    total = 0
+    if path.exists():
+        for p in path.rglob("*"):
+            try:
+                if p.is_file():
+                    total += p.stat().st_size
+            except OSError:
+                pass
+    return round(total / 1e6, 1)
+
+
+@app.delete("/v1/jobs/{job_id}", status_code=204,
+            dependencies=[Depends(usage.rate_light)])
+def job_delete(request: Request, job_id: str):
+    """Supprime un job et son résultat sans attendre le TTL (le
+    « dismiss » d'OGC API Processes). Le ticket vaut capacité, comme
+    pour la lecture. Un job en cours d'exécution n'est pas annulable
+    (calcul non interruptible) : réessayer une fois terminé."""
+    job = jobs.load(job_id)
+    if job is None:
+        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+    if job["status"] == "running":
+        raise HTTPException(409, "job en cours d'exécution : "
+                                 "suppression possible une fois terminé")
+    jobs.delete(job_id)
+    usage.log_usage(request, "jobs_delete", job=job_id)
+    return Response(status_code=204)
+
+
 @app.get("/v1/health")
 def health():
-    """Sonde de vie et charge (déploiement, supervision) : état de la
-    file de calcul et du disque, lisible par n'importe quelle sonde."""
-    du = shutil.disk_usage(hubeau.data_dir())
+    """Sonde de vie et charge (déploiement, supervision), lisible par
+    n'importe quelle sonde. `disk` décrit le système de fichiers de la
+    VM ENTIÈRE (partagé avec d'autres services : c'est la place
+    restante qui borne les jobs, pas notre consommation) ; `data` est
+    l'empreinte propre de card-api (cache des chroniques, jobs,
+    journal)."""
+    d = hubeau.data_dir()
+    du = shutil.disk_usage(d)
     return {
         "status": "ok",
         "card_version": CARD_VERSION,
         "jobs": jobs.queue_stats(),
         "disk": {"used_pct": round(du.used / du.total * 100, 1),
                  "free_gb": round(du.free / 1e9, 1)},
+        "data": {"total_mb": _tree_mb(d),
+                 "cache_mb": _tree_mb(d / "chroniques"),
+                 "jobs_mb": _tree_mb(d / "jobs")},
     }

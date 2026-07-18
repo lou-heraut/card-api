@@ -120,7 +120,7 @@ def test_rate_limit_and_usage_log(monkeypatch, tmp_path):
     assert ok1.status_code == ok2.status_code == 200
     assert blocked.status_code == 429
     assert "Retry-After" in blocked.headers
-    log = (tmp_path / "usage.jsonl").read_text().strip().split("\n")
+    log = next(tmp_path.glob("usage-*.jsonl")).read_text().strip().split("\n")
     assert len(log) == 2                       # seules les requêtes servies
     import json
     entry = json.loads(log[0])
