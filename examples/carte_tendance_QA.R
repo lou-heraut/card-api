@@ -36,11 +36,12 @@ END   <- "2024-08-31"
 if (file.exists("examples/.env")) readRenviron("examples/.env")
 KEY <- Sys.getenv("CARD_API_KEY")
 
-# ── Les stations : réseau RRSE du jeu de validation MAKAHO ──────────────────
-# Seuls les codes sont lus : l'appartenance au RRSE est un choix
-# d'étude (aucun flag dans Hub'Eau), mais tout le reste (positions...)
-# vient du référentiel Hub'Eau via l'API, jamais d'un fichier local.
-codes <- read.csv("tests/data/makaho/QA/meta.csv")$code
+# ── Les stations : réseau RRSE (un code par ligne) ──────────────────────────
+# La liste est la SEULE entrée locale : l'appartenance au RRSE est un
+# choix d'étude (aucun flag dans Hub'Eau). Tout le reste (positions...)
+# vient du référentiel Hub'Eau via l'API. Remplacez par vos codes
+# post-refonte (10 caractères ; /v1/stations aide à les retrouver).
+codes <- readLines("examples/stations_rrse.txt")
 
 # ── Dépôt du job : tendance de QA, fenêtre fixe des fiches ──────────────────
 if (JOB == "") {
