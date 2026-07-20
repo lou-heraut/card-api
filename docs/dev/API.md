@@ -136,22 +136,15 @@ Le SKOS n'est **pas** un service : c'est un artefact de publication de
 la classification, qui vit dans card (source de vérité :
 `src/card/topics.yaml` + les blocs classification).
 
-- `scripts/generate_skos.py` (chantier) : chaque facette devient un
-  `skos:ConceptScheme` (domain, phenomenon, aspect, season, output,
-  purpose) ; chaque valeur un `skos:Concept` avec `prefLabel` fr/en
-  (les paires sont déjà dans topics.yaml) et `exactMatch`/`closeMatch`
-  vers l'existant (aspect ↔ typologie IHA ; fiches climat ↔ ETCCDI) ;
-  chaque fiche devient un concept rattaché à ses facettes
-  (`dcterms:subject`).
-- Publication statique : `docs/card.ttl` servi par GitHub Pages —
-  aucun serveur nécessaire pour être moissonnable.
-- URIs stables : demander un préfixe **w3id.org** (ex.
-  `https://w3id.org/card-hydro/...`) qui redirige vers les Pages —
-  gratuit, pérenne, indépendant de l'hébergement.
-- Skosmos sur la VM = optionnel et purement cosmétique (navigation
-  humaine dans le thésaurus) ; il lit le même `card.ttl`.
-- L'API peut exposer `GET /v1/concepts` en renvoyant vers ces URIs —
-  mais la vérité reste dans card.
+La conception de l'export (generate_skos.py, concept schemes par
+facette, publication `docs/card.ttl` sur GitHub Pages, URIs w3id.org,
+Skosmos optionnel) était décrite ici par accident de rangement. Elle a
+été rapatriée le 2026-07-20 dans card, `docs/dev/CHANTIERS.md` §6, avec
+le reste du sujet.
+
+Ce qui reste du ressort du service : l'API pourrait exposer un
+`GET /v1/concepts` renvoyant vers ces URIs. C'est un renvoi, pas une
+source, et rien ne presse tant que l'export n'existe pas.
 
 ## 5. Arbitrages (rendus le 2026-07-16)
 
