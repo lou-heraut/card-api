@@ -2,8 +2,9 @@
 
 Service web FastAPI des fiches [card](../card/) sur les débits Hub'Eau,
 avec diagnostic de stationnarité via [stase](../../EXstat_project/stase/).
-**Conception et arbitrages : `../card/docs/dev/API.md`** (accès public
-sans clé, quotas IP, journal anonymisé, commercial écarté).
+**Conception et arbitrages : `docs/dev/API.md`** (accès public sans clé,
+quotas IP, journal anonymisé, commercial écarté) ; chantiers ouverts du
+service : `docs/dev/CHANTIERS.md`.
 
 ## Structure
 
@@ -41,6 +42,9 @@ tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
 scripts/        # veille_sante.py : sonde cron à lancer HORS VM
                 #   (ntfy.sh optionnel ; une veille sur la VM meurt
                 #   avec elle)
+docs/dev/       # API.md : conception et arbitrages du service (rapatrié
+                #   de card le 2026-07-20) ; CHANTIERS.md : chantiers
+                #   ouverts propres au service
 .github/        # template d'issue « clé de priorité » (mention RGPD)
 CITATION.cff    # citabilité ; codemeta.json = canal Software
                 #   Heritage / HAL (pas de Zenodo, choix utilisateur)
