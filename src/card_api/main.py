@@ -109,7 +109,13 @@ def card_detail(card_id: str, lang: str = "fr"):
         raise HTTPException(422, "lang doit être 'fr' ou 'en'")
     try:
         meta = card.info(card_id, lang=lang)
-    except FileNotFoundError:
+    except FileNotFoundError as e:
+        # Deux causes distinctes derrière la même exception : fiche absente
+        # du corpus (levée nue par card, sans filename) ou fichier de
+        # données du package illisible (OSError, filename renseigné).
+        # Les confondre annonce « fiche inconnue » sur un bug serveur.
+        if e.filename:
+            raise                                # 500 + trace dans les logs
         raise HTTPException(404, f"fiche inconnue : {card_id}")
     path = meta.pop("path", "")                      # chemin serveur interne
     if "src/card/cards/" in path:

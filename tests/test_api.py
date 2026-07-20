@@ -40,3 +40,15 @@ def test_card_detail_and_404():
     assert "path" not in body["card"]
     assert body["card"]["yaml"].startswith("https://github.com/")
     assert client.get("/v1/cards/INEXISTANTE").status_code == 404
+
+
+def test_card_detail_does_not_disguise_a_missing_data_file(monkeypatch):
+    """Un fichier de données absent du package est un bug serveur, pas une
+    fiche inconnue. La suite tourne en install éditable, où ces fichiers
+    sont toujours là : seul un test explicite couvre le cas."""
+    def boom(*a, **kw):
+        raise FileNotFoundError(2, "No such file or directory",
+                                "/usr/lib/card/inputs.yaml")
+    monkeypatch.setattr("card_api.main.card.info", boom)
+    strict = TestClient(app, raise_server_exceptions=False)
+    assert strict.get("/v1/cards/VCN10").status_code == 500
