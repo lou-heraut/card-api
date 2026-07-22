@@ -324,7 +324,13 @@ def _check_sampling(sampling):
 
 
 def _run_extract(st, cd, start, end, sampling=None):
-    frames = []
+    """Retourne (résultat de card.extract, empreintes par station).
+
+    L'empreinte est prise sur la chronique ENTIÈRE, avant filtre de
+    période : la période demandée figure déjà dans la provenance, et ce
+    qu'on identifie ici c'est la source.
+    """
+    frames, empreintes = [], {}
     for s in st:
         try:
             df = hubeau.fetch_chronicle(s)
@@ -332,6 +338,7 @@ def _run_extract(st, cd, start, end, sampling=None):
             raise HTTPException(404, str(e))
         except hubeau.HubEauIndisponible as e:
             raise HTTPException(504, str(e), headers={"Retry-After": "300"})
+        empreintes[s] = hubeau.fingerprint(df)
         if start:
             df = df[df["date"] >= start]
         if end:
@@ -342,12 +349,13 @@ def _run_extract(st, cd, start, end, sampling=None):
     data = pd.concat(frames, ignore_index=True)
     with jobs.COMPUTE:
         try:
-            return card.extract(data, cards=cd, sampling_period=sampling,
-                                verbose=False)
+            res = card.extract(data, cards=cd, sampling_period=sampling,
+                               verbose=False)
         except FileNotFoundError as e:
             raise HTTPException(404, str(e))
         except ValueError as e:
             raise HTTPException(422, str(e))
+    return res, empreintes
 
 
 @app.get("/v1/extract", dependencies=[Depends(usage.rate_compute)])
@@ -387,7 +395,7 @@ def extract(request: Request, stations: str, cards: str,
                         stations_meta=stations_meta or None, orient=orient)
     if ticket is not None:
         return ticket
-    res = _run_extract(st, cd, start, end, sampling)
+    res, empreintes = _run_extract(st, cd, start, end, sampling)
 
     extracted = res["data"]
     if not isinstance(extracted, dict):
@@ -402,6 +410,7 @@ def extract(request: Request, stations: str, cards: str,
         "sampling": sampling,
         "source": SOURCE,
         "data_fetched_at": _fetched_at(st),
+        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
         "orient": orient,
         "meta": serialize(res["meta"]),
         "data": data_out,
@@ -454,7 +463,7 @@ def trend(request: Request, stations: str, cards: str,
     if ticket is not None:
         return ticket
 
-    res = _run_extract(st, cd, start, end, sampling)
+    res, empreintes = _run_extract(st, cd, start, end, sampling)
     with jobs.COMPUTE:
         try:
             tr = card.trend(res, level=level, dependency=mk,
@@ -473,6 +482,7 @@ def trend(request: Request, stations: str, cards: str,
         "mk": mk, "level": level,
         "source": SOURCE,
         "data_fetched_at": _fetched_at(st),
+        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
         "orient": orient,
         "meta": serialize(res["meta"]),
         "data": trends,

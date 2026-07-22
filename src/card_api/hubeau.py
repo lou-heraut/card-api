@@ -20,6 +20,7 @@ Points vérifiés sur l'API réelle (2026-07-16) :
 import os
 import re
 import datetime as dt
+import hashlib
 import time
 from pathlib import Path
 
@@ -82,6 +83,46 @@ def _fetch_all(url, params):
             if not nxt:
                 return rows
             r = _get_retry(client, nxt)
+
+
+def fingerprint(df: pd.DataFrame) -> str:
+    """Empreinte de la donnée d'une chronique.
+
+    Répond à une question et une seule : deux résultats reposent-ils sur
+    la même donnée ? Hub'Eau révise ses chroniques, et sans empreinte un
+    écart entre deux calculs ne se distingue pas d'un changement de code.
+
+    Calculée sur les octets bruts des colonnes (dates en entiers, valeurs
+    en flottants), et non sur le fichier de cache : gzip inscrit un
+    horodatage dans son en-tête, donc deux compressions d'une même donnée
+    donnent des octets différents. Passer par les tableaux rend aussi
+    l'empreinte indépendante du format CSV et des versions de pandas.
+
+    Sur la chronique ENTIÈRE, avant tout filtre de période : la période
+    demandée est déjà dans la provenance, et ce qu'on veut identifier
+    ici, c'est la source.
+    """
+    h = hashlib.sha256()
+    for col in sorted(df.columns):
+        s = df[col]
+        h.update(col.encode())
+        if pd.api.types.is_datetime64_any_dtype(s):
+            h.update(s.to_numpy(dtype="datetime64[ns]").astype("int64").tobytes())
+        elif pd.api.types.is_numeric_dtype(s):
+            h.update(s.to_numpy(dtype="float64").tobytes())
+        else:
+            h.update(s.astype(str).str.cat(sep="\x1f").encode())
+    return h.hexdigest()
+
+
+def combine_fingerprints(par_station: dict) -> str:
+    """Empreinte d'un lot de chroniques, indépendante de l'ordre de
+    demande : c'est l'ensemble des données qui compte, pas la façon dont
+    on l'a listé."""
+    h = hashlib.sha256()
+    for station in sorted(par_station):
+        h.update(f"{station}:{par_station[station]}\n".encode())
+    return h.hexdigest()
 
 
 def chronicle_fetched_at(station: str) -> str | None:

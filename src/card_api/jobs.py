@@ -250,9 +250,11 @@ def _execute(job: dict, progress) -> dict:
     from .main import LTP_SEED, _fetched_at
 
     total = len(p["stations"])
+    empreintes = {}
     for i, s in enumerate(p["stations"]):
         progress(i, total, f"chronique {s}")
         df = hubeau.fetch_chronicle(s)
+        empreintes[s] = hubeau.fingerprint(df)
         if p.get("start"):
             df = df[df["date"] >= p["start"]]
         if p.get("end"):
@@ -292,6 +294,11 @@ def _execute(job: dict, progress) -> dict:
         "period": {"start": p.get("start"), "end": p.get("end")},
         "sampling": p.get("sampling"),
         "ltp_seed": LTP_SEED if p.get("mk") == "LTP" else None,
+        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
+        # Détail par station dans le résultat GELÉ seulement : c'est
+        # l'artefact qu'on archive et qu'on cite, la verbosité y est utile
+        # là où elle alourdirait une réponse immédiate.
+        "data_fingerprints": empreintes,
         "source": SOURCE,
         "orient": orient,
         "meta": serialize(res["meta"]),

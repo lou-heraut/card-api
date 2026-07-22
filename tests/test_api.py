@@ -109,3 +109,34 @@ def test_le_ltp_est_reproductible():
     service en fixe une et la publie dans la provenance."""
     from card_api import main
     assert isinstance(main.LTP_SEED, int)
+
+
+def test_empreinte_des_donnees_identifie_la_source():
+    """Hub'Eau révise ses chroniques : sans empreinte, un écart entre
+    deux calculs ne se distingue pas d'un changement de code. Elle doit
+    être stable sur une donnée identique et bouger au moindre écart."""
+    import numpy as np
+    import pandas as pd
+
+    from card_api import hubeau
+
+    n = 4000
+    df = pd.DataFrame({
+        "date": pd.date_range("1990-01-01", periods=n, freq="D"),
+        "id": "K0550010",
+        "Q": np.random.default_rng(0).gamma(2, 5, n)})
+
+    assert hubeau.fingerprint(df) == hubeau.fingerprint(df.copy())
+
+    revise = df.copy()
+    revise.loc[10, "Q"] += 1e-9          # une révision minuscule de Hub'Eau
+    assert hubeau.fingerprint(df) != hubeau.fingerprint(revise)
+
+    lacune = df.copy()
+    lacune.loc[20, "Q"] = np.nan
+    assert hubeau.fingerprint(df) != hubeau.fingerprint(lacune)
+
+    # l'ordre dans lequel on demande les stations ne doit rien changer
+    a, b = hubeau.fingerprint(df), hubeau.fingerprint(revise)
+    assert (hubeau.combine_fingerprints({"S1": a, "S2": b})
+            == hubeau.combine_fingerprints({"S2": b, "S1": a}))

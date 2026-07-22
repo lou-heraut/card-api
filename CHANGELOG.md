@@ -22,6 +22,25 @@ des deux endroits.
 
 ## Non publié
 
+### Ajouté
+
+- **Empreinte des données d'entrée** (`data_fingerprint`), qui répond à
+  une question et une seule : deux résultats reposent-ils sur la même
+  donnée ? Hub'Eau révise ses chroniques, et sans elle un écart entre
+  deux calculs ne se distinguait pas d'un changement de code, il fallait
+  enquêter. Le résultat gelé d'un job porte en plus le détail par station
+  (`data_fingerprints`), la verbosité étant utile dans l'artefact qu'on
+  archive et déplacée dans une réponse immédiate.
+
+  Calculée sur les octets des colonnes et non sur le fichier de cache :
+  gzip inscrit un horodatage dans son en-tête, donc deux compressions
+  d'une même donnée donnent des octets différents. Passer par les
+  tableaux rend aussi l'empreinte indépendante du format CSV et des
+  versions de pandas. Prise sur la chronique entière, avant tout filtre
+  de période, puisque c'est la source qu'on identifie. Coût mesuré :
+  2 ms par station, soit un demi-dixième de seconde pour les 228 stations
+  du RRSE.
+
 ### Corrigé
 
 - **Le LTP n'était pas reproductible.** Il départage les ex-æquo au
