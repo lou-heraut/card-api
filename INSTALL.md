@@ -112,6 +112,24 @@ L'image installe card et stase depuis GitHub à révision épinglée
 traçable. Docker (`restart: unless-stopped`) relance les conteneurs
 au démarrage de la VM, pas de systemd à écrire.
 
+### Passer à une nouvelle version de card ou de stase
+
+`make update` récupère le code du **service**, mais pas une nouvelle
+version du corpus ou du moteur : celles-ci sont épinglées, c'est le but.
+Pour les faire bouger, éditer `.env` puis mettre à jour :
+
+```bash
+CARD_REF=v0.3.0        # un TAG des dépôts card / stase, jamais « main » :
+STASE_REF=v0.5.0       # sinon deux constructions n'embarquent pas le même calcul
+make update
+curl -s https://$DOMAIN/v1/health | grep version   # vérifier ce qui tourne
+```
+
+L'ordre compte quand plusieurs bougent ensemble : d'abord stase, puis
+card qui en dépend, puis le service. Le changement mérite sa propre
+entrée dans `CHANGELOG.md`, avec le numéro de version du service : c'est
+ce qui relie un résultat archivé au calcul qui l'a produit.
+
 ## Variables d'environnement
 
 Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
@@ -129,7 +147,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
 | `CARD_API_PRIORITY_STATIONS` / `CARD_API_PRIORITY_CARDS` | 1000 / 226 | plafonds des porteurs de clé de priorité |
-| `CARD_REF` / `STASE_REF` | main | révisions de card/stase dans l'image |
+| `CARD_REF` / `STASE_REF` | tag (cf. `.env.example`) | versions de card/stase installées dans l'image ; toujours un tag, jamais une branche |
 | `CARD_API_DATA` | `/data` (volume) | cache des chroniques, jobs et journal (ne pas toucher en Docker) |
 
 Suivi : `make status` (santé, file, disque via /v1/health), `make stats`
