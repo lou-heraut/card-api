@@ -83,17 +83,14 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 - Public par défaut, jamais d'inscription ; le journal ne stocke JAMAIS
   d'IP en clair. Aspect commercial écarté (stats d'usage = preuve
   d'impact pour les financements).
-- L'image Docker installe card et stase depuis des **tags**
-  (`CARD_REF`/`STASE_REF` dans .env), jamais une branche : deux
-  constructions de la même version du service doivent embarquer le même
-  calcul, sinon le bloc de provenance des résultats ne prouve rien.
-  Changer de version du corpus ou du moteur est donc un geste séparé et
-  délibéré : éditer `.env` puis `make update` (procédure : INSTALL.md,
-  « Passer à une nouvelle version de card ou de stase »).
-  **Déclencheur à ne pas rater** : quand une fiche ou le moteur a été
-  corrigé et que l'utilisateur veut le voir en ligne, la chaîne complète
-  est : taguer stase si besoin, taguer card, mettre les deux refs dans
-  `.env`, `make update`. Le proposer soi-même, il ne le demandera pas.
+- **La production suit `main`** (`CARD_REF`/`STASE_REF` dans .env) :
+  une fiche corrigée part en ligne au `make update` suivant, sans geste
+  intermédiaire. Ce qui rend le résultat traçable n'est pas une ref
+  figée mais le **commit** résolu à la construction
+  (`scripts/resolve_refs.py`), publié par `versions()` dans chaque
+  réponse. Ne jamais recopier un numéro de version à la main dans une
+  réponse : passer par `versions()`, sinon un point de sortie finira par
+  mentir.
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
 

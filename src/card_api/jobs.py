@@ -273,7 +273,7 @@ def _execute(job: dict, progress) -> dict:
             res = {"data": tr["data"], "meta": res["meta"]}
 
     orient = p.get("orient", "records")
-    from .main import CARD_VERSION, SOURCE, STASE_VERSION
+    from .main import SOURCE, versions
     out = {
         "job": {
             "id": job["id"],
@@ -281,8 +281,7 @@ def _execute(job: dict, progress) -> dict:
             "data_fetched_at": fetched_at,
             "params": {k: v for k, v in p.items() if v is not None},
         },
-        "card_version": CARD_VERSION,
-        "stase_version": STASE_VERSION,
+        **versions(),
         "stations": p["stations"],
         "cards": p["cards"],
         "period": {"start": p.get("start"), "end": p.get("end")},

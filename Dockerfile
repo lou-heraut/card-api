@@ -16,6 +16,12 @@ RUN pip install --no-cache-dir \
         "https://github.com/lou-heraut/card/archive/${CARD_REF}.tar.gz" \
     && pip install --no-cache-dir .
 
+# Un numéro de version ne désigne un état unique que si la ref est un tag.
+# On fige donc aussi le commit résolu : le service le publie, et un
+# résultat reste reproductible même construit depuis une branche.
+COPY scripts/resolve_refs.py ./scripts/
+RUN python scripts/resolve_refs.py > /app/build_refs.json && cat /app/build_refs.json
+
 # cache des chroniques + journal d'usage (volume, cf. compose.yaml)
 VOLUME /data
 ENV CARD_API_DATA=/data

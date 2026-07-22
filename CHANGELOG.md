@@ -6,15 +6,11 @@ Changelog](https://keepachangelog.com/fr/1.1.0/). Les paquets `card` et
 `stase` tiennent chacun le leur.
 
 **Numérotation.** Le service n'est pas une bibliothèque : personne ne
-l'importe, il est déployé. Sa version marque un déploiement, et ce qui
-compte est ce qu'elle épingle. `CARD_REF` et `STASE_REF` (dans `.env`)
-doivent porter des **tags**, jamais une branche : sinon deux
-constructions de la même version du service n'embarquent pas le même
-calcul, et le bloc de provenance d'un résultat ne prouve plus rien.
-Mettre à jour le moteur ou le corpus reste ainsi un choix délibéré, avec
-sa propre entrée ici. Les sections antérieures à 0.2.0 restent datées,
-elles n'ont jamais porté de numéro.
-
+l'importe, il est déployé. Il suit `main` pour card comme pour stase, si
+bien qu'une correction arrive en ligne au `make update` suivant. Ce qui
+rend un résultat reproductible n'est donc pas un numéro figé mais le
+**commit** que chaque réponse publie, résolu à la construction de
+l'image.
 Chaque entrée dit ce qui a changé et renvoie au document qui l'explique.
 Rien n'est recopié ici : une information recopiée finit par mentir à un
 des deux endroits.

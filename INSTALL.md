@@ -112,23 +112,26 @@ L'image installe card et stase depuis GitHub à révision épinglée
 traçable. Docker (`restart: unless-stopped`) relance les conteneurs
 au démarrage de la VM, pas de systemd à écrire.
 
-### Passer à une nouvelle version de card ou de stase
+### Savoir ce qui tourne
 
-`make update` récupère le code du **service**, mais pas une nouvelle
-version du corpus ou du moteur : celles-ci sont épinglées, c'est le but.
-Pour les faire bouger, éditer `.env` puis mettre à jour :
+`CARD_REF` et `STASE_REF` valent `main` : chaque construction prend le
+dernier état du corpus et du moteur, donc une correction de fiche part en
+ligne au `make update` suivant. Ce qui rend un résultat traçable n'est
+pas une ref figée, c'est le **commit**, résolu à la construction et
+publié par le service :
 
 ```bash
-CARD_REF=v0.3.0        # un TAG des dépôts card / stase, jamais « main » :
-STASE_REF=v0.5.0       # sinon deux constructions n'embarquent pas le même calcul
-make update
-curl -s https://$DOMAIN/v1/health | grep version   # vérifier ce qui tourne
+curl -s https://$DOMAIN/v1/health | python3 -m json.tool | grep -E "version|commit"
 ```
 
-L'ordre compte quand plusieurs bougent ensemble : d'abord stase, puis
-card qui en dépend, puis le service. Le changement mérite sa propre
-entrée dans `CHANGELOG.md`, avec le numéro de version du service : c'est
-ce qui relie un résultat archivé au calcul qui l'a produit.
+Chaque réponse porte les mêmes champs, et les métadonnées portent en plus
+la version de chaque fiche employée. Un résultat archivé dit donc
+exactement ce qui l'a produit, sans qu'aucun geste manuel ait été
+nécessaire.
+
+Épingler une ref précise (`CARD_REF=v0.2.0`) reste possible, par exemple
+pour reproduire un résultat ancien, mais ce n'est pas le mode normal.
+
 
 ## Variables d'environnement
 
@@ -147,7 +150,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
 | `CARD_API_PRIORITY_STATIONS` / `CARD_API_PRIORITY_CARDS` | 1000 / 226 | plafonds des porteurs de clé de priorité |
-| `CARD_REF` / `STASE_REF` | tag (cf. `.env.example`) | versions de card/stase installées dans l'image ; toujours un tag, jamais une branche |
+| `CARD_REF` / `STASE_REF` | main | état de card/stase installé dans l'image ; le commit résolu est publié par le service |
 | `CARD_API_DATA` | `/data` (volume) | cache des chroniques, jobs et journal (ne pas toucher en Docker) |
 
 Suivi : `make status` (santé, file, disque via /v1/health), `make stats`

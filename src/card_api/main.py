@@ -14,6 +14,8 @@ des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
 par IP et journal d'usage anonymisé (usage.py).
 """
 
+import json
+import os
 import re
 import shutil
 
@@ -71,6 +73,40 @@ try:
 except Exception:                                    # exécution hors install
     API_VERSION = "dev"
 
+# Commits résolus à la construction de l'image (scripts/resolve_refs.py).
+# Un numéro de version ne désigne un état unique que si la ref était un
+# tag ; le commit, lui, désigne toujours un état et un seul. Absent hors
+# Docker : le service annonce alors le seul numéro de version.
+def _build_refs():
+    path = os.environ.get("CARD_API_BUILD_REFS", "/app/build_refs.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            refs = json.load(f)
+        return (refs.get("card", {}).get("commit"),
+                refs.get("stase", {}).get("commit"))
+    except Exception:
+        return None, None
+
+
+CARD_COMMIT, STASE_COMMIT = _build_refs()
+
+
+def versions():
+    """Identité du calcul, telle qu'elle part chez l'utilisateur.
+
+    Le numéro dit la version publiée, le commit dit l'état exact. Les
+    versions des FICHES employées voyagent à part, dans les métadonnées :
+    une par variable, puisque deux fiches d'une même réponse peuvent
+    avoir des versions différentes.
+    """
+    v = {"card_version": CARD_VERSION, "stase_version": STASE_VERSION,
+         "api_version": API_VERSION}
+    if CARD_COMMIT:
+        v["card_commit"] = CARD_COMMIT
+    if STASE_COMMIT:
+        v["stase_commit"] = STASE_COMMIT
+    return v
+
 app = FastAPI(
     title="card-api",
     version=API_VERSION,
@@ -106,8 +142,7 @@ def cards(domain: str | None = None,
                          function=function, variable=variable,
                          search=search)
     return {
-        "card_version": CARD_VERSION,
-        "stase_version": STASE_VERSION,
+        **versions(),
         "count": int(len(df)),
         "cards": clean(df.head(limit).to_dict(orient="records")),
     }
@@ -133,8 +168,7 @@ def card_detail(card_id: str, lang: str = "fr"):
         rel = path.split("src/card/cards/", 1)[1]
         meta["yaml"] = ("https://github.com/lou-heraut/card/blob/main/"
                         f"src/card/cards/{rel}")
-    return {"card_version": CARD_VERSION,
-        "stase_version": STASE_VERSION, "lang": lang, "card": meta}
+    return {**versions(), "lang": lang, "card": meta}
 
 
 @app.get("/v1/stations", dependencies=[Depends(usage.rate_light)])
@@ -328,8 +362,7 @@ def extract(request: Request, stations: str, cards: str,
     data_out = {k: serialize(v, orient) for k, v in extracted.items()}
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
     out = {
-        "card_version": CARD_VERSION,
-        "stase_version": STASE_VERSION,
+        **versions(),
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
@@ -397,8 +430,7 @@ def trend(request: Request, stations: str, cards: str,
 
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
     out = {
-        "card_version": CARD_VERSION,
-        "stase_version": STASE_VERSION,
+        **versions(),
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
@@ -586,8 +618,7 @@ def health():
     du = shutil.disk_usage(d)
     return {
         "status": "ok",
-        "card_version": CARD_VERSION,
-        "stase_version": STASE_VERSION,
+        **versions(),
         "jobs": jobs.queue_stats(),
         "disk": {"used_pct": round(du.used / du.total * 100, 1),
                  "free_gb": round(du.free / 1e9, 1)},

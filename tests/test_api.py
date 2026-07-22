@@ -52,3 +52,40 @@ def test_card_detail_does_not_disguise_a_missing_data_file(monkeypatch):
     monkeypatch.setattr("card_api.main.card.info", boom)
     strict = TestClient(app, raise_server_exceptions=False)
     assert strict.get("/v1/cards/VCN10").status_code == 500
+
+
+def test_reponses_portent_l_identite_du_calcul():
+    """Un résultat doit dire ce qui l'a produit : la version du corpus,
+    celle du moteur, celle du service. Sans quoi il n'est ni
+    reproductible ni citable."""
+    for url in ("/v1/health", "/v1/cards", "/v1/cards/QA"):
+        j = client.get(url).json()
+        for k in ("card_version", "stase_version", "api_version"):
+            assert k in j, f"{url} : {k} absent"
+
+
+def test_commit_publie_quand_l_image_le_connait(tmp_path, monkeypatch):
+    """Le numéro de version ne désigne un état unique que si la ref
+    était un tag. Construite depuis une branche, l'image résout le
+    commit : c'est lui qui rend le résultat reproductible."""
+    from card_api import main
+
+    refs = tmp_path / "build_refs.json"
+    refs.write_text('{"card": {"ref": "main", "commit": "abc123def456"},'
+                    ' "stase": {"ref": "main", "commit": "789abc012def"}}')
+    monkeypatch.setenv("CARD_API_BUILD_REFS", str(refs))
+    monkeypatch.setattr(main, "CARD_COMMIT", "abc123def456")
+    monkeypatch.setattr(main, "STASE_COMMIT", "789abc012def")
+
+    v = main.versions()
+    assert v["card_commit"] == "abc123def456"
+    assert v["stase_commit"] == "789abc012def"
+
+
+def test_versions_des_fiches_arrivent_a_l_utilisateur():
+    """Chaque fiche porte sa propre version : deux fiches d'une même
+    réponse peuvent ne pas avoir la même, elle voyage donc par variable
+    dans les métadonnées, pas globalement."""
+    j = client.get("/v1/cards", params={"search": "QA"}).json()
+    assert j["cards"], "aucune fiche renvoyée"
+    assert any("version" in c for c in j["cards"]), list(j["cards"][0])
