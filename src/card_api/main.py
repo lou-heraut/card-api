@@ -183,7 +183,12 @@ def cards(domain: str | None = None,
 
 @app.get("/v1/cards/{card_id}", dependencies=[Depends(usage.rate_light)])
 def card_detail(card_id: str, lang: str = "fr"):
-    """Détail d'une fiche : métadonnées complètes + classification."""
+    """Détail d'une fiche : métadonnées complètes et classification.
+
+    Deux liens vers la définition employée : `yaml` pointe le fichier sur
+    GitHub à la révision réellement exécutée, `archive` le même contenu
+    dans Software Heritage, qui restera lisible même si le dépôt bouge.
+    """
     if lang not in ("fr", "en"):
         raise HTTPException(422, "lang doit être 'fr' ou 'en'")
     try:
@@ -196,11 +201,18 @@ def card_detail(card_id: str, lang: str = "fr"):
         if e.filename:
             raise                                # 500 + trace dans les logs
         raise HTTPException(404, f"fiche inconnue : {card_id}")
-    path = meta.pop("path", "")                      # chemin serveur interne
-    if "src/card/cards/" in path:
-        rel = path.split("src/card/cards/", 1)[1]
-        meta["yaml"] = ("https://github.com/lou-heraut/card/blob/main/"
-                        f"src/card/cards/{rel}")
+    # Deux liens vers la définition, complémentaires. GitHub pointe la
+    # révision RÉELLEMENT exécutée, pas `main` : une fiche consultée
+    # aujourd'hui correspond ainsi au calcul d'aujourd'hui. Software
+    # Heritage pointe le contenu exact, qui restera lisible même si le
+    # dépôt disparaît.
+    rel = meta.pop("path", "")
+    if rel:
+        ref = CARD_COMMIT or "main"
+        meta["yaml"] = ("https://github.com/lou-heraut/card/blob/"
+                        f"{ref}/src/card/cards/{rel}")
+    if meta.get("swhid"):
+        meta["archive"] = f"https://archive.softwareheritage.org/{meta['swhid']}"
     return {**versions(), "lang": lang, "card": meta}
 
 

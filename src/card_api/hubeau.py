@@ -29,6 +29,7 @@ import pandas as pd
 
 BASE = "https://hubeau.eaufrance.fr/api/v2/hydrometrie"
 PAGE_SIZE = 20000
+FINGERPRINT_VERSION = "v1"               # cf. fingerprint()
 CACHE_TTL = 24 * 3600                    # les séries validées bougent peu
 _STATION_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
 
@@ -101,6 +102,12 @@ def fingerprint(df: pd.DataFrame) -> str:
     Sur la chronique ENTIÈRE, avant tout filtre de période : la période
     demandée est déjà dans la provenance, et ce qu'on veut identifier
     ici, c'est la source.
+
+    Préfixée par la version de l'algorithme. Cette empreinte est un jeton
+    de COMPARAISON, pas une somme de contrôle recalculable de l'extérieur:
+    deux valeurs se comparent, elles ne se vérifient pas. Si le calcul
+    change un jour, le préfixe change avec lui, et personne ne comparera
+    par erreur deux empreintes issues d'algorithmes différents.
     """
     h = hashlib.sha256()
     for col in sorted(df.columns):
@@ -112,7 +119,7 @@ def fingerprint(df: pd.DataFrame) -> str:
             h.update(s.to_numpy(dtype="float64").tobytes())
         else:
             h.update(s.astype(str).str.cat(sep="\x1f").encode())
-    return h.hexdigest()
+    return f"{FINGERPRINT_VERSION}:{h.hexdigest()}"
 
 
 def combine_fingerprints(par_station: dict) -> str:
@@ -122,7 +129,7 @@ def combine_fingerprints(par_station: dict) -> str:
     h = hashlib.sha256()
     for station in sorted(par_station):
         h.update(f"{station}:{par_station[station]}\n".encode())
-    return h.hexdigest()
+    return f"{FINGERPRINT_VERSION}:{h.hexdigest()}"
 
 
 def chronicle_fetched_at(station: str) -> str | None:

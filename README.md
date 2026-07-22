@@ -216,6 +216,37 @@ garde qu'un hachage) : conservez-le, un jeton perdu se remplace. Le
 journal du service ne stocke jamais votre nom, seulement le préfixe
 du jeton.
 
+## Savoir ce qui a produit un résultat
+
+Chaque réponse porte de quoi refaire le calcul plus tard, ou expliquer
+pourquoi il ne redonne pas la même chose :
+
+| Champ | Ce qu'il dit |
+|---|---|
+| `card_version`, `card_commit`, `card_swhid` | le corpus de fiches employé |
+| `stase_version`, `stase_commit`, `stase_swhid` | le moteur de calcul employé |
+| `meta[].version`, `meta[].swhid` | la définition de chaque variable, fiche par fiche |
+| `data_fetched_at` | quand les chroniques Hub'Eau ont été lues |
+| `data_fingerprint` | ce qu'elles contenaient |
+
+Les identifiants `swh:` s'ouvrent en collant
+`https://archive.softwareheritage.org/` devant : ils donnent le code et
+les fiches tels qu'ils étaient, indépendamment de GitHub.
+
+`data_fingerprint` demande une explication, parce qu'il ne se recalcule
+pas de votre côté : c'est un **jeton de comparaison**, pas une somme de
+contrôle. Il résume les chroniques employées, entières, avant tout
+filtre de période. Deux résultats qui portent la même valeur reposent
+sur la même donnée ; deux valeurs différentes signalent que Hub'Eau a
+révisé sa donnée entre les deux appels, ce qui arrive régulièrement et
+explique alors l'écart sans qu'il faille chercher du côté du calcul. Le
+préfixe `v1:` est la version de l'algorithme : s'il change un jour, vous
+saurez que deux empreintes ne sont plus comparables.
+
+Pour un job, le résultat gelé porte en plus `data_fingerprints`, le
+détail station par station : quand un lot de 200 stations change, il dit
+laquelle.
+
 ## Périmètre
 
 Le service ne fournit que des débits journaliers (fiches à entrée
