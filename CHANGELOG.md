@@ -22,6 +22,16 @@ des deux endroits.
 
 ## Non publié
 
+### Modifié
+
+- README : les cinq exemples Python et les quatre exemples R sont
+  rejoués contre une instance locale à Hub'Eau simulé, ce qui n'avait
+  plus été fait depuis leur écriture. Tous passent. Ajoutés :
+  `stations_meta=true`, qui rend un résultat autoportant et n'était pas
+  documenté, les deux liens vers la définition d'une fiche, et une
+  section « Citer » qui reflète la provenance réellement publiée plutôt
+  que la seule version de card.
+
 ### Ajouté
 
 - **Empreinte des données d'entrée** (`data_fingerprint`), qui répond à

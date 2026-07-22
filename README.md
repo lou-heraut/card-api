@@ -18,7 +18,7 @@ Déploiement et développement : [INSTALL.md](INSTALL.md).
 | Endpoint | Rôle |
 |---|---|
 | `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes |
-| `GET /v1/cards/{id}` | détail d'une fiche (fr/en) + lien vers son YAML |
+| `GET /v1/cards/{id}` | détail d'une fiche (fr/en) et liens vers sa définition |
 | `GET /v1/stations` | recherche de stations hydrométriques |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
 | `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
@@ -80,6 +80,10 @@ Deux paramètres méritent un mot :
 - `series=true` sur `/v1/trend` joint à la réponse, sous `series`,
   les séries extraites sur lesquelles la tendance a été calculée :
   points et diagnostic issus du même calcul, sans second appel.
+- `stations_meta=true` joint les fiches du référentiel Hub'Eau des
+  stations demandées (libellé, coordonnées, état de service). Un résultat
+  devient autoportant : tracer une carte ne demande plus d'aller chercher
+  les positions ailleurs.
 
 ### En Python
 
@@ -260,7 +264,9 @@ Les métadonnées de citation sont dans [CITATION.cff](CITATION.cff)
 [codemeta.json](codemeta.json) (moissonné par Software Heritage et
 HAL ; identifiant pérenne à venir par ce canal). Dans une
 publication, citez aussi la source des données (Hub'Eau hydrométrie,
-eaufrance, Licence Ouverte) et la version de card utilisée : chaque
-réponse du service la porte (`card_version`), les résultats de jobs y
-ajoutent un bloc de provenance complet (paramètres, date des
-données).
+eaufrance, Licence Ouverte) et ce qui a produit votre résultat : chaque
+réponse porte les versions et les identifiants Software Heritage du
+corpus et du moteur, la version de chaque fiche employée, la date de
+lecture des données et leur empreinte. Le détail est dans « Savoir ce
+qui a produit un résultat » plus haut ; le résultat gelé d'un job les
+rassemble dans un bloc de provenance avec les paramètres de l'appel.
