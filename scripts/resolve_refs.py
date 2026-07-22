@@ -16,6 +16,13 @@ le même numéro. L'identifiant de commit, lui, désigne un état et un
 seul. Le service le publie à côté du numéro, si bien qu'un résultat
 reste reproductible même si l'image a été construite depuis `main`.
 
+On garde le hash COMPLET, et pas une version abrégée : pour un dépôt
+git, l'identifiant pérenne Software Heritage d'une révision est
+`swh:1:rev:` suivi de ce hash exact (SWH calcule ses identifiants de
+révision comme git). Le service peut donc publier un SWHID citable sans
+appeler la moindre API, il suffit que le dépôt ait été archivé une fois
+pour que le lien résolve.
+
 Écrit un JSON sur la sortie standard. Une résolution qui échoue (réseau,
 quota GitHub) donne `null` : le service démarre quand même, il annoncera
 seulement le numéro de version.
@@ -38,7 +45,7 @@ def resolve(repo, ref):
             url, headers={"Accept": "application/vnd.github+json",
                           "User-Agent": "card-api-build"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return json.load(r)["sha"][:12]
+            return json.load(r)["sha"]
     except Exception:
         return None
 

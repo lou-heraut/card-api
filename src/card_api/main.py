@@ -101,10 +101,15 @@ def versions():
     """
     v = {"card_version": CARD_VERSION, "stase_version": STASE_VERSION,
          "api_version": API_VERSION}
+    # Pour un dépôt git, l'identifiant Software Heritage d'une révision
+    # est swh:1:rev: suivi du hash du commit : citable tel quel, sans
+    # appel d'API, dès lors que le dépôt a été archivé une fois.
     if CARD_COMMIT:
         v["card_commit"] = CARD_COMMIT
+        v["card_swhid"] = f"swh:1:rev:{CARD_COMMIT}"
     if STASE_COMMIT:
         v["stase_commit"] = STASE_COMMIT
+        v["stase_swhid"] = f"swh:1:rev:{STASE_COMMIT}"
     return v
 
 app = FastAPI(

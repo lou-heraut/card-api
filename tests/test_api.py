@@ -80,6 +80,10 @@ def test_commit_publie_quand_l_image_le_connait(tmp_path, monkeypatch):
     v = main.versions()
     assert v["card_commit"] == "abc123def456"
     assert v["stase_commit"] == "789abc012def"
+    # L'identifiant Software Heritage d'une révision git EST le hash du
+    # commit : citable sans appel d'API, une fois le dépôt archivé.
+    assert v["card_swhid"] == "swh:1:rev:abc123def456"
+    assert v["stase_swhid"] == "swh:1:rev:789abc012def"
 
 
 def test_versions_des_fiches_arrivent_a_l_utilisateur():
