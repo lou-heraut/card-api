@@ -90,10 +90,12 @@ def _build_refs():
 
 
 # Le LTP départage les ex-æquo au hasard (choix documenté dans le tools.R
-# d'origine). Sans graine, deux appels identiques peuvent rendre des
-# p-values différentes : un service qui se veut reproductible doit donc en
-# fixer une, et la publier pour qu'on puisse rejouer le calcul.
-LTP_SEED = int(os.environ.get("CARD_API_LTP_SEED", "0"))
+# d'origine). Sans graine, deux appels identiques rendent des p-values
+# différentes : le service en fixe donc une, en dur. Elle n'est pas
+# réglable par déploiement, ce qui ne servirait personne ; si un jour on
+# veut tester la sensibilité d'un verdict au tirage, c'est un paramètre
+# de REQUÊTE qu'il faudra, pas une variable d'environnement.
+LTP_SEED = 0
 
 
 CARD_COMMIT, STASE_COMMIT = _build_refs()

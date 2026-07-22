@@ -29,7 +29,7 @@ des deux endroits.
   de fixer la graine ; le service ne la passait pas. Deux appels
   identiques rendaient donc des p-values différentes (mesuré : 0.90398,
   0.90446, 0.90401 sur la même série). Une graine est désormais fixée
-  (`CARD_API_LTP_SEED`, 0 par défaut) et publiée dans la provenance d'un
+  en dur, et publiée dans la provenance d'un
   job, pour qu'un calcul puisse être rejoué.
 - **`data_fetched_at` datait le calcul, pas la lecture des données.** Le
   cache des chroniques vit 24 h : les deux pouvaient différer d'autant,
