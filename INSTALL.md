@@ -129,6 +129,12 @@ la version de chaque fiche employée. Un résultat archivé dit donc
 exactement ce qui l'a produit, sans qu'aucun geste manuel ait été
 nécessaire.
 
+Les champs `card_swhid` et `stase_swhid` sont des identifiants pérennes
+Software Heritage : `swh:1:rev:` suivi du hash du commit, parce que SWH
+calcule ses identifiants de révision comme git. Ils s'ouvrent directement
+(`https://archive.softwareheritage.org/swh:1:rev:...`) et sont citables
+tels quels, les trois dépôts y étant archivés depuis le 2026-07-22.
+
 Épingler une ref précise (`CARD_REF=v0.2.0`) reste possible, par exemple
 pour reproduire un résultat ancien, mais ce n'est pas le mode normal.
 

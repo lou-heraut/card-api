@@ -10,7 +10,12 @@ l'importe, il est déployé. Il suit `main` pour card comme pour stase, si
 bien qu'une correction arrive en ligne au `make update` suivant. Ce qui
 rend un résultat reproductible n'est donc pas un numéro figé mais le
 **commit** que chaque réponse publie, résolu à la construction de
-l'image.
+l'image, accompagné de son identifiant pérenne Software Heritage
+(`swh:1:rev:<commit>`). Les trois dépôts sont archivés sur Software
+Heritage depuis le 2026-07-22, donc ces identifiants résolvent. Publier
+une version tient en une commande : `python scripts/set_version.py
+0.3.0`, qui accorde `pyproject.toml`, `CITATION.cff` et
+`codemeta.json`.
 Chaque entrée dit ce qui a changé et renvoie au document qui l'explique.
 Rien n'est recopié ici : une information recopiée finit par mentir à un
 des deux endroits.

@@ -90,9 +90,32 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
   (`scripts/resolve_refs.py`), publié par `versions()` dans chaque
   réponse. Ne jamais recopier un numéro de version à la main dans une
   réponse : passer par `versions()`, sinon un point de sortie finira par
-  mentir.
+  mentir. Cf. « Versions et citation » plus bas.
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
+
+## Versions et citation
+
+Doctrine complète : « Versions, en quatre phrases », en tête de
+`CHANGELOG.md`. Ce qu'il ne faut pas rater :
+
+- **Au quotidien : rien.** La production suit `main`, le service publie
+  le commit et le SWHID de card et de stase dans chaque réponse. Le seul
+  geste régulier est l'entrée `## Non publié` du CHANGELOG. **Le
+  proposer soi-même**, l'utilisateur ne le demandera pas.
+- **Publier une version** (rare : PyPI, dépôt citable) :
+  `python scripts/set_version.py 0.3.0` accorde `pyproject.toml`,
+  `CITATION.cff` et `codemeta.json`. Ne JAMAIS y écrire un numéro à la
+  main : `tests/test_citation.py` refuse le désaccord. Puis section de
+  CHANGELOG, commit, `git tag -a vX.Y.Z`, `git push --tags`.
+- **SWHID** : `swh:1:rev:<hash du commit>` EST l'identifiant Software
+  Heritage d'une révision git, calculable sans aucun appel d'API. Il ne
+  résout que si le dépôt est archivé : fait le 2026-07-22 pour les trois,
+  et SWH revisite tout seul ensuite. Rien à refaire par version.
+- Le service n'a pas besoin d'être tagué : personne ne l'installe. Ce
+  qui l'identifie dans un résultat, c'est son commit. Les tags sont
+  utiles à card et stase, qui se citent.
+
 
 ## État (2026-07-22)
 
