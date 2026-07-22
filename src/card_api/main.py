@@ -62,6 +62,11 @@ except Exception:                                    # non installé
     CARD_VERSION = "dev"
 
 try:
+    STASE_VERSION = _pkg_version("stase")
+except Exception:                                    # non installé
+    STASE_VERSION = "dev"
+
+try:
     API_VERSION = _pkg_version("card-api")
 except Exception:                                    # exécution hors install
     API_VERSION = "dev"
@@ -102,6 +107,7 @@ def cards(domain: str | None = None,
                          search=search)
     return {
         "card_version": CARD_VERSION,
+        "stase_version": STASE_VERSION,
         "count": int(len(df)),
         "cards": clean(df.head(limit).to_dict(orient="records")),
     }
@@ -127,7 +133,8 @@ def card_detail(card_id: str, lang: str = "fr"):
         rel = path.split("src/card/cards/", 1)[1]
         meta["yaml"] = ("https://github.com/lou-heraut/card/blob/main/"
                         f"src/card/cards/{rel}")
-    return {"card_version": CARD_VERSION, "lang": lang, "card": meta}
+    return {"card_version": CARD_VERSION,
+        "stase_version": STASE_VERSION, "lang": lang, "card": meta}
 
 
 @app.get("/v1/stations", dependencies=[Depends(usage.rate_light)])
@@ -322,6 +329,7 @@ def extract(request: Request, stations: str, cards: str,
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
     out = {
         "card_version": CARD_VERSION,
+        "stase_version": STASE_VERSION,
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
@@ -390,6 +398,7 @@ def trend(request: Request, stations: str, cards: str,
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
     out = {
         "card_version": CARD_VERSION,
+        "stase_version": STASE_VERSION,
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
@@ -578,6 +587,7 @@ def health():
     return {
         "status": "ok",
         "card_version": CARD_VERSION,
+        "stase_version": STASE_VERSION,
         "jobs": jobs.queue_stats(),
         "disk": {"used_pct": round(du.used / du.total * 100, 1),
                  "free_gb": round(du.free / 1e9, 1)},
