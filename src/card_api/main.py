@@ -61,9 +61,14 @@ try:
 except Exception:                                    # non installé
     CARD_VERSION = "dev"
 
+try:
+    API_VERSION = _pkg_version("card-api")
+except Exception:                                    # exécution hors install
+    API_VERSION = "dev"
+
 app = FastAPI(
     title="card-api",
-    version="0.1.0",
+    version=API_VERSION,
     description=(
         "Extraction de variables hydroclimatiques (fiches CARD) sur les "
         "données Hub'Eau. Service public de recherche (INRAE, UR RiverLy). "
