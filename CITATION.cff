@@ -14,10 +14,10 @@ authors:
     given-names: "Louis"
     email: "louis.heraut@inrae.fr"
     affiliation: "INRAE, UR RiverLy, Villeurbanne, France"
-version: "0.1.0"
+version: "0.2.0"
 date-released: "2026-07-17"
 repository-code: "https://github.com/lou-heraut/card-api"
-license: "GPL-3.0-only"
+license: "GPL-3.0-or-later"
 keywords:
   - hydrologie
   - débits
