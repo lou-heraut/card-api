@@ -14,7 +14,7 @@
 > statistiques d'usage valent plus, comme preuve d'impact pour les
 > financements, que des recettes de niche).
 
-## Où ranger quoi — la carte de l'écosystème
+## Où ranger quoi : la carte de l'écosystème
 
 Principe : **card reste une bibliothèque de calcul pure** (installable,
 légère, sans dépendance service). Tout ce qui est *service* (réseau,
@@ -60,32 +60,32 @@ Préfixe `/v1` dès le départ.
   la classification, dans les deux langues, identiques à
   `card.list_cards()` : `?phenomenon=basses eaux&output=série`,
   `&operator=delta`, `&function=baseflow`, `&search=étiage`, `&lang=`.
-- `GET /v1/cards/{id}` — détail d'une fiche (info + lien vers le YAML
+- `GET /v1/cards/{id}` : détail d'une fiche (info + lien vers le YAML
   source sur GitHub).
-- `GET /v1/stations?dept=07&river=Ardèche&bbox=...` — recherche de
+- `GET /v1/stations?dept=07&river=Ardèche&bbox=...` : recherche de
   stations (proxy du référentiel Hub'Eau) pour ne pas obliger à
   connaître les codes à l'avance.
 
 ### Calcul
 
 - `GET /v1/extract?stations=H5920010,K0550010&cards=QA,VCN10&start=1970-09-01&end=2020-08-31`
-  — télécharge les chroniques journalières Hub'Eau
+  : télécharge les chroniques journalières Hub'Eau
   (`hydrometrie/obs_elab`, QmnJ), exécute card, renvoie
   `{data, meta}` ; `&format=csv` possible. `stations` est
   une liste (plafonnée en public, déplafonnée avec clé de priorité) ;
   `start`/`end` optionnels (défaut : chronique complète).
-- `GET /v1/trend?stations=...&cards=QA,VCN10&mk=INDE` — enchaîne
+- `GET /v1/trend?stations=...&cards=QA,VCN10&mk=INDE` : enchaîne
   extraction + `stase.trend` (Mann-Kendall/Sen) : le diagnostic de
   stationnarité complet, à la MAKAHO. Mêmes paramètres qu'extract.
 - Grosses demandes (au-delà d'un seuil stations×fiches) : motif
-  **job** — la requête renvoie `{job_id}`, résultat sur
+  **job** : la requête renvoie `{job_id}`, résultat sur
   `GET /v1/jobs/{id}` quand il est prêt.
 - (reporté) `POST /v1/extract` sur données fournies par l'utilisateur.
 
-### Infrastructure — accès en trois étages (modèle Hub'Eau)
+### Infrastructure : accès en trois étages (modèle Hub'Eau)
 
 1. **Public sans clé** (défaut) : quota par IP (requêtes/minute) et
-   plafond de stations par appel — zéro friction.
+   plafond de stations par appel : zéro friction.
 2. **File d'attente bornée** avec travailleurs pour les endpoints de
    calcul : en saturation le service fait patienter (429 +
    Retry-After, ou motif job), il ne s'écroule pas.
@@ -97,9 +97,9 @@ Préfixe `/v1` dès le départ.
 - **Journal d'usage** anonymisé (IP hachée, endpoint, stations,
   fiches, date) → la matière première des bilans d'impact pour les
   dossiers de financement, sans gestion de comptes.
-- **Cache à deux étages** : chroniques par station (TTL quotidien —
+- **Cache à deux étages** : chroniques par station (TTL quotidien,
   les séries validées bougent peu) ; résultats d'extraction par
-  (station, fiche, version de fiche) — l'invalidation est offerte par
+  (station, fiche, version de fiche) : l'invalidation est offerte par
   la discipline de versions.
 - Respecter la politique de débit Hub'Eau (taille de page, pauses) ;
   bannière de provenance des données (Licence Ouverte, eaufrance).
@@ -111,7 +111,7 @@ Préfixe `/v1` dès le départ.
   versions dans chaque réponse), pas de l'orientation. Évolution possible si une
   demande d'interopérabilité géo/climat se présente : **CoverageJSON**
   via le patron OGC API-EDR (le standard des séries temporelles
-  environnementales) — non prioritaire.
+  environnementales) : non prioritaire.
 
 ## Déploiement : Docker (arbitré 2026-07-16)
 
@@ -119,7 +119,7 @@ Préfixe `/v1` dès le départ.
 - **api** : image card-api (uvicorn+FastAPI) qui installe card et
   stase depuis GitHub à révision épinglée (traçabilité : API x.y =
   card @tag + stase @tag) ; concurrence bornée en-process (sémaphore
-  sur les endpoints de calcul) — pas de Redis/worker externe en v1 ;
+  sur les endpoints de calcul) : pas de Redis/worker externe en v1 ;
 - volume persistant pour le cache des chroniques et le journal d'usage.
 
 **Révision du 2026-07-17** : le frontal n'est pas Caddy mais l'**Apache
