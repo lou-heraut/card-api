@@ -2,9 +2,14 @@
 
 Service web FastAPI des fiches [card](../card/) sur les débits Hub'Eau,
 avec diagnostic de stationnarité via [stase](../../EXstat_project/stase/).
-**Conception et arbitrages : `docs/dev/API.md`** (accès public sans clé,
-quotas IP, journal anonymisé, commercial écarté) ; chantiers ouverts du
-service : `docs/dev/CHANTIERS.md`.
+Où lire quoi. Un rôle par fichier, chacun l'annonce dans un bandeau de
+statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
+- `README.md` : ce que le service fait, endpoints et parcours d'usage.
+- `CHANGELOG.md` : ce qui a changé, quand, et où lire le détail.
+- `INSTALL.md` : développement et déploiement.
+- `docs/dev/API.md` : conception et arbitrages (accès public sans clé,
+  quotas IP, journal anonymisé, aspect commercial écarté).
+- `docs/dev/CHANTIERS.md` : pistes ouvertes du service, seulement.
 
 ## Structure
 
@@ -42,8 +47,8 @@ tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
 scripts/        # veille_sante.py : sonde cron à lancer HORS VM
                 #   (ntfy.sh optionnel ; une veille sur la VM meurt
                 #   avec elle)
-docs/dev/       # API.md : conception et arbitrages du service (rapatrié
-                #   de card le 2026-07-20) ; CHANTIERS.md : chantiers
+docs/dev/       # API.md : conception et arbitrages du service ;
+                #   CHANTIERS.md : chantiers
                 #   ouverts propres au service
 .github/        # template d'issue « clé de priorité » (mention RGPD)
 CITATION.cff    # citabilité ; codemeta.json = canal Software
@@ -58,6 +63,18 @@ Dev : `pip install -e ../../EXstat_project/stase -e ../card -e .[dev]`
 dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 --reload` et `pytest`.
 
+> ## À NE JAMAIS FAIRE
+>
+> - **`note.txt` (et tout fichier de notes de l'utilisateur) : NE PAS
+>   L'OUVRIR.** Ni Read, ni `cat`, ni `grep`, ni au détour d'un `git add`.
+>   C'est son brouillon personnel : pas de lecture, pas de résumé, pas de
+>   « au passage j'ai vu que ». Il n'entre dans aucune tâche sans une
+>   demande explicite de sa part, fichier par fichier. Un en-tête qui dit
+>   de ne pas lire est un ordre, pas une mise en garde à évaluer.
+> - **Pas de `git add -A` ni de `git add .`** : stager nommément les
+>   fichiers que l'on a soi-même modifiés. Ce qui traîne dans l'arbre de
+>   travail appartient à l'utilisateur.
+
 ## Règles propres au service
 
 - Fiches à entrée `Q` uniquement (refus explicite sinon : l'auto-mapping
@@ -71,32 +88,25 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
 
-## État (2026-07-17) et suite
+## État (2026-07-22)
 
-Étapes 1–3 d'API.md faites (catalogue, stations, extract, trend,
-quotas, journal, .env + Makefile) ; validation croisée MAKAHO
-(tests/test_makaho.py) et paramètre sampling= ; **motif job fait**
-(jobs publics, bascule auto, provenance, health enrichi, tableau de
-bord stats.py) ; clés de priorité faites (keys.py, issue template) ;
-Hub'Eau durci (retry x3 puis 504 propre, HubEauIndisponible).
-**DÉPLOYÉ le 2026-07-17** sur la VM de l'utilisateur derrière son
-Apache existant (make apache ; port local 8001 via CARD_API_PORT,
-8000 étant pris par une autre API ; DOMAIN = IP en attendant le nom
-de domaine, donc HTTP). /v1/trend accepte series=true (séries
-extraites jointes au diagnostic) ; examples/carte_tendance_QA.R =
-parcours complet clé + job 228 stations RRSE + carte (reprise par
-ticket via JOB, jeton CARD_API_KEY dans examples/.env gitignoré,
-modèle .env.example).
-**Chantier identité/RGPD fermé (2026-07-18)** : jetons hachés
-(affichés une fois), préfixe pseudonyme partout (journal, job,
-listing), GET /v1/jobs par clé, tickets token_hex(8), mention
-d'information RGPD dans le template d'issue. Non rétroactif : au
-prochain déploiement, recréer les clés (make key) et les jobs
-antérieurs ne sont pas listables par clé. **Batch ops/FAIR
-(2026-07-18)** : journal en rotation annuelle, health désambiguïsé
-(disque VM vs data), DELETE des jobs, stations_meta=true,
-CITATION.cff + codemeta.json, scripts/veille_sante.py ; sauvegarde du
-volume écartée (clés réémissibles, jobs éphémères, journal petit).
-**Reste** : nom de domaine + certbot (l'utilisateur s'en charge),
-puis HTTPS obligatoire avant de diffuser des clés (le jeton transite
-en clair en HTTP).
+Le service est **déployé** depuis le 2026-07-17 sur la VM de
+l'utilisateur, derrière l'Apache qui y sert déjà d'autres services
+(`make apache`, port local 8001 via `CARD_API_PORT`, 8000 étant pris).
+`DOMAIN` vaut l'IP en attendant un nom de domaine, donc HTTP.
+
+Ce qui a été livré et quand se lit dans `CHANGELOG.md`, ce qui reste
+ouvert dans `docs/dev/CHANTIERS.md`. Ces deux fichiers font foi : ne pas
+les paraphraser ici, cette section ne doit pas regonfler à chaque
+chantier.
+
+**Reste, et c'est bloquant pour la diffusion des clés** : nom de domaine
+puis certbot, dont l'utilisateur se charge. Tant qu'on est en HTTP, un
+jeton transite en clair.
+
+Deux points à ne pas reperdre :
+- le durcissement des clés du 2026-07-18 n'est **pas rétroactif** : au
+  prochain déploiement, recréer les clés (`make key`), et les jobs
+  antérieurs ne sont pas listables par clé ;
+- la sauvegarde du volume a été écartée volontairement : les clés sont
+  réémissibles, les jobs éphémères, le journal petit.

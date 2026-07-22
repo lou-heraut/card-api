@@ -9,3 +9,7 @@ data_makaho/
 data/
 carte_tendance_QA.png
 examples/.env
+
+# brouillon personnel de l'utilisateur : hors git, et Claude ne l'ouvre pas
+note.txt
+notes.txt

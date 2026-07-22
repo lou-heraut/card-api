@@ -1,9 +1,10 @@
-# CHANTIERS card-api (mise à jour 2026-07-20)
+> **Statut : registre vivant.** Ce fichier ne contient que des pistes
+> **ouvertes**, et seulement celles du service web : celles du corpus de
+> fiches vivent dans card, celles du moteur dans stase. Un chantier livré
+> en sort et devient une entrée de `CHANGELOG.md`, à la racine du dépôt,
+> qui renvoie au document expliquant le détail.
 
-Registre des chantiers ouverts ou différés propres au service web.
-Les chantiers du package de fiches vivent dans card, `docs/dev/
-CHANTIERS.md` : chaque dépôt garde les siens. Un chantier terminé sort
-de ce fichier, l'historique est dans git.
+# CHANTIERS : pistes ouvertes du service (mise à jour 2026-07-22)
 
 ## 1. Consultation des fiches : du chemin serveur au lien citable
 

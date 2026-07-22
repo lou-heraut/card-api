@@ -66,7 +66,17 @@ def test_trend_reproduces_makaho(var, relative, period):
     assert (j["H"].astype(bool) == j["H_mk"].astype(bool)).all()
     assert (j["p"] - j["p_mk"]).abs().max() < 1e-12
     assert (j["a"] - j["a_mk"]).abs().max() < 1e-12
-    assert (j["a_relative"] - j["a_normalise"]).abs().max() < 1e-12
+
+    # Depuis stase 0.4.0, a_relative ne porte QUE du pourcentage et vaut
+    # NaN si la variable n'est pas relative. Le a_normalise de R, lui,
+    # recopiait la pente absolue dans ce cas : c'est cette copie
+    # redondante qu'on vérifie ici, pour prouver qu'aucune information
+    # n'est perdue par la séparation des deux registres.
+    if relative:
+        assert (j["a_relative"] - j["a_normalise"]).abs().max() < 1e-12
+    else:
+        assert j["a_relative"].isna().all()
+        assert (j["a"] - j["a_normalise"]).abs().max() < 1e-12
 
 
 @pytest.mark.skipif(os.environ.get("CARD_API_LIVE") != "1",

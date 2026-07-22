@@ -17,7 +17,7 @@ Déploiement et développement : [INSTALL.md](INSTALL.md).
 
 | Endpoint | Rôle |
 |---|---|
-| `GET /v1/cards` | catalogue des 226 fiches, filtrable par facettes |
+| `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes |
 | `GET /v1/cards/{id}` | détail d'une fiche (fr/en) + lien vers son YAML |
 | `GET /v1/stations` | recherche de stations hydrométriques |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
