@@ -19,6 +19,7 @@ Points vérifiés sur l'API réelle (2026-07-16) :
 
 import os
 import re
+import datetime as dt
 import time
 from pathlib import Path
 
@@ -81,6 +82,21 @@ def _fetch_all(url, params):
             if not nxt:
                 return rows
             r = _get_retry(client, nxt)
+
+
+def chronicle_fetched_at(station: str) -> str | None:
+    """Date de récupération RÉELLE de la chronique en cache (UTC ISO).
+
+    Hub'Eau révise ses données : deux appels identiques à quelques
+    semaines d'écart ne donnent pas les mêmes nombres. Un résultat doit
+    donc dire quand la donnée a été lue, et pas quand le calcul a
+    tourné : avec un cache de 24 h, les deux diffèrent d'autant.
+    """
+    cache = data_dir() / "chroniques" / f"{station}.csv.gz"
+    if not cache.exists():
+        return None
+    return (dt.datetime.fromtimestamp(cache.stat().st_mtime, dt.timezone.utc)
+            .replace(microsecond=0).isoformat())
 
 
 def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:

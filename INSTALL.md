@@ -155,6 +155,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs (public ; les clés de priorité les lèveront) |
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
+| `CARD_API_LTP_SEED` | 0 | graine du départage des ex-æquo en LTP ; fixée pour que deux calculs identiques donnent le même résultat |
 | `CARD_API_PRIORITY_STATIONS` / `CARD_API_PRIORITY_CARDS` | 1000 / 226 | plafonds des porteurs de clé de priorité |
 | `CARD_REF` / `STASE_REF` | main | état de card/stase installé dans l'image ; le commit résolu est publié par le service |
 | `CARD_API_DATA` | `/data` (volume) | cache des chroniques, jobs et journal (ne pas toucher en Docker) |

@@ -247,6 +247,8 @@ def _execute(job: dict, progress) -> dict:
 
     p = job["params"]
     frames = []
+    from .main import LTP_SEED, _fetched_at
+
     total = len(p["stations"])
     for i, s in enumerate(p["stations"]):
         progress(i, total, f"chronique {s}")
@@ -259,7 +261,10 @@ def _execute(job: dict, progress) -> dict:
             raise ValueError(f"{s}: aucune donnée sur la période")
         frames.append(df)
     data = pd.concat(frames, ignore_index=True)
-    fetched_at = _now()
+    # Date de LECTURE des chroniques, pas du calcul : avec un cache de 24 h
+    # les deux diffèrent d'autant, et c'est la première qui compte puisque
+    # Hub'Eau révise ses données.
+    fetched_at = _fetched_at(p["stations"])
 
     with COMPUTE:
         progress(total, total, "extraction")
@@ -269,11 +274,11 @@ def _execute(job: dict, progress) -> dict:
         if p["endpoint"] == "trend":
             progress(total, total, "tendance")
             tr = card.trend(res, level=p.get("level", 0.1),
-                            dependency=p.get("mk", "AR1"))
+                            dependency=p.get("mk", "AR1"), seed=LTP_SEED)
             res = {"data": tr["data"], "meta": res["meta"]}
 
     orient = p.get("orient", "records")
-    from .main import SOURCE, versions
+    from .main import LTP_SEED, SOURCE, versions
     out = {
         "job": {
             "id": job["id"],
@@ -286,6 +291,7 @@ def _execute(job: dict, progress) -> dict:
         "cards": p["cards"],
         "period": {"start": p.get("start"), "end": p.get("end")},
         "sampling": p.get("sampling"),
+        "ltp_seed": LTP_SEED if p.get("mk") == "LTP" else None,
         "source": SOURCE,
         "orient": orient,
         "meta": serialize(res["meta"]),

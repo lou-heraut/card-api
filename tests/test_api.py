@@ -93,3 +93,19 @@ def test_versions_des_fiches_arrivent_a_l_utilisateur():
     j = client.get("/v1/cards", params={"search": "QA"}).json()
     assert j["cards"], "aucune fiche renvoyée"
     assert any("version" in c for c in j["cards"]), list(j["cards"][0])
+
+
+def test_reponse_synchrone_porte_la_date_de_lecture():
+    """Hub'Eau révise ses données : sans la date de lecture, deux
+    résultats identiques en apparence ne sont pas comparables. Elle
+    n'était présente que dans les jobs."""
+    from card_api import main
+    assert main._fetched_at([]), "une borne doit toujours être rendue"
+
+
+def test_le_ltp_est_reproductible():
+    """Le LTP départage les ex-æquo au hasard. Sans graine fixée, deux
+    appels identiques peuvent rendre des p-values différentes : le
+    service en fixe une et la publie dans la provenance."""
+    from card_api import main
+    assert isinstance(main.LTP_SEED, int)

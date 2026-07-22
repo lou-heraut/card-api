@@ -14,6 +14,7 @@ des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
 par IP et journal d'usage anonymisé (usage.py).
 """
 
+import datetime as dt
 import json
 import os
 import re
@@ -88,7 +89,32 @@ def _build_refs():
         return None, None
 
 
+# Le LTP départage les ex-æquo au hasard (choix documenté dans le tools.R
+# d'origine). Sans graine, deux appels identiques peuvent rendre des
+# p-values différentes : un service qui se veut reproductible doit donc en
+# fixer une, et la publier pour qu'on puisse rejouer le calcul.
+LTP_SEED = int(os.environ.get("CARD_API_LTP_SEED", "0"))
+
+
 CARD_COMMIT, STASE_COMMIT = _build_refs()
+
+
+def _fetched_at(stations):
+    """Date de lecture des chroniques employées, la plus ancienne.
+
+    Hub'Eau révise ses données : sans cette date, deux résultats
+    identiques en apparence ne sont pas comparables. On prend la plus
+    ancienne des chroniques du lot, qui borne l'âge de l'ensemble.
+
+    À défaut d'information (chronique jamais mise en cache), on rend
+    l'instant courant : la donnée a forcément été lue au plus tard
+    maintenant, c'est une borne vraie, simplement moins précise.
+    """
+    dates = [d for d in (hubeau.chronicle_fetched_at(s) for s in stations) if d]
+    if dates:
+        return min(dates)
+    return (dt.datetime.now(dt.timezone.utc)
+            .replace(microsecond=0).isoformat())
 
 
 def versions():
@@ -373,6 +399,7 @@ def extract(request: Request, stations: str, cards: str,
         "period": {"start": start, "end": end},
         "sampling": sampling,
         "source": SOURCE,
+        "data_fetched_at": _fetched_at(st),
         "orient": orient,
         "meta": serialize(res["meta"]),
         "data": data_out,
@@ -428,7 +455,8 @@ def trend(request: Request, stations: str, cards: str,
     res = _run_extract(st, cd, start, end, sampling)
     with jobs.COMPUTE:
         try:
-            tr = card.trend(res, level=level, dependency=mk)
+            tr = card.trend(res, level=level, dependency=mk,
+                            seed=LTP_SEED)
         except ValueError as e:
             raise HTTPException(422, str(e))
     trends = {cid: serialize(df, orient) for cid, df in tr["data"].items()}
@@ -442,6 +470,7 @@ def trend(request: Request, stations: str, cards: str,
         "sampling": sampling,
         "mk": mk, "level": level,
         "source": SOURCE,
+        "data_fetched_at": _fetched_at(st),
         "orient": orient,
         "meta": serialize(res["meta"]),
         "data": trends,

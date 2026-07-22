@@ -20,6 +20,30 @@ Chaque entrée dit ce qui a changé et renvoie au document qui l'explique.
 Rien n'est recopié ici : une information recopiée finit par mentir à un
 des deux endroits.
 
+## Non publié
+
+### Corrigé
+
+- **Le LTP n'était pas reproductible.** Il départage les ex-æquo au
+  hasard, choix documenté dans le `tools.R` d'origine, et `stase` permet
+  de fixer la graine ; le service ne la passait pas. Deux appels
+  identiques rendaient donc des p-values différentes (mesuré : 0.90398,
+  0.90446, 0.90401 sur la même série). Une graine est désormais fixée
+  (`CARD_API_LTP_SEED`, 0 par défaut) et publiée dans la provenance d'un
+  job, pour qu'un calcul puisse être rejoué.
+- **`data_fetched_at` datait le calcul, pas la lecture des données.** Le
+  cache des chroniques vit 24 h : les deux pouvaient différer d'autant,
+  alors que Hub'Eau révise ses données et que c'est la date de lecture
+  qui rend deux résultats comparables. La date vient maintenant du cache
+  lui-même, et à défaut d'information, de l'instant courant, qui reste
+  une borne vraie.
+
+### Ajouté
+
+- Les réponses **synchrones** portent `data_fetched_at`, qui n'existait
+  que dans les jobs. Un résultat immédiat est tout aussi archivable
+  qu'un résultat de job, il doit dire la même chose.
+
 ## 0.2.0 (2026-07-22)
 
 ### Corrigé
