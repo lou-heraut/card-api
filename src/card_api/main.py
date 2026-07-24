@@ -17,6 +17,7 @@ par IP et journal d'usage anonymisé (usage.py).
 import datetime as dt
 import json
 import os
+import pathlib
 import re
 import shutil
 
@@ -26,7 +27,9 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import Path as PathParam   # pathlib.Path est pris ailleurs
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import (HTMLResponse, JSONResponse, PlainTextResponse,
+                               Response as _RawResponse)
 from pydantic import BaseModel
 
 import card
@@ -190,15 +193,41 @@ app = FastAPI(
     license_info={"name": "GPL-3.0-or-later",
                   "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
     openapi_tags=_TAGS,
-    # Les deux réglages qui valaient le coup, sans thème maison : les
-    # champs sont éditables sans cliquer « Try it out », et le pavé
-    # « Schemas » ne noie plus la page. Un thème sombre complet demande
-    # de recouvrir tout le CSS de Swagger : chantier à part, cf.
-    # docs/dev/PLAN_FAIR.md.
+    # Les champs sont éditables sans cliquer « Try it out », et le pavé
+    # « Schemas » ne noie plus la page.
     swagger_ui_parameters={"tryItOutEnabled": True,
                            "defaultModelsExpandDepth": -1},
+    docs_url=None,          # servi plus bas, avec le thème
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+# ── /docs : Swagger UI habillé ───────────────────────────────────────
+# Le thème est un CALQUE posé après le CSS de Swagger, pas un
+# remplacement : Swagger reste maître de sa mise en page, on ne
+# retouche que ce qui se voit. Il est produit par
+# `scripts/build_theme.py`, qui relit le CSS réel de Swagger et
+# re-déclare chacune de ses règles de couleur ; écrire ces règles à la
+# main revient à en oublier, et un thème à moitié appliqué est pire
+# qu'un thème absent (leçon du 2026-07-23, cf. docs/dev/THEME_DOCS.md).
+_THEME_CSS = pathlib.Path(__file__).with_name("static") / "swagger-theme.css"
+
+
+@app.get("/static/swagger-theme.css", include_in_schema=False)
+def swagger_theme() -> _RawResponse:
+    return _RawResponse(_THEME_CSS.read_bytes(), media_type="text/css",
+                        headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.get("/docs", include_in_schema=False)
+def swagger_docs(request: Request) -> HTMLResponse:
+    page = get_swagger_ui_html(
+        openapi_url=str(request.scope.get("root_path", "")) + app.openapi_url,
+        title=f"{app.title} : documentation interactive",
+        swagger_ui_parameters=app.swagger_ui_parameters,
+    ).body.decode()
+    link = '<link rel="stylesheet" href="static/swagger-theme.css">'
+    return HTMLResponse(page.replace("</head>", link + "\n</head>", 1))
 
 # API publique en lecture : un client navigateur (site web tiers) doit
 # pouvoir l'appeler. Origines ouvertes, sans cookies d'identité.

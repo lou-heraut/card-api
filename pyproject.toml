@@ -23,3 +23,8 @@ dev = ["pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Le thème de /docs est servi depuis le paquet : sans ceci, l'image
+# Docker part sans sa feuille de style et la route rend un 500.
+[tool.setuptools.package-data]
+card_api = ["static/*.css"]

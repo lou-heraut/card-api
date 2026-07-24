@@ -80,30 +80,13 @@
       mermaid de l'écosystème, tableau « quelle porte prendre » avec des
       liens qui montrent. Le champ `reuse` reste une phrase, choix acté :
       la version structurée n'apportait rien (2026-07-24)
-- [ ] Thème de /docs — **tenté le 2026-07-24, puis retiré.** La maquette
-      validée était une page maison, avec ses propres classes ; Swagger UI
-      a un DOM entièrement différent et embarque des milliers de lignes de
-      CSS. Les ~130 lignes de surcharge n'en recouvraient qu'une fraction :
-      fond sombre et composants restés clairs, donc pire que le défaut. La
-      leçon : on avait vérifié que le CSS était *injecté*, jamais que la
-      page *rendait*. /docs est donc revenue au Swagger standard, en
-      gardant ce qui marchait vraiment (try-it-out actif, exemples
-      pré-remplis, tags, contact).
-
-      Maquette validée, à garder comme cible visuelle (palette et
-      typographie approuvées) :
-      https://claude.ai/code/artifact/05776a99-5691-442b-87a3-b3a46582fea1
-      Gris neutres à gamme ouverte : creux #0e0e0e, fond #131313, bloc
-      #1d1d1d, filet #383838, texte #ececec. Couleur réservée aux méthodes
-      et hors axe rouge/vert pour le daltonisme : GET #8ab4dc, POST
-      #72b3a2, DELETE #e09b78 ; jamais seule, le mot reste le repère.
-
-      Deux voies honnêtes si on y revient, à ne pas retenter à l'aveugle :
-      1. thème Swagger complet, écrit **avec la page sous les yeux** et
-         itéré visuellement (ou en partant d'un thème sombre Swagger
-         existant, puis en calant la palette dessus) ;
-      2. page de doc maison rendue depuis `/openapi.json`, qui aurait
-         exactement le rendu de la maquette, mais où il faudrait
-         réimplémenter l'exécution des requêtes que Swagger donne gratis.
+- [x] Thème de /docs — raté le 2026-07-24 au matin, livré le même jour.
+      Le premier essai (~130 règles écrites à la main) ne recouvrait
+      qu'une fraction du CSS de Swagger : fond sombre, moitié des
+      composants restés clairs, pire que le défaut. Il avait été
+      « vérifié » en constatant que le CSS était *injecté*, jamais que la
+      page *rendait*. Le second part du CSS réel de Swagger et se juge
+      sur des captures d'écran. Conception, palette et façon de vérifier :
+      `docs/dev/THEME_DOCS.md`.
 
 - [ ] Phase 4 (réserve) — UCUM, JSON-LD/SKOS, DCAT

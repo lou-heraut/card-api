@@ -1,0 +1,690 @@
+/* FICHIER GÉNÉRÉ : ne pas éditer à la main.
+   Produit par `python scripts/build_theme.py`, qui transpose le CSS de
+   Swagger UI (https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css) puis y ajoute `scripts/theme-identity.css`.
+   Toute retouche se fait dans l'un de ces deux fichiers.
+   Conception et façon de vérifier : docs/dev/THEME_DOCS.md */
+
+.swagger-ui{color:#a6adbf}
+.swagger-ui mark{background-color:#d7d78e;color:#ececec}
+.swagger-ui .debug-white *{outline:1px solid #131313}
+.swagger-ui .debug-black *{outline:1px solid #ececec}
+.swagger-ui .b--black{border-color:#ececec}
+.swagger-ui .b--near-black{border-color:#dedede}
+.swagger-ui .b--dark-gray{border-color:#c2c2c2}
+.swagger-ui .b--mid-gray{border-color:#ababab}
+.swagger-ui .b--gray{border-color:#949494}
+.swagger-ui .b--silver{border-color:#797979}
+.swagger-ui .b--light-silver{border-color:#6a6a6a}
+.swagger-ui .b--moon-gray{border-color:#494949}
+.swagger-ui .b--light-gray{border-color:#262626}
+.swagger-ui .b--near-white{border-color:#1c1c1c}
+.swagger-ui .b--white{border-color:#131313}
+.swagger-ui .b--black-90{border-color:rgba(236,236,236,0.9)}
+.swagger-ui .b--black-80{border-color:rgba(236,236,236,0.8)}
+.swagger-ui .b--black-70{border-color:rgba(236,236,236,0.7)}
+.swagger-ui .b--black-60{border-color:rgba(236,236,236,0.6)}
+.swagger-ui .b--black-50{border-color:rgba(236,236,236,0.5)}
+.swagger-ui .b--black-40{border-color:rgba(236,236,236,0.4)}
+.swagger-ui .b--black-30{border-color:rgba(236,236,236,0.3)}
+.swagger-ui .b--black-20{border-color:rgba(236,236,236,0.2)}
+.swagger-ui .b--black-10{border-color:rgba(236,236,236,0.1)}
+.swagger-ui .b--black-05{border-color:rgba(236,236,236,0.05)}
+.swagger-ui .b--black-025{border-color:rgba(236,236,236,0.025)}
+.swagger-ui .b--black-0125{border-color:rgba(236,236,236,0.013)}
+.swagger-ui .b--dark-red{border-color:#d78e91}
+.swagger-ui .b--red{border-color:#cb706a}
+.swagger-ui .b--light-red{border-color:#d59186}
+.swagger-ui .b--orange{border-color:#d7aa8e}
+.swagger-ui .b--gold{border-color:#d7c28e}
+.swagger-ui .b--light-yellow{border-color:#ddd59d}
+.swagger-ui .b--purple{border-color:#ac8ed7}
+.swagger-ui .b--light-purple{border-color:#a782d3}
+.swagger-ui .b--dark-pink{border-color:#d78ebf}
+.swagger-ui .b--hot-pink{border-color:#ce72aa}
+.swagger-ui .b--pink{border-color:#dd9dc3}
+.swagger-ui .b--light-pink{border-color:#dd9dc1}
+.swagger-ui .b--dark-green{border-color:#8ed7bc}
+.swagger-ui .b--green{border-color:#8ed7bc}
+.swagger-ui .b--light-green{border-color:#9dddc5}
+.swagger-ui .b--navy{border-color:#8eabd7}
+.swagger-ui .b--dark-blue{border-color:#8eadd7}
+.swagger-ui .b--blue{border-color:#8eaed7}
+.swagger-ui .b--light-blue{border-color:#9dbedd}
+.swagger-ui .b--lightest-blue{border-color:#9dc4dd}
+.swagger-ui .b--washed-blue{border-color:#9dddd5}
+.swagger-ui .b--washed-green{border-color:#9dddc4}
+.swagger-ui .b--washed-yellow{border-color:#ddd39d}
+.swagger-ui .b--washed-red{border-color:#dd9d9d}
+.swagger-ui .shadow-1{box-shadow:0 0 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-2{box-shadow:0 0 8px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-3{box-shadow:2px 2px 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-4{box-shadow:2px 2px 8px 0 rgba(0,0,0,0.34)}
+.swagger-ui .shadow-5{box-shadow:4px 4px 8px 0 rgba(0,0,0,0.34)}
+@media screen and (min-width:30em){
+.swagger-ui .shadow-1-ns{box-shadow:0 0 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-2-ns{box-shadow:0 0 8px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-3-ns{box-shadow:2px 2px 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-4-ns{box-shadow:2px 2px 8px 0 rgba(0,0,0,0.34)}
+.swagger-ui .shadow-5-ns{box-shadow:4px 4px 8px 0 rgba(0,0,0,0.34)}
+}
+@media screen and (min-width:30em) and (max-width:60em){
+.swagger-ui .shadow-1-m{box-shadow:0 0 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-2-m{box-shadow:0 0 8px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-3-m{box-shadow:2px 2px 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-4-m{box-shadow:2px 2px 8px 0 rgba(0,0,0,0.34)}
+.swagger-ui .shadow-5-m{box-shadow:4px 4px 8px 0 rgba(0,0,0,0.34)}
+}
+@media screen and (min-width:60em){
+.swagger-ui .shadow-1-l{box-shadow:0 0 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-2-l{box-shadow:0 0 8px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-3-l{box-shadow:2px 2px 4px 2px rgba(0,0,0,0.34)}
+.swagger-ui .shadow-4-l{box-shadow:2px 2px 8px 0 rgba(0,0,0,0.34)}
+.swagger-ui .shadow-5-l{box-shadow:4px 4px 8px 0 rgba(0,0,0,0.34)}
+}
+.swagger-ui .black-90{color:rgba(236,236,236,0.9)}
+.swagger-ui .black-80{color:rgba(236,236,236,0.8)}
+.swagger-ui .black-70{color:rgba(236,236,236,0.7)}
+.swagger-ui .black-60{color:rgba(236,236,236,0.6)}
+.swagger-ui .black-50{color:rgba(236,236,236,0.5)}
+.swagger-ui .black-40{color:rgba(236,236,236,0.4)}
+.swagger-ui .black-30{color:rgba(236,236,236,0.3)}
+.swagger-ui .black-20{color:rgba(236,236,236,0.2)}
+.swagger-ui .black-10{color:rgba(236,236,236,0.1)}
+.swagger-ui .black-05{color:rgba(236,236,236,0.05)}
+.swagger-ui .black{color:#ececec}
+.swagger-ui .near-black{color:#dedede}
+.swagger-ui .dark-gray{color:#c2c2c2}
+.swagger-ui .mid-gray{color:#ababab}
+.swagger-ui .gray{color:#949494}
+.swagger-ui .silver{color:#797979}
+.swagger-ui .light-silver{color:#6a6a6a}
+.swagger-ui .moon-gray{color:#494949}
+.swagger-ui .light-gray{color:#262626}
+.swagger-ui .near-white{color:#1c1c1c}
+.swagger-ui .white{color:#131313}
+.swagger-ui .dark-red{color:#d78e91}
+.swagger-ui .red{color:#cb706a}
+.swagger-ui .light-red{color:#d59186}
+.swagger-ui .orange{color:#d7aa8e}
+.swagger-ui .gold{color:#d7c28e}
+.swagger-ui .light-yellow{color:#ddd59d}
+.swagger-ui .purple{color:#ac8ed7}
+.swagger-ui .light-purple{color:#a782d3}
+.swagger-ui .dark-pink{color:#d78ebf}
+.swagger-ui .hot-pink{color:#ce72aa}
+.swagger-ui .pink{color:#dd9dc3}
+.swagger-ui .light-pink{color:#dd9dc1}
+.swagger-ui .dark-green{color:#8ed7bc}
+.swagger-ui .green{color:#8ed7bc}
+.swagger-ui .light-green{color:#9dddc5}
+.swagger-ui .navy{color:#8eabd7}
+.swagger-ui .dark-blue{color:#8eadd7}
+.swagger-ui .blue{color:#8eaed7}
+.swagger-ui .light-blue{color:#9dbedd}
+.swagger-ui .lightest-blue{color:#9dc4dd}
+.swagger-ui .washed-blue{color:#9dddd5}
+.swagger-ui .washed-green{color:#9dddc4}
+.swagger-ui .washed-yellow{color:#ddd39d}
+.swagger-ui .washed-red{color:#dd9d9d}
+.swagger-ui .bg-black-50{background-color:rgba(236,236,236,0.5)}
+.swagger-ui .bg-black-40{background-color:rgba(236,236,236,0.4)}
+.swagger-ui .bg-black-30{background-color:rgba(236,236,236,0.3)}
+.swagger-ui .bg-black-20{background-color:rgba(236,236,236,0.2)}
+.swagger-ui .bg-black-10{background-color:rgba(236,236,236,0.1)}
+.swagger-ui .bg-black-05{background-color:rgba(236,236,236,0.05)}
+.swagger-ui .bg-mid-gray{background-color:#ababab}
+.swagger-ui .bg-gray{background-color:#949494}
+.swagger-ui .bg-silver{background-color:#797979}
+.swagger-ui .bg-light-silver{background-color:#6a6a6a}
+.swagger-ui .bg-moon-gray{background-color:#494949}
+.swagger-ui .bg-light-gray{background-color:#262626}
+.swagger-ui .bg-near-white{background-color:#1c1c1c}
+.swagger-ui .bg-white{background-color:#131313}
+.swagger-ui .bg-dark-red{background-color:#d78e91}
+.swagger-ui .bg-red{background-color:#cb706a}
+.swagger-ui .bg-light-red{background-color:#d59186}
+.swagger-ui .bg-orange{background-color:#d7aa8e}
+.swagger-ui .bg-gold{background-color:#d7c28e}
+.swagger-ui .bg-light-yellow{background-color:#ddd59d}
+.swagger-ui .bg-purple{background-color:#ac8ed7}
+.swagger-ui .bg-light-purple{background-color:#a782d3}
+.swagger-ui .bg-dark-pink{background-color:#d78ebf}
+.swagger-ui .bg-hot-pink{background-color:#ce72aa}
+.swagger-ui .bg-pink{background-color:#dd9dc3}
+.swagger-ui .bg-light-pink{background-color:#dd9dc1}
+.swagger-ui .bg-green{background-color:#8ed7bc}
+.swagger-ui .bg-light-green{background-color:#9dddc5}
+.swagger-ui .bg-blue{background-color:#8eaed7}
+.swagger-ui .bg-light-blue{background-color:#9dbedd}
+.swagger-ui .bg-lightest-blue{background-color:#9dc4dd}
+.swagger-ui .bg-washed-blue{background-color:#9dddd5}
+.swagger-ui .bg-washed-green{background-color:#9dddc4}
+.swagger-ui .bg-washed-yellow{background-color:#ddd39d}
+.swagger-ui .bg-washed-red{background-color:#dd9d9d}
+.swagger-ui .hover-black:focus,.swagger-ui .hover-black:hover{color:#ececec}
+.swagger-ui .hover-near-black:focus,.swagger-ui .hover-near-black:hover{color:#dedede}
+.swagger-ui .hover-dark-gray:focus,.swagger-ui .hover-dark-gray:hover{color:#c2c2c2}
+.swagger-ui .hover-mid-gray:focus,.swagger-ui .hover-mid-gray:hover{color:#ababab}
+.swagger-ui .hover-gray:focus,.swagger-ui .hover-gray:hover{color:#949494}
+.swagger-ui .hover-silver:focus,.swagger-ui .hover-silver:hover{color:#797979}
+.swagger-ui .hover-light-silver:focus,.swagger-ui .hover-light-silver:hover{color:#6a6a6a}
+.swagger-ui .hover-moon-gray:focus,.swagger-ui .hover-moon-gray:hover{color:#494949}
+.swagger-ui .hover-light-gray:focus,.swagger-ui .hover-light-gray:hover{color:#262626}
+.swagger-ui .hover-near-white:focus,.swagger-ui .hover-near-white:hover{color:#1c1c1c}
+.swagger-ui .hover-white:focus,.swagger-ui .hover-white:hover{color:#131313}
+.swagger-ui .hover-black-90:focus,.swagger-ui .hover-black-90:hover{color:rgba(236,236,236,0.9)}
+.swagger-ui .hover-black-80:focus,.swagger-ui .hover-black-80:hover{color:rgba(236,236,236,0.8)}
+.swagger-ui .hover-black-70:focus,.swagger-ui .hover-black-70:hover{color:rgba(236,236,236,0.7)}
+.swagger-ui .hover-black-60:focus,.swagger-ui .hover-black-60:hover{color:rgba(236,236,236,0.6)}
+.swagger-ui .hover-black-50:focus,.swagger-ui .hover-black-50:hover{color:rgba(236,236,236,0.5)}
+.swagger-ui .hover-black-40:focus,.swagger-ui .hover-black-40:hover{color:rgba(236,236,236,0.4)}
+.swagger-ui .hover-black-30:focus,.swagger-ui .hover-black-30:hover{color:rgba(236,236,236,0.3)}
+.swagger-ui .hover-black-20:focus,.swagger-ui .hover-black-20:hover{color:rgba(236,236,236,0.2)}
+.swagger-ui .hover-black-10:focus,.swagger-ui .hover-black-10:hover{color:rgba(236,236,236,0.1)}
+.swagger-ui .hover-bg-mid-gray:focus,.swagger-ui .hover-bg-mid-gray:hover{background-color:#ababab}
+.swagger-ui .hover-bg-gray:focus,.swagger-ui .hover-bg-gray:hover{background-color:#949494}
+.swagger-ui .hover-bg-silver:focus,.swagger-ui .hover-bg-silver:hover{background-color:#797979}
+.swagger-ui .hover-bg-light-silver:focus,.swagger-ui .hover-bg-light-silver:hover{background-color:#6a6a6a}
+.swagger-ui .hover-bg-moon-gray:focus,.swagger-ui .hover-bg-moon-gray:hover{background-color:#494949}
+.swagger-ui .hover-bg-light-gray:focus,.swagger-ui .hover-bg-light-gray:hover{background-color:#262626}
+.swagger-ui .hover-bg-near-white:focus,.swagger-ui .hover-bg-near-white:hover{background-color:#1c1c1c}
+.swagger-ui .hover-bg-white:focus,.swagger-ui .hover-bg-white:hover{background-color:#131313}
+.swagger-ui .hover-bg-black-50:focus,.swagger-ui .hover-bg-black-50:hover{background-color:rgba(236,236,236,0.5)}
+.swagger-ui .hover-bg-black-40:focus,.swagger-ui .hover-bg-black-40:hover{background-color:rgba(236,236,236,0.4)}
+.swagger-ui .hover-bg-black-30:focus,.swagger-ui .hover-bg-black-30:hover{background-color:rgba(236,236,236,0.3)}
+.swagger-ui .hover-bg-black-20:focus,.swagger-ui .hover-bg-black-20:hover{background-color:rgba(236,236,236,0.2)}
+.swagger-ui .hover-bg-black-10:focus,.swagger-ui .hover-bg-black-10:hover{background-color:rgba(236,236,236,0.1)}
+.swagger-ui .hover-dark-red:focus,.swagger-ui .hover-dark-red:hover{color:#d78e91}
+.swagger-ui .hover-red:focus,.swagger-ui .hover-red:hover{color:#cb706a}
+.swagger-ui .hover-light-red:focus,.swagger-ui .hover-light-red:hover{color:#d59186}
+.swagger-ui .hover-orange:focus,.swagger-ui .hover-orange:hover{color:#d7aa8e}
+.swagger-ui .hover-gold:focus,.swagger-ui .hover-gold:hover{color:#d7c28e}
+.swagger-ui .hover-light-yellow:focus,.swagger-ui .hover-light-yellow:hover{color:#ddd59d}
+.swagger-ui .hover-purple:focus,.swagger-ui .hover-purple:hover{color:#ac8ed7}
+.swagger-ui .hover-light-purple:focus,.swagger-ui .hover-light-purple:hover{color:#a782d3}
+.swagger-ui .hover-dark-pink:focus,.swagger-ui .hover-dark-pink:hover{color:#d78ebf}
+.swagger-ui .hover-hot-pink:focus,.swagger-ui .hover-hot-pink:hover{color:#ce72aa}
+.swagger-ui .hover-pink:focus,.swagger-ui .hover-pink:hover{color:#dd9dc3}
+.swagger-ui .hover-light-pink:focus,.swagger-ui .hover-light-pink:hover{color:#dd9dc1}
+.swagger-ui .hover-dark-green:focus,.swagger-ui .hover-dark-green:hover{color:#8ed7bc}
+.swagger-ui .hover-green:focus,.swagger-ui .hover-green:hover{color:#8ed7bc}
+.swagger-ui .hover-light-green:focus,.swagger-ui .hover-light-green:hover{color:#9dddc5}
+.swagger-ui .hover-navy:focus,.swagger-ui .hover-navy:hover{color:#8eabd7}
+.swagger-ui .hover-dark-blue:focus,.swagger-ui .hover-dark-blue:hover{color:#8eadd7}
+.swagger-ui .hover-blue:focus,.swagger-ui .hover-blue:hover{color:#8eaed7}
+.swagger-ui .hover-light-blue:focus,.swagger-ui .hover-light-blue:hover{color:#9dbedd}
+.swagger-ui .hover-lightest-blue:focus,.swagger-ui .hover-lightest-blue:hover{color:#9dc4dd}
+.swagger-ui .hover-washed-blue:focus,.swagger-ui .hover-washed-blue:hover{color:#9dddd5}
+.swagger-ui .hover-washed-green:focus,.swagger-ui .hover-washed-green:hover{color:#9dddc4}
+.swagger-ui .hover-washed-yellow:focus,.swagger-ui .hover-washed-yellow:hover{color:#ddd39d}
+.swagger-ui .hover-washed-red:focus,.swagger-ui .hover-washed-red:hover{color:#dd9d9d}
+.swagger-ui .hover-bg-dark-red:focus,.swagger-ui .hover-bg-dark-red:hover{background-color:#d78e91}
+.swagger-ui .hover-bg-red:focus,.swagger-ui .hover-bg-red:hover{background-color:#cb706a}
+.swagger-ui .hover-bg-light-red:focus,.swagger-ui .hover-bg-light-red:hover{background-color:#d59186}
+.swagger-ui .hover-bg-orange:focus,.swagger-ui .hover-bg-orange:hover{background-color:#d7aa8e}
+.swagger-ui .hover-bg-gold:focus,.swagger-ui .hover-bg-gold:hover{background-color:#d7c28e}
+.swagger-ui .hover-bg-light-yellow:focus,.swagger-ui .hover-bg-light-yellow:hover{background-color:#ddd59d}
+.swagger-ui .hover-bg-purple:focus,.swagger-ui .hover-bg-purple:hover{background-color:#ac8ed7}
+.swagger-ui .hover-bg-light-purple:focus,.swagger-ui .hover-bg-light-purple:hover{background-color:#a782d3}
+.swagger-ui .hover-bg-dark-pink:focus,.swagger-ui .hover-bg-dark-pink:hover{background-color:#d78ebf}
+.swagger-ui .hover-bg-hot-pink:focus,.swagger-ui .hover-bg-hot-pink:hover{background-color:#ce72aa}
+.swagger-ui .hover-bg-pink:focus,.swagger-ui .hover-bg-pink:hover{background-color:#dd9dc3}
+.swagger-ui .hover-bg-light-pink:focus,.swagger-ui .hover-bg-light-pink:hover{background-color:#dd9dc1}
+.swagger-ui .hover-bg-green:focus,.swagger-ui .hover-bg-green:hover{background-color:#8ed7bc}
+.swagger-ui .hover-bg-light-green:focus,.swagger-ui .hover-bg-light-green:hover{background-color:#9dddc5}
+.swagger-ui .hover-bg-blue:focus,.swagger-ui .hover-bg-blue:hover{background-color:#8eaed7}
+.swagger-ui .hover-bg-light-blue:focus,.swagger-ui .hover-bg-light-blue:hover{background-color:#9dbedd}
+.swagger-ui .hover-bg-lightest-blue:focus,.swagger-ui .hover-bg-lightest-blue:hover{background-color:#9dc4dd}
+.swagger-ui .hover-bg-washed-blue:focus,.swagger-ui .hover-bg-washed-blue:hover{background-color:#9dddd5}
+.swagger-ui .hover-bg-washed-green:focus,.swagger-ui .hover-bg-washed-green:hover{background-color:#9dddc4}
+.swagger-ui .hover-bg-washed-yellow:focus,.swagger-ui .hover-bg-washed-yellow:hover{background-color:#ddd39d}
+.swagger-ui .hover-bg-washed-red:focus,.swagger-ui .hover-bg-washed-red:hover{background-color:#dd9d9d}
+.swagger-ui .striped--light-silver:nth-child(odd){background-color:#6a6a6a}
+.swagger-ui .striped--moon-gray:nth-child(odd){background-color:#494949}
+.swagger-ui .striped--light-gray:nth-child(odd){background-color:#262626}
+.swagger-ui .striped--near-white:nth-child(odd){background-color:#1c1c1c}
+.swagger-ui .stripe-dark:nth-child(odd){background-color:rgba(236,236,236,0.1)}
+.swagger-ui .shadow-hover:after{box-shadow:0 0 16px 2px rgba(0,0,0,0.34)}
+.swagger-ui .nested-links a{color:#8eaed7}
+.swagger-ui .nested-links a:focus,.swagger-ui .nested-links a:hover{color:#9dbedd}
+.swagger-ui .opblock-tag{border-bottom:1px solid rgba(166,173,191,0.3)}
+.swagger-ui .opblock-tag:hover{background:rgba(236,236,236,0.02)}
+.swagger-ui .opblock-tag{color:#a6adbf}
+.swagger-ui .opblock-tag small{color:#a6adbf}
+.swagger-ui .parameter__type{color:#a6adbf}
+.swagger-ui .opblock{border:1px solid #ececec;box-shadow:0 0 3px rgba(0,0,0,0.323)}
+.swagger-ui .opblock.is-open .opblock-summary{border-bottom:1px solid #ececec}
+.swagger-ui .opblock .opblock-section-header{box-shadow:0 1px 2px rgba(0,0,0,0.17)}
+.swagger-ui .opblock .opblock-section-header>label{color:#a6adbf}
+.swagger-ui .opblock .opblock-section-header h4{color:#a6adbf}
+.swagger-ui .opblock .opblock-summary-operation-id,.swagger-ui .opblock .opblock-summary-path,.swagger-ui .opblock .opblock-summary-path__deprecated{color:#a6adbf}
+.swagger-ui .opblock .opblock-summary-description{color:#a6adbf}
+.swagger-ui .opblock.opblock-post{background:rgba(142,215,182,0.1);border-color:#72b3a2}
+.swagger-ui .opblock.opblock-post .opblock-summary-method{background:#72b3a2}
+.swagger-ui .opblock.opblock-post .opblock-summary{border-color:#72b3a2}
+.swagger-ui .opblock.opblock-post .tab-header .tab-item.active h4 span:after{background:#72b3a2}
+.swagger-ui .opblock.opblock-put{background:rgba(200,155,100,0.1);border-color:#d9c07f}
+.swagger-ui .opblock.opblock-put .opblock-summary-method{background:#d9c07f}
+.swagger-ui .opblock.opblock-put .opblock-summary{border-color:#d9c07f}
+.swagger-ui .opblock.opblock-put .tab-header .tab-item.active h4 span:after{background:#d9c07f}
+.swagger-ui .opblock.opblock-delete{background:rgba(203,108,108,0.1);border-color:#e09b78}
+.swagger-ui .opblock.opblock-delete .opblock-summary-method{background:#e09b78}
+.swagger-ui .opblock.opblock-delete .opblock-summary{border-color:#e09b78}
+.swagger-ui .opblock.opblock-delete .tab-header .tab-item.active h4 span:after{background:#e09b78}
+.swagger-ui .opblock.opblock-get{background:rgba(137,175,214,0.1);border-color:#8ab4dc}
+.swagger-ui .opblock.opblock-get .opblock-summary-method{background:#8ab4dc}
+.swagger-ui .opblock.opblock-get .opblock-summary{border-color:#8ab4dc}
+.swagger-ui .opblock.opblock-get .tab-header .tab-item.active h4 span:after{background:#8ab4dc}
+.swagger-ui .opblock.opblock-patch{background:rgba(105,202,180,0.1);border-color:#8ab4dc}
+.swagger-ui .opblock.opblock-patch .opblock-summary-method{background:#8ab4dc}
+.swagger-ui .opblock.opblock-patch .opblock-summary{border-color:#8ab4dc}
+.swagger-ui .opblock.opblock-patch .tab-header .tab-item.active h4 span:after{background:#8ab4dc}
+.swagger-ui .opblock.opblock-head{background:rgba(181,142,215,0.1);border-color:#b58ed7}
+.swagger-ui .opblock.opblock-head .opblock-summary-method{background:#b58ed7}
+.swagger-ui .opblock.opblock-head .opblock-summary{border-color:#b58ed7}
+.swagger-ui .opblock.opblock-head .tab-header .tab-item.active h4 span:after{background:#b58ed7}
+.swagger-ui .opblock.opblock-options{background:rgba(142,178,215,0.1);border-color:#8ab4dc}
+.swagger-ui .opblock.opblock-options .opblock-summary-method{background:#8ab4dc}
+.swagger-ui .opblock.opblock-options .opblock-summary{border-color:#8ab4dc}
+.swagger-ui .opblock.opblock-options .tab-header .tab-item.active h4 span:after{background:#8ab4dc}
+.swagger-ui .opblock.opblock-query{background:rgba(211,146,198,0.1);border-color:#d392c6}
+.swagger-ui .opblock.opblock-query .opblock-summary-method{background:#d392c6}
+.swagger-ui .opblock.opblock-query .opblock-summary{border-color:#d392c6}
+.swagger-ui .opblock.opblock-query .tab-header .tab-item.active h4 span:after{background:#d392c6}
+.swagger-ui .opblock.opblock-deprecated{border-color:#2d2d2d}
+.swagger-ui .opblock.opblock-deprecated .opblock-summary-method{background:#2d2d2d}
+.swagger-ui .opblock.opblock-deprecated .opblock-summary{border-color:#2d2d2d}
+.swagger-ui .opblock.opblock-deprecated .tab-header .tab-item.active h4 span:after{background:#2d2d2d}
+.swagger-ui .filter .operation-filter-input{border:2px solid #adb7cc}
+.swagger-ui .download-url-wrapper .loading,.swagger-ui .filter .loading{color:#6a6a6a}
+.swagger-ui .tab li{color:#a6adbf}
+.swagger-ui .tab li:first-of-type:after{background:rgba(236,236,236,0.2)}
+.swagger-ui .opblock-description-wrapper,.swagger-ui .opblock-external-docs-wrapper,.swagger-ui .opblock-title_normal{color:#a6adbf}
+.swagger-ui .opblock-description-wrapper h4,.swagger-ui .opblock-external-docs-wrapper h4,.swagger-ui .opblock-title_normal h4{color:#a6adbf}
+.swagger-ui .opblock-description-wrapper p,.swagger-ui .opblock-external-docs-wrapper p,.swagger-ui .opblock-title_normal p{color:#a6adbf}
+.swagger-ui .responses-inner h4,.swagger-ui .responses-inner h5{color:#a6adbf}
+.swagger-ui .response-col_status{color:#a6adbf}
+.swagger-ui .response-col_status .response-undocumented{color:#808080}
+.swagger-ui .response-col_links{color:#a6adbf}
+.swagger-ui .response-col_links .response-undocumented{color:#808080}
+.swagger-ui .download-contents{background:#878787;color:#131313}
+.swagger-ui .scheme-container{background:#131313;box-shadow:0 1px 2px 0 rgba(0,0,0,0.255)}
+.swagger-ui .scheme-container .schemes>.schemes-server-container>label{color:#a6adbf}
+.swagger-ui .loading-container .loading:after{color:#a6adbf}
+.swagger-ui .loading-container .loading:before{border:2px solid rgba(171,171,171,0.1);border-top-color:rgba(236,236,236,0.6)}
+.swagger-ui section h3{color:#a6adbf}
+.swagger-ui .fallback{color:#6a6a6a}
+.swagger-ui .version-pragma__message code{background-color:#3d3d3d}
+.swagger-ui span.token-string{color:#ababab}
+.swagger-ui span.token-not-formatted{color:#ababab}
+.swagger-ui .btn{box-shadow:0 1px 2px rgba(0,0,0,0.17);color:#a6adbf}
+.swagger-ui .btn:hover{box-shadow:0 0 5px rgba(0,0,0,0.51)}
+.swagger-ui .btn.cancel{border-color:#d68989;color:#d68989}
+.swagger-ui .btn.authorize{border-color:#72b3a2;color:#72b3a2}
+.swagger-ui .btn.authorize svg{fill:#72b3a2}
+.swagger-ui .btn.execute{background-color:#8ab4dc;border-color:#8ab4dc;color:#131313}
+.swagger-ui .expand-methods:hover svg{fill:#b9b9b9}
+.swagger-ui .expand-methods svg{fill:#999999}
+.swagger-ui button.invalid{background:#dd9d9d;border-color:#e09b78}
+.swagger-ui .copy-to-clipboard{background:#878787}
+.swagger-ui .copy-to-clipboard:active{background:#9f9f9f}
+.swagger-ui select{border:2px solid #b4b4b4;box-shadow:0 1px 2px 0 rgba(0,0,0,0.425);color:#a6adbf}
+.swagger-ui select[multiple]{background:#1a1a1a}
+.swagger-ui select.invalid{background:#dd9d9d;border-color:#e09b78}
+.swagger-ui label{color:#a6adbf}
+.swagger-ui input[type=email],.swagger-ui input[type=file],.swagger-ui input[type=password],.swagger-ui input[type=search],.swagger-ui input[type=text],.swagger-ui textarea{background:#131313;border:1px solid #404040}
+.swagger-ui input[type=email].invalid,.swagger-ui input[type=file].invalid,.swagger-ui input[type=password].invalid,.swagger-ui input[type=search].invalid,.swagger-ui input[type=text].invalid,.swagger-ui textarea.invalid{background:#dd9d9d;border-color:#e09b78}
+.swagger-ui input[disabled],.swagger-ui select[disabled],.swagger-ui textarea[disabled]{background-color:#171717;color:#878787}
+.swagger-ui select[disabled]{border-color:#878787}
+.swagger-ui textarea{color:#a6adbf}
+.swagger-ui textarea:focus{border:2px solid #8ab4dc}
+.swagger-ui .checkbox{color:#c4c4c4}
+.swagger-ui .checkbox p{color:#a6adbf}
+.swagger-ui .checkbox input[type=checkbox]+label>.item{background:#333333;box-shadow:0 0 0 2px rgba(0,0,0,0.45)}
+.swagger-ui .dialog-ux .modal-ux{background:#131313;border:1px solid #2d2d2d;box-shadow:0 10px 30px 0 rgba(0,0,0,0.34)}
+.swagger-ui .dialog-ux .modal-ux-content p{color:#b4b4b4;color:#a6adbf}
+.swagger-ui .dialog-ux .modal-ux-content h4{color:#a6adbf}
+.swagger-ui .dialog-ux .modal-ux-header{border-bottom:1px solid #2d2d2d}
+.swagger-ui .dialog-ux .modal-ux-header h3{color:#a6adbf}
+.swagger-ui .model{color:#a6adbf}
+.swagger-ui .model .deprecated span,.swagger-ui .model .deprecated td{color:#737373!important}
+.swagger-ui .model .property{color:#797979}
+.swagger-ui .model .property.primitive{color:#9c9c9c}
+.swagger-ui .model .external-docs,.swagger-ui table.model tr.description{color:#a0a0a0}
+.swagger-ui table.model tr.extension{color:#949494}
+.swagger-ui section.models{border:1px solid rgba(166,173,191,0.3)}
+.swagger-ui section.models.is-open h4{border-bottom:1px solid rgba(166,173,191,0.3)}
+.swagger-ui section.models h4{color:#a4a4a4}
+.swagger-ui section.models h4:hover{background:rgba(236,236,236,0.02)}
+.swagger-ui section.models h5{color:#999999}
+.swagger-ui section.models .model-container{background:rgba(236,236,236,0.05)}
+.swagger-ui section.models .model-container:hover{background:rgba(236,236,236,0.07)}
+.swagger-ui .model-box{background:rgba(236,236,236,0.1)}
+.swagger-ui .model-title{color:#aeaeae}
+.swagger-ui .model-deprecated-warning{color:#e09b78}
+.swagger-ui .prop-type{color:#9999cc}
+.swagger-ui .prop-format{color:#a4a4a4}
+.swagger-ui .servers>label{color:#a6adbf}
+.swagger-ui table.headers td{color:#a6adbf}
+.swagger-ui table.headers .header-example{color:#797979}
+.swagger-ui table thead tr td,.swagger-ui table thead tr th{border-bottom:1px solid rgba(166,173,191,0.2);color:#a6adbf}
+.swagger-ui .parameter__name{color:#a6adbf}
+.swagger-ui .parameter__name.required:after{color:rgba(215,142,142,0.6)}
+.swagger-ui .topbar a{color:#131313}
+.swagger-ui .topbar .download-url-wrapper input[type=text]{border:2px solid #a9d491}
+.swagger-ui .topbar .download-url-wrapper .select-label{color:#222222}
+.swagger-ui .topbar .download-url-wrapper .select-label select{border:2px solid #a9d491}
+.swagger-ui .topbar .download-url-wrapper .download-url-button{background:#a9d491;color:#131313}
+.swagger-ui .info h1,.swagger-ui .info h2,.swagger-ui .info h3,.swagger-ui .info h4,.swagger-ui .info h5,.swagger-ui .info li,.swagger-ui .info p,.swagger-ui .info table{color:#a6adbf}
+.swagger-ui .info a{color:#8ab4dc}
+.swagger-ui .info a:hover{color:#8eb0d7}
+.swagger-ui .info .base-url{color:#a6adbf}
+.swagger-ui .info .title{color:#a6adbf}
+.swagger-ui .info .title small{background:#888888}
+.swagger-ui .info .title small.version-stamp{background-color:#72b3a2}
+.swagger-ui .info .title small pre{color:#131313}
+.swagger-ui .auth-container{border-bottom:1px solid #2d2d2d}
+.swagger-ui .auth-container .errors{background-color:#dd9d9d;color:#a6adbf}
+.swagger-ui .scopes h2{color:#a6adbf}
+.swagger-ui .scopes h2 a{color:#8ab4dc}
+.swagger-ui .errors-wrapper{background:rgba(203,108,108,0.1);border:2px solid #e09b78}
+.swagger-ui .errors-wrapper .errors h4{color:#a6adbf}
+.swagger-ui .errors-wrapper .errors small{color:#a4a4a4}
+.swagger-ui .errors-wrapper hgroup h4{color:#a6adbf}
+.swagger-ui .markdown pre,.swagger-ui .renderedMarkdown pre{color:#ececec}
+.swagger-ui .markdown code,.swagger-ui .renderedMarkdown code{background:rgba(236,236,236,0.05);color:#b58ed7}
+.swagger-ui .json-schema-2020-12-keyword--\$vocabulary ul{border-left:1px dashed rgba(236,236,236,0.1)}
+.swagger-ui .json-schema-2020-12-keyword--const .json-schema-2020-12-json-viewer__name,.swagger-ui .json-schema-2020-12-keyword--const .json-schema-2020-12-json-viewer__value{color:#a6adbf}
+.swagger-ui .json-schema-2020-12__constraint{background-color:#8566c9;color:#a6adbf;color:#131313}
+.swagger-ui .json-schema-2020-12__constraint--string{background-color:#d7bf8e;color:#131313}
+.swagger-ui .json-schema-2020-12-keyword--default .json-schema-2020-12-json-viewer__name,.swagger-ui .json-schema-2020-12-keyword--default .json-schema-2020-12-json-viewer__value{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-keyword--description{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-keyword--enum .json-schema-2020-12-json-viewer__name,.swagger-ui .json-schema-2020-12-keyword--enum .json-schema-2020-12-json-viewer__value,.swagger-ui .json-schema-2020-12-keyword--examples .json-schema-2020-12-json-viewer__name,.swagger-ui .json-schema-2020-12-keyword--examples .json-schema-2020-12-json-viewer__value{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-json-viewer-extension-keyword .json-schema-2020-12-json-viewer__name,.swagger-ui .json-schema-2020-12-json-viewer-extension-keyword .json-schema-2020-12-json-viewer__value{color:#7f7f7f}
+.swagger-ui .json-schema-2020-12-keyword--patternProperties .json-schema-2020-12__title:first-of-type:after,.swagger-ui .json-schema-2020-12-keyword--patternProperties .json-schema-2020-12__title:first-of-type:before{color:#9999cc}
+.swagger-ui .json-schema-2020-12__title{color:#aeaeae}
+.swagger-ui .json-schema-2020-12-property .json-schema-2020-12__title{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-keyword__children{border-left:1px dashed rgba(236,236,236,0.1)}
+.swagger-ui .json-schema-2020-12-keyword__name--primary{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-keyword__name--secondary{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-keyword__name--extension{color:#7f7f7f}
+.swagger-ui .json-schema-2020-12-keyword__value{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-keyword__value--primary{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-keyword__value--secondary{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-keyword__value--extension{color:#7f7f7f}
+.swagger-ui .json-schema-2020-12-keyword__value--warning{color:#a6adbf}
+.swagger-ui .json-schema-2020-12__attribute{color:#a6adbf}
+.swagger-ui .json-schema-2020-12__attribute--primary{color:#9999cc}
+.swagger-ui .json-schema-2020-12-json-viewer__children{border-left:1px dashed rgba(236,236,236,0.1)}
+.swagger-ui .json-schema-2020-12-json-viewer__name--primary{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-json-viewer__name--secondary{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-json-viewer__name--extension{color:#7f7f7f}
+.swagger-ui .json-schema-2020-12-json-viewer__value{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-json-viewer__value--primary{color:#a6adbf}
+.swagger-ui .json-schema-2020-12-json-viewer__value--secondary{color:#9c9c9c}
+.swagger-ui .json-schema-2020-12-json-viewer__value--extension{color:#7f7f7f}
+.swagger-ui .json-schema-2020-12-json-viewer__value--warning{color:#a6adbf}
+.swagger-ui .json-schema-2020-12{background-color:rgba(236,236,236,0.05)}
+.swagger-ui .json-schema-2020-12-body{border-left:1px dashed rgba(236,236,236,0.1)}
+.swagger-ui .json-schema-2020-12-expand-deep-button{color:#aeaeae;color:#656565}
+/* ── calque d'identite : ce qui ne se deduit pas d'un remplacement de
+   couleur (gamme, typographie, gouttiere, densite). Il passe APRES le
+   calque genere, donc il tranche. ─────────────────────────────────── */
+:root{
+  --ground:#131313; --surface:#1d1d1d; --well:#0e0e0e;
+  --line:#383838; --line-soft:#2a2a2a;
+  --text:#ececec; --muted:#a3a3a3; --faint:#7a7a7a;
+  --get:#8ab4dc; --post:#72b3a2; --del:#e09b78; --put:#d9c07f;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+html,body{background:var(--ground);}
+body{margin:0;}
+.swagger-ui{
+  font-family:var(--sans); font-size:13.5px; line-height:1.6;
+  color:var(--text); background:var(--ground);
+  -webkit-font-smoothing:antialiased;
+}
+.swagger-ui .wrapper{max-width:1000px; padding:0 28px;}
+.swagger-ui .info{margin:38px 0 30px;}
+
+/* ── en-tete ─────────────────────────────────────────────────────── */
+.swagger-ui .info .title{
+  font-family:var(--mono); font-size:22px; font-weight:600;
+  letter-spacing:-.01em; color:var(--text);
+}
+.swagger-ui .info .title small{
+  background:transparent; border:1px solid var(--line); border-radius:3px;
+  font-family:var(--mono); font-size:11px; padding:1px 7px; vertical-align:middle;
+}
+.swagger-ui .info .title small pre{background:transparent; color:var(--muted); font-family:var(--mono);}
+.swagger-ui .info .description,.swagger-ui .info li,.swagger-ui .info p{
+  color:var(--muted); font-size:13.5px; max-width:74ch;
+}
+.swagger-ui .info a,.swagger-ui a.nostyle,.swagger-ui .info .base-url{color:var(--get);}
+.swagger-ui .info a:hover{color:#a8c8e8;}
+.swagger-ui .info .base-url{font-family:var(--mono); font-size:12px; color:var(--faint);}
+.swagger-ui .scheme-container{background:transparent; box-shadow:none; padding:0; margin:0;}
+
+/* ── sections de tag ─────────────────────────────────────────────── */
+.swagger-ui .opblock-tag{
+  border-bottom:1px solid var(--line-soft); margin:30px 0 10px; padding:0 0 9px;
+  font-family:var(--sans); font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--text);
+}
+.swagger-ui .opblock-tag:hover{background:transparent;}
+.swagger-ui .opblock-tag small{
+  font-size:12.5px; font-weight:400; text-transform:none;
+  letter-spacing:0; color:var(--faint); padding-left:12px;
+}
+
+/* ── une operation ───────────────────────────────────────────────── */
+.swagger-ui .opblock{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:4px; box-shadow:none; margin:0 0 8px;
+}
+.swagger-ui .opblock.is-open{background:var(--surface);}
+.swagger-ui .opblock .opblock-summary{border-bottom:0; padding:4px 12px;}
+.swagger-ui .opblock.is-open .opblock-summary{border-bottom:1px solid var(--line-soft);}
+
+/* Barre de couleur en bord gauche : retiree, elle rendait mal etiree sur
+   toute la hauteur d'un bloc deplie. Le badge de methode suffit a porter
+   la couleur. Conservee ici au cas ou on veuille la reessayer courte et
+   detachee (option testee : left:9px, top/bottom:13px, width:3px).
+.swagger-ui .opblock{position:relative; overflow:hidden;}
+.swagger-ui .opblock::before{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--m,var(--line));
+}
+.swagger-ui .opblock.opblock-get{--m:var(--get);}
+.swagger-ui .opblock.opblock-post{--m:var(--post);}
+.swagger-ui .opblock.opblock-delete{--m:var(--del);}
+.swagger-ui .opblock.opblock-put{--m:var(--put);}
+*/
+
+.swagger-ui .opblock .opblock-summary-method{
+  background:var(--m,var(--line)); color:#131313;
+  font-family:var(--mono); font-size:10.5px; font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase; text-shadow:none;
+  border-radius:3px; padding:5px 9px; min-width:66px;
+}
+.swagger-ui .opblock.opblock-get{--m:var(--get);}
+.swagger-ui .opblock.opblock-post{--m:var(--post);}
+.swagger-ui .opblock.opblock-delete{--m:var(--del);}
+.swagger-ui .opblock.opblock-put,.swagger-ui .opblock.opblock-patch{--m:var(--put);}
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-path__deprecated,
+.swagger-ui .opblock .opblock-summary-path a{
+  font-family:var(--mono); font-size:14px; font-weight:500; color:var(--text);
+}
+.swagger-ui .opblock .opblock-summary-description{
+  font-family:var(--sans); font-size:12.5px; color:var(--faint);
+}
+.swagger-ui .opblock-summary-control:focus-visible{outline:2px solid var(--get); outline-offset:2px;}
+
+/* ── corps deplie ────────────────────────────────────────────────── */
+.swagger-ui .opblock .opblock-section-header{
+  background:transparent; box-shadow:none; border-bottom:1px solid var(--line-soft);
+  min-height:0; padding:12px 0; margin:0 12px;
+}
+.swagger-ui .opblock-body,.swagger-ui .opblock-description-wrapper,
+.swagger-ui .opblock-external-docs-wrapper,.swagger-ui .opblock-title_normal{
+  background:var(--ground); color:var(--muted); font-size:13px;
+}
+.swagger-ui .opblock .opblock-section-header h4,.swagger-ui .tab li,
+.swagger-ui table thead tr td,.swagger-ui table thead tr th{
+  font-family:var(--sans); font-size:10.5px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+  border-bottom:1px solid var(--line-soft);
+}
+.swagger-ui .parameter__name{font-family:var(--mono); font-size:12.5px; font-weight:500; color:var(--text);}
+.swagger-ui .parameter__type,.swagger-ui .parameter__in,.swagger-ui .prop-format{
+  font-family:var(--mono); font-size:11.5px; color:var(--faint);
+}
+.swagger-ui .parameter__name.required:after{color:var(--del); font-size:10.5px;}
+.swagger-ui table tbody tr td{border-bottom:1px solid var(--line-soft); padding:10px 12px 10px 0;}
+.swagger-ui .response-col_status{font-family:var(--mono); font-weight:600; color:var(--post);}
+.swagger-ui .response-col_links,.swagger-ui .markdown p,.swagger-ui .renderedMarkdown p{color:var(--muted);}
+
+/* ── champs et boutons ───────────────────────────────────────────── */
+.swagger-ui input[type=email],.swagger-ui input[type=file],
+.swagger-ui input[type=password],.swagger-ui input[type=search],
+.swagger-ui input[type=text],.swagger-ui textarea,.swagger-ui select{
+  background:var(--well); color:var(--text);
+  border:1px solid var(--line); border-radius:3px;
+  font-family:var(--mono); font-size:12.5px; padding:7px 9px; box-shadow:none;
+}
+.swagger-ui input:focus-visible,.swagger-ui textarea:focus-visible,
+.swagger-ui select:focus-visible{outline:none; border-color:var(--get);}
+.swagger-ui .btn{
+  background:transparent; color:var(--text);
+  border:1px solid var(--line); border-radius:3px; box-shadow:none;
+  font-family:var(--sans); font-size:12.5px; font-weight:500;
+  text-transform:none; letter-spacing:0;
+}
+.swagger-ui .btn:hover{border-color:var(--get); color:var(--get); box-shadow:none;}
+.swagger-ui .btn.execute{background:transparent; border-color:var(--get); color:var(--get);}
+.swagger-ui .btn.execute:hover{background:rgba(138,180,220,.10);}
+.swagger-ui .btn.cancel{border-color:var(--del); color:var(--del); background:transparent;}
+.swagger-ui .btn:focus-visible{outline:2px solid var(--get); outline-offset:2px;}
+.swagger-ui .try-out__btn{font-size:12px;}
+
+/* ── blocs de code ───────────────────────────────────────────────── */
+.swagger-ui .highlight-code>.microlight,.swagger-ui .microlight,
+.swagger-ui pre,.swagger-ui .body-param__example,.swagger-ui .example{
+  background:var(--well)!important; color:#d2d2d2;
+  border:1px solid var(--line-soft); border-radius:3px;
+  font-family:var(--mono); font-size:12.5px; line-height:1.55;
+}
+.swagger-ui .responses-inner{padding:16px 12px;}
+.swagger-ui .response-control-media-type__title,
+.swagger-ui .response-control-media-type__accept-message{color:var(--faint);}
+
+/* ── fleches et pastilles ────────────────────────────────────────── */
+.swagger-ui svg.arrow,.swagger-ui .expand-methods svg,.swagger-ui section.models h4 svg{
+  fill:var(--faint);
+}
+.swagger-ui .opblock-summary:hover svg.arrow{fill:var(--text);}
+/* Copier / Telecharger : deux boutons poses SUR un bloc de code. Leur
+   icone est une image de fond sombre, on la retourne au lieu de
+   l'effacer. */
+.swagger-ui .copy-to-clipboard,.swagger-ui .download-contents{
+  background:#2c2c2c; color:var(--text); border:1px solid var(--line);
+  border-radius:3px; font-family:var(--sans); font-size:11.5px; font-weight:500;
+}
+.swagger-ui .copy-to-clipboard:active{background:#3a3a3a;}
+.swagger-ui .copy-to-clipboard button{background-color:transparent; filter:invert(1) opacity(.72);}
+.swagger-ui .loading-container .loading:after{color:var(--muted);}
+.swagger-ui .errors-wrapper{background:var(--surface); border-color:var(--del);}
+::selection{background:rgba(138,180,220,.28);}
+::-webkit-scrollbar{width:11px; height:11px;}
+::-webkit-scrollbar-track{background:var(--ground);}
+::-webkit-scrollbar-thumb{background:#2f2f2f; border-radius:6px; border:2px solid var(--ground);}
+::-webkit-scrollbar-thumb:hover{background:#3d3d3d;}
+
+/* Le chevron du <select> est une image de fond sombre : illisible sur
+   fond sombre, on la redessine claire. */
+.swagger-ui select{
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%23a3a3a3' d='M5 8l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 8px center;
+  background-size:16px; padding-right:28px; appearance:none;
+}
+
+/* ── neutralisation des fonds de methode ─────────────────────────────
+   Swagger teinte tout le bloc selon la methode (bleu pale, vert pale).
+   Sur fond sombre ces aplats colores font sale et, surtout, la couleur
+   redevient le repere principal alors qu'elle ne doit etre qu'un
+   renfort du mot GET/POST/DELETE. Un seul gris pour tous les blocs.
+   Selecteurs a deux classes : c'est la specificite de Swagger, il faut
+   la meme pour passer devant. */
+.swagger-ui .opblock.opblock-get,.swagger-ui .opblock.opblock-post,
+.swagger-ui .opblock.opblock-put,.swagger-ui .opblock.opblock-delete,
+.swagger-ui .opblock.opblock-patch,.swagger-ui .opblock.opblock-head,
+.swagger-ui .opblock.opblock-options,.swagger-ui .opblock.opblock-deprecated{
+  background:var(--surface); border-color:var(--line); box-shadow:none;
+}
+.swagger-ui .opblock.opblock-get .opblock-summary,
+.swagger-ui .opblock.opblock-post .opblock-summary,
+.swagger-ui .opblock.opblock-put .opblock-summary,
+.swagger-ui .opblock.opblock-delete .opblock-summary,
+.swagger-ui .opblock.opblock-patch .opblock-summary,
+.swagger-ui .opblock.opblock-deprecated .opblock-summary{
+  border-color:var(--line-soft);
+}
+.swagger-ui .opblock.opblock-deprecated{opacity:.55;}
+
+/* Le libelle du tag est un lien : il ne doit pas prendre la couleur des
+   liens, c'est un titre de section. */
+.swagger-ui .opblock-tag a.nostyle,.swagger-ui .opblock-tag a.nostyle span,
+.swagger-ui .opblock-tag>a{color:var(--text);}
+.swagger-ui .opblock-tag-section{margin-bottom:6px;}
+
+/* Pastilles de l'en-tete : meme traitement pour la version et pour OAS,
+   ce sont deux etiquettes, pas deux alertes. */
+.swagger-ui .info .title small.version-stamp,.swagger-ui .info .title small{
+  background:transparent; background-color:transparent;
+  border:1px solid var(--line); border-radius:3px;
+}
+.swagger-ui .info .title small pre.version{color:var(--muted); background:transparent;}
+
+/* ── etats d'erreur ──────────────────────────────────────────────────
+   Swagger signale un champ invalide par un aplat rose clair : transpose
+   mecaniquement, il vire au saumon et devient la chose la plus voyante
+   de la page. Le champ garde donc son fond, c'est le filet qui alerte. */
+.swagger-ui input[type=email].invalid,.swagger-ui input[type=file].invalid,
+.swagger-ui input[type=password].invalid,.swagger-ui input[type=search].invalid,
+.swagger-ui input[type=text].invalid,.swagger-ui textarea.invalid,
+.swagger-ui select.invalid,.swagger-ui button.invalid{
+  background:var(--well); border-color:var(--del); color:var(--text);
+}
+.swagger-ui .errors-wrapper .errors h4,.swagger-ui .errors-wrapper hgroup h4{color:var(--del);}
+.swagger-ui .errors-wrapper .errors small,.swagger-ui .errors-wrapper .error-wrapper{color:var(--muted);}
+/* Couleur nommee dans le CSS de Swagger : elle echappe au remplacement
+   mecanique, qui ne lit que les notations # et rgb(). */
+.swagger-ui .response-control-media-type--accept-controller select{border-color:var(--line);}
+.swagger-ui .response-control-media-type__title{color:var(--faint);}
+
+/* Les blocs de code de Swagger sont deja sombres (#333) et laisses tels
+   quels par le generateur ; on les aligne seulement sur le creux de la
+   gamme, pour qu'ils ne flottent pas a un gris intermediaire. */
+.swagger-ui .opblock-body pre.microlight{background:var(--well)!important; border:1px solid var(--line-soft);}
+.swagger-ui .request-url pre.microlight{color:var(--text);}
+.swagger-ui .opblock-body h4,.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5{
+  font-family:var(--sans); font-size:10.5px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+}
+.swagger-ui .opblock-description-wrapper p,.swagger-ui .opblock-title_normal p,
+.swagger-ui .opblock-external-docs-wrapper p{color:var(--muted);}
+
+/* ── reponses text/plain ─────────────────────────────────────────────
+   Swagger passe TOUTE reponse au coloriseur, meme du texte brut. Sur la
+   fiche dessinee de `/v1/cards/{id}/figure`, il prend les nombres pour
+   des litteraux et barbouille la barre de calendrier. Le <code> d'une
+   reponse coloree porte sa langue (`language-json`, `language-bash`) ;
+   celui d'un texte brut n'a pas de classe, d'ou ce ciblage. Les couleurs
+   du coloriseur sont en style inline : il faut !important. */
+.swagger-ui .highlight-code pre.microlight>code:not([class]) span{
+  color:inherit!important; background:transparent!important;
+  font-weight:inherit!important;
+}

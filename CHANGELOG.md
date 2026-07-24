@@ -51,12 +51,25 @@ des deux endroits.
   tags, le contact dit ce qu'il est (dépôt GitHub du service, il annonçait
   « INRAE, UR RiverLy » en pointant un dépôt personnel).
 
-  Un **thème sombre a été tenté puis retiré** le même jour : la maquette
-  validée était une page maison, quand Swagger UI a un DOM différent et des
-  milliers de lignes de CSS que quelques règles ne recouvrent pas. Le
-  résultat était pire que le défaut. La maquette reste la cible visuelle si
-  on y revient, avec les deux voies possibles, dans
-  `docs/dev/PLAN_FAIR.md`.
+- **Thème sombre de `/docs`**, à la deuxième tentative. La première,
+  le matin même, posait une centaine de règles écrites à l'estime : elles
+  ne recouvraient qu'une fraction des 179 ko de CSS de Swagger, d'où un
+  fond sombre avec la moitié des composants restés clairs, pire que le
+  thème par défaut. Elle avait été « vérifiée » en constatant que le CSS
+  était *injecté*, jamais que la page *rendait*.
+
+  Le thème livré ne devine plus aucune classe : `scripts/build_theme.py`
+  relit le CSS réel de Swagger et ré-émet chacune de ses règles de
+  couleur transposée dans la gamme sombre, ce qui en couvre environ 420.
+  Il s'est jugé à la capture d'écran, page dépliée et requête exécutée,
+  ce qui a fait ressortir ce qu'aucun test n'aurait vu : « Request URL »
+  en sombre sur sombre, boutons copier/télécharger restés clairs, champ
+  invalide viré au saumon, et le coloriseur de Swagger qui barbouillait
+  la barre de calendrier de la fiche dessinée.
+
+  Gris neutres à gamme ouverte, couleur réservée aux méthodes HTTP et
+  jamais seule porteuse de l'information, hors axe rouge/vert. Conception,
+  palette et façon de vérifier : `docs/dev/THEME_DOCS.md`.
 
 ### Modifié
 

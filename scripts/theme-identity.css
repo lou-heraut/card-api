@@ -1,0 +1,261 @@
+/* ── calque d'identite : ce qui ne se deduit pas d'un remplacement de
+   couleur (gamme, typographie, gouttiere, densite). Il passe APRES le
+   calque genere, donc il tranche. ─────────────────────────────────── */
+:root{
+  --ground:#131313; --surface:#1d1d1d; --well:#0e0e0e;
+  --line:#383838; --line-soft:#2a2a2a;
+  --text:#ececec; --muted:#a3a3a3; --faint:#7a7a7a;
+  --get:#8ab4dc; --post:#72b3a2; --del:#e09b78; --put:#d9c07f;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+html,body{background:var(--ground);}
+body{margin:0;}
+.swagger-ui{
+  font-family:var(--sans); font-size:13.5px; line-height:1.6;
+  color:var(--text); background:var(--ground);
+  -webkit-font-smoothing:antialiased;
+}
+.swagger-ui .wrapper{max-width:1000px; padding:0 28px;}
+.swagger-ui .info{margin:38px 0 30px;}
+
+/* ── en-tete ─────────────────────────────────────────────────────── */
+.swagger-ui .info .title{
+  font-family:var(--mono); font-size:22px; font-weight:600;
+  letter-spacing:-.01em; color:var(--text);
+}
+.swagger-ui .info .title small{
+  background:transparent; border:1px solid var(--line); border-radius:3px;
+  font-family:var(--mono); font-size:11px; padding:1px 7px; vertical-align:middle;
+}
+.swagger-ui .info .title small pre{background:transparent; color:var(--muted); font-family:var(--mono);}
+.swagger-ui .info .description,.swagger-ui .info li,.swagger-ui .info p{
+  color:var(--muted); font-size:13.5px; max-width:74ch;
+}
+.swagger-ui .info a,.swagger-ui a.nostyle,.swagger-ui .info .base-url{color:var(--get);}
+.swagger-ui .info a:hover{color:#a8c8e8;}
+.swagger-ui .info .base-url{font-family:var(--mono); font-size:12px; color:var(--faint);}
+.swagger-ui .scheme-container{background:transparent; box-shadow:none; padding:0; margin:0;}
+
+/* ── sections de tag ─────────────────────────────────────────────── */
+.swagger-ui .opblock-tag{
+  border-bottom:1px solid var(--line-soft); margin:30px 0 10px; padding:0 0 9px;
+  font-family:var(--sans); font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--text);
+}
+.swagger-ui .opblock-tag:hover{background:transparent;}
+.swagger-ui .opblock-tag small{
+  font-size:12.5px; font-weight:400; text-transform:none;
+  letter-spacing:0; color:var(--faint); padding-left:12px;
+}
+
+/* ── une operation ───────────────────────────────────────────────── */
+.swagger-ui .opblock{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:4px; box-shadow:none; margin:0 0 8px;
+}
+.swagger-ui .opblock.is-open{background:var(--surface);}
+.swagger-ui .opblock .opblock-summary{border-bottom:0; padding:4px 12px;}
+.swagger-ui .opblock.is-open .opblock-summary{border-bottom:1px solid var(--line-soft);}
+
+/* Barre de couleur en bord gauche : retiree, elle rendait mal etiree sur
+   toute la hauteur d'un bloc deplie. Le badge de methode suffit a porter
+   la couleur. Conservee ici au cas ou on veuille la reessayer courte et
+   detachee (option testee : left:9px, top/bottom:13px, width:3px).
+.swagger-ui .opblock{position:relative; overflow:hidden;}
+.swagger-ui .opblock::before{
+  content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--m,var(--line));
+}
+.swagger-ui .opblock.opblock-get{--m:var(--get);}
+.swagger-ui .opblock.opblock-post{--m:var(--post);}
+.swagger-ui .opblock.opblock-delete{--m:var(--del);}
+.swagger-ui .opblock.opblock-put{--m:var(--put);}
+*/
+
+.swagger-ui .opblock .opblock-summary-method{
+  background:var(--m,var(--line)); color:#131313;
+  font-family:var(--mono); font-size:10.5px; font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase; text-shadow:none;
+  border-radius:3px; padding:5px 9px; min-width:66px;
+}
+.swagger-ui .opblock.opblock-get{--m:var(--get);}
+.swagger-ui .opblock.opblock-post{--m:var(--post);}
+.swagger-ui .opblock.opblock-delete{--m:var(--del);}
+.swagger-ui .opblock.opblock-put,.swagger-ui .opblock.opblock-patch{--m:var(--put);}
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-path__deprecated,
+.swagger-ui .opblock .opblock-summary-path a{
+  font-family:var(--mono); font-size:14px; font-weight:500; color:var(--text);
+}
+.swagger-ui .opblock .opblock-summary-description{
+  font-family:var(--sans); font-size:12.5px; color:var(--faint);
+}
+.swagger-ui .opblock-summary-control:focus-visible{outline:2px solid var(--get); outline-offset:2px;}
+
+/* ── corps deplie ────────────────────────────────────────────────── */
+.swagger-ui .opblock .opblock-section-header{
+  background:transparent; box-shadow:none; border-bottom:1px solid var(--line-soft);
+  min-height:0; padding:12px 0; margin:0 12px;
+}
+.swagger-ui .opblock-body,.swagger-ui .opblock-description-wrapper,
+.swagger-ui .opblock-external-docs-wrapper,.swagger-ui .opblock-title_normal{
+  background:var(--ground); color:var(--muted); font-size:13px;
+}
+.swagger-ui .opblock .opblock-section-header h4,.swagger-ui .tab li,
+.swagger-ui table thead tr td,.swagger-ui table thead tr th{
+  font-family:var(--sans); font-size:10.5px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+  border-bottom:1px solid var(--line-soft);
+}
+.swagger-ui .parameter__name{font-family:var(--mono); font-size:12.5px; font-weight:500; color:var(--text);}
+.swagger-ui .parameter__type,.swagger-ui .parameter__in,.swagger-ui .prop-format{
+  font-family:var(--mono); font-size:11.5px; color:var(--faint);
+}
+.swagger-ui .parameter__name.required:after{color:var(--del); font-size:10.5px;}
+.swagger-ui table tbody tr td{border-bottom:1px solid var(--line-soft); padding:10px 12px 10px 0;}
+.swagger-ui .response-col_status{font-family:var(--mono); font-weight:600; color:var(--post);}
+.swagger-ui .response-col_links,.swagger-ui .markdown p,.swagger-ui .renderedMarkdown p{color:var(--muted);}
+
+/* ── champs et boutons ───────────────────────────────────────────── */
+.swagger-ui input[type=email],.swagger-ui input[type=file],
+.swagger-ui input[type=password],.swagger-ui input[type=search],
+.swagger-ui input[type=text],.swagger-ui textarea,.swagger-ui select{
+  background:var(--well); color:var(--text);
+  border:1px solid var(--line); border-radius:3px;
+  font-family:var(--mono); font-size:12.5px; padding:7px 9px; box-shadow:none;
+}
+.swagger-ui input:focus-visible,.swagger-ui textarea:focus-visible,
+.swagger-ui select:focus-visible{outline:none; border-color:var(--get);}
+.swagger-ui .btn{
+  background:transparent; color:var(--text);
+  border:1px solid var(--line); border-radius:3px; box-shadow:none;
+  font-family:var(--sans); font-size:12.5px; font-weight:500;
+  text-transform:none; letter-spacing:0;
+}
+.swagger-ui .btn:hover{border-color:var(--get); color:var(--get); box-shadow:none;}
+.swagger-ui .btn.execute{background:transparent; border-color:var(--get); color:var(--get);}
+.swagger-ui .btn.execute:hover{background:rgba(138,180,220,.10);}
+.swagger-ui .btn.cancel{border-color:var(--del); color:var(--del); background:transparent;}
+.swagger-ui .btn:focus-visible{outline:2px solid var(--get); outline-offset:2px;}
+.swagger-ui .try-out__btn{font-size:12px;}
+
+/* ── blocs de code ───────────────────────────────────────────────── */
+.swagger-ui .highlight-code>.microlight,.swagger-ui .microlight,
+.swagger-ui pre,.swagger-ui .body-param__example,.swagger-ui .example{
+  background:var(--well)!important; color:#d2d2d2;
+  border:1px solid var(--line-soft); border-radius:3px;
+  font-family:var(--mono); font-size:12.5px; line-height:1.55;
+}
+.swagger-ui .responses-inner{padding:16px 12px;}
+.swagger-ui .response-control-media-type__title,
+.swagger-ui .response-control-media-type__accept-message{color:var(--faint);}
+
+/* ── fleches et pastilles ────────────────────────────────────────── */
+.swagger-ui svg.arrow,.swagger-ui .expand-methods svg,.swagger-ui section.models h4 svg{
+  fill:var(--faint);
+}
+.swagger-ui .opblock-summary:hover svg.arrow{fill:var(--text);}
+/* Copier / Telecharger : deux boutons poses SUR un bloc de code. Leur
+   icone est une image de fond sombre, on la retourne au lieu de
+   l'effacer. */
+.swagger-ui .copy-to-clipboard,.swagger-ui .download-contents{
+  background:#2c2c2c; color:var(--text); border:1px solid var(--line);
+  border-radius:3px; font-family:var(--sans); font-size:11.5px; font-weight:500;
+}
+.swagger-ui .copy-to-clipboard:active{background:#3a3a3a;}
+.swagger-ui .copy-to-clipboard button{background-color:transparent; filter:invert(1) opacity(.72);}
+.swagger-ui .loading-container .loading:after{color:var(--muted);}
+.swagger-ui .errors-wrapper{background:var(--surface); border-color:var(--del);}
+::selection{background:rgba(138,180,220,.28);}
+::-webkit-scrollbar{width:11px; height:11px;}
+::-webkit-scrollbar-track{background:var(--ground);}
+::-webkit-scrollbar-thumb{background:#2f2f2f; border-radius:6px; border:2px solid var(--ground);}
+::-webkit-scrollbar-thumb:hover{background:#3d3d3d;}
+
+/* Le chevron du <select> est une image de fond sombre : illisible sur
+   fond sombre, on la redessine claire. */
+.swagger-ui select{
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%23a3a3a3' d='M5 8l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 8px center;
+  background-size:16px; padding-right:28px; appearance:none;
+}
+
+/* ── neutralisation des fonds de methode ─────────────────────────────
+   Swagger teinte tout le bloc selon la methode (bleu pale, vert pale).
+   Sur fond sombre ces aplats colores font sale et, surtout, la couleur
+   redevient le repere principal alors qu'elle ne doit etre qu'un
+   renfort du mot GET/POST/DELETE. Un seul gris pour tous les blocs.
+   Selecteurs a deux classes : c'est la specificite de Swagger, il faut
+   la meme pour passer devant. */
+.swagger-ui .opblock.opblock-get,.swagger-ui .opblock.opblock-post,
+.swagger-ui .opblock.opblock-put,.swagger-ui .opblock.opblock-delete,
+.swagger-ui .opblock.opblock-patch,.swagger-ui .opblock.opblock-head,
+.swagger-ui .opblock.opblock-options,.swagger-ui .opblock.opblock-deprecated{
+  background:var(--surface); border-color:var(--line); box-shadow:none;
+}
+.swagger-ui .opblock.opblock-get .opblock-summary,
+.swagger-ui .opblock.opblock-post .opblock-summary,
+.swagger-ui .opblock.opblock-put .opblock-summary,
+.swagger-ui .opblock.opblock-delete .opblock-summary,
+.swagger-ui .opblock.opblock-patch .opblock-summary,
+.swagger-ui .opblock.opblock-deprecated .opblock-summary{
+  border-color:var(--line-soft);
+}
+.swagger-ui .opblock.opblock-deprecated{opacity:.55;}
+
+/* Le libelle du tag est un lien : il ne doit pas prendre la couleur des
+   liens, c'est un titre de section. */
+.swagger-ui .opblock-tag a.nostyle,.swagger-ui .opblock-tag a.nostyle span,
+.swagger-ui .opblock-tag>a{color:var(--text);}
+.swagger-ui .opblock-tag-section{margin-bottom:6px;}
+
+/* Pastilles de l'en-tete : meme traitement pour la version et pour OAS,
+   ce sont deux etiquettes, pas deux alertes. */
+.swagger-ui .info .title small.version-stamp,.swagger-ui .info .title small{
+  background:transparent; background-color:transparent;
+  border:1px solid var(--line); border-radius:3px;
+}
+.swagger-ui .info .title small pre.version{color:var(--muted); background:transparent;}
+
+/* ── etats d'erreur ──────────────────────────────────────────────────
+   Swagger signale un champ invalide par un aplat rose clair : transpose
+   mecaniquement, il vire au saumon et devient la chose la plus voyante
+   de la page. Le champ garde donc son fond, c'est le filet qui alerte. */
+.swagger-ui input[type=email].invalid,.swagger-ui input[type=file].invalid,
+.swagger-ui input[type=password].invalid,.swagger-ui input[type=search].invalid,
+.swagger-ui input[type=text].invalid,.swagger-ui textarea.invalid,
+.swagger-ui select.invalid,.swagger-ui button.invalid{
+  background:var(--well); border-color:var(--del); color:var(--text);
+}
+.swagger-ui .errors-wrapper .errors h4,.swagger-ui .errors-wrapper hgroup h4{color:var(--del);}
+.swagger-ui .errors-wrapper .errors small,.swagger-ui .errors-wrapper .error-wrapper{color:var(--muted);}
+/* Couleur nommee dans le CSS de Swagger : elle echappe au remplacement
+   mecanique, qui ne lit que les notations # et rgb(). */
+.swagger-ui .response-control-media-type--accept-controller select{border-color:var(--line);}
+.swagger-ui .response-control-media-type__title{color:var(--faint);}
+
+/* Les blocs de code de Swagger sont deja sombres (#333) et laisses tels
+   quels par le generateur ; on les aligne seulement sur le creux de la
+   gamme, pour qu'ils ne flottent pas a un gris intermediaire. */
+.swagger-ui .opblock-body pre.microlight{background:var(--well)!important; border:1px solid var(--line-soft);}
+.swagger-ui .request-url pre.microlight{color:var(--text);}
+.swagger-ui .opblock-body h4,.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5{
+  font-family:var(--sans); font-size:10.5px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+}
+.swagger-ui .opblock-description-wrapper p,.swagger-ui .opblock-title_normal p,
+.swagger-ui .opblock-external-docs-wrapper p{color:var(--muted);}
+
+/* ── reponses text/plain ─────────────────────────────────────────────
+   Swagger passe TOUTE reponse au coloriseur, meme du texte brut. Sur la
+   fiche dessinee de `/v1/cards/{id}/figure`, il prend les nombres pour
+   des litteraux et barbouille la barre de calendrier. Le <code> d'une
+   reponse coloree porte sa langue (`language-json`, `language-bash`) ;
+   celui d'un texte brut n'a pas de classe, d'ou ce ciblage. Les couleurs
+   du coloriseur sont en style inline : il faut !important. */
+.swagger-ui .highlight-code pre.microlight>code:not([class]) span{
+  color:inherit!important; background:transparent!important;
+  font-weight:inherit!important;
+}

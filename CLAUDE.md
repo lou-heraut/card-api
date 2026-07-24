@@ -29,10 +29,13 @@ src/card_api/
                 #   disque VM entière vs empreinte data du service).
                 #   CORS ouvert en lecture (usage navigateur) ; bloc rights
                 #   dans les résultats (données Etalab, définitions GPL) ;
-                #   /docs = Swagger standard, avec try-it-out actif et
-                #   exemples pré-remplis. Un thème sombre a été tenté puis
-                #   RETIRÉ (recouvrir le CSS de Swagger demande bien plus
-                #   que quelques règles) : cf. docs/dev/PLAN_FAIR.md
+                #   /docs = Swagger UI habillé, try-it-out actif et
+                #   exemples pré-remplis ; le thème sombre est un calque
+                #   GÉNÉRÉ depuis le CSS réel de Swagger, jamais écrit à
+                #   la main, et se juge à la CAPTURE D'ÉCRAN, pas à
+                #   l'injection : docs/dev/THEME_DOCS.md
+  static/       # servi tel quel : swagger-theme.css, artefact de
+                #   scripts/build_theme.py (+ scripts/theme-identity.css)
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
