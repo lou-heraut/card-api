@@ -6,7 +6,7 @@ Hydro (via [Hub'Eau](https://hubeau.eaufrance.fr/)) et diagnostic de
 stationnarité Mann-Kendall / pente de Sen (via
 [stase](https://github.com/lou-heraut/stase)).
 
-**Documentation interactive : [https://API/docs](https://API/docs)**
+**Documentation interactive : [https://card-api.riverly.inrae.fr/docs](https://card-api.riverly.inrae.fr/docs)**
 (essai des requêtes dans le navigateur, schémas de réponse).
 
 Service public de recherche (INRAE, UR RiverLy). Ouvert, sans
@@ -17,8 +17,11 @@ Déploiement et développement : [INSTALL.md](INSTALL.md).
 
 | Endpoint | Rôle |
 |---|---|
+| `GET /v1` | point d'entrée : ce qu'est le service, ce qu'il relie, droits |
 | `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes |
 | `GET /v1/cards/{id}` | détail d'une fiche (fr/en) et liens vers sa définition |
+| `GET /v1/cards/{id}/figure` | la fiche **dessinée** (texte) : sa chaîne de calcul |
+| `GET /v1/vocabulary` | valeurs valides des facettes, donc les filtres acceptés |
 | `GET /v1/stations` | recherche de stations hydrométriques |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
 | `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
@@ -45,9 +48,9 @@ de retrouver le code actuel d'une station connue sous son ancien code
 Banque Hydro.
 
 ```bash
-curl "https://API/v1/stations?libelle=Austerlitz"
+curl "https://card-api.riverly.inrae.fr/v1/stations?libelle=Austerlitz"
 # → F700000103 | La Seine à Paris - Austerlitz [>2006]
-curl "https://API/v1/stations?departement=07&size=100"
+curl "https://card-api.riverly.inrae.fr/v1/stations?departement=07&size=100"
 ```
 
 ### Les fiches
@@ -58,9 +61,9 @@ filtre par facettes de classification (`domain`, `phenomenon`,
 `season`, `output`...) ou par texte libre, en français ou en anglais :
 
 ```bash
-curl "https://API/v1/cards?phenomenon=basses%20eaux&output=série"
-curl "https://API/v1/cards?operator=delta&search=VCN"
-curl "https://API/v1/cards/VCN10?lang=fr"      # détail d'une fiche
+curl "https://card-api.riverly.inrae.fr/v1/cards?phenomenon=basses%20eaux&output=série"
+curl "https://card-api.riverly.inrae.fr/v1/cards?operator=delta&search=VCN"
+curl "https://card-api.riverly.inrae.fr/v1/cards/VCN10?lang=fr"      # détail d'une fiche
 ```
 
 ## Cas d'usage
@@ -92,7 +95,7 @@ Extraction : module (QA) et étiage (VCN10) de la Seine à Paris.
 ```python
 import requests, pandas as pd
 
-r = requests.get("https://API/v1/extract", params={
+r = requests.get("https://card-api.riverly.inrae.fr/v1/extract", params={
     "stations": "F700000103",
     "cards": "QA,VCN10",
     "start": "1990-01-01",
@@ -116,7 +119,7 @@ Tendance du VCN10 : une ligne par station (H : tendance
 significative ? p-value, pente de Sen absolue `a` et relative).
 
 ```python
-r = requests.get("https://API/v1/trend", params={
+r = requests.get("https://card-api.riverly.inrae.fr/v1/trend", params={
     "stations": "F700000103",
     "cards": "VCN10",
     "sampling": "preferred",
@@ -145,7 +148,7 @@ Extraction : module (QA) et étiage (VCN10) de la Seine à Paris
 ```r
 library(jsonlite)
 
-r <- fromJSON(paste0("https://API/v1/extract?stations=F700000103",
+r <- fromJSON(paste0("https://card-api.riverly.inrae.fr/v1/extract?stations=F700000103",
                      "&cards=QA,VCN10&start=1990-01-01"))
 ```
 
@@ -162,7 +165,7 @@ Tendance du VCN10 : une ligne par station (H : tendance
 significative ? p-value, pente de Sen absolue `a` et relative).
 
 ```r
-r <- fromJSON(paste0("https://API/v1/trend?stations=F700000103",
+r <- fromJSON(paste0("https://card-api.riverly.inrae.fr/v1/trend?stations=F700000103",
                      "&cards=VCN10&sampling=preferred&series=true"))
 tr <- r$data$VCN10[1, ]
 ```
@@ -186,7 +189,7 @@ un bloc de provenance (paramètres, versions, date des données) qui le
 rend citable et reproductible.
 
 ```python
-job = requests.post("https://API/v1/jobs", json={
+job = requests.post("https://card-api.riverly.inrae.fr/v1/jobs", json={
     "endpoint": "trend",
     "stations": liste_de_codes,       # jusqu'à 100
     "cards": ["QA", "VCN10"],

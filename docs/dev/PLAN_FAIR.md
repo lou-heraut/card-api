@@ -76,5 +76,7 @@
 - [x] Phase 2 — `card.figure`/`card.vocabulary` ouverts côté card ;
       `/v1/cards/{id}/figure` (text/plain) et `/v1/vocabulary`
       (2026-07-24)
-- [ ] Phase 3 — doc écosystème et pistes de réutilisation
+- [~] Phase 3 — README : URL finale card-api.riverly.inrae.fr, endpoints
+      à jour. Reste : schéma d'écosystème et pistes de réutilisation
+      développées (2026-07-24)
 - [ ] Phase 4 (réserve) — UCUM, JSON-LD/SKOS, DCAT

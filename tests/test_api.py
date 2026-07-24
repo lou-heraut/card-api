@@ -174,7 +174,9 @@ def test_vocabulaire_donne_les_filtres_valides():
     b = client.get("/v1/vocabulary").json()
     v = b["vocabulary"]
     assert {"domain", "phenomenon", "output"} <= set(v)
-    assert v["phenomenon"]["low flows"]["fr"] == "basses eaux"
+    # clé = slug neutre, en et fr à égalité (pas d'anglais privilégié)
+    assert v["phenomenon"]["low-flows"] == {"en": "low flows",
+                                            "fr": "basses eaux"}
     # et ces valeurs filtrent réellement le catalogue
     r = client.get("/v1/cards", params={"phenomenon": "low flows"})
     assert r.status_code == 200 and r.json()["count"] > 0

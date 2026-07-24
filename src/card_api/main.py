@@ -23,9 +23,11 @@ import shutil
 import httpx
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Path as PathParam   # pathlib.Path est pris ailleurs
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 import card
@@ -184,13 +186,71 @@ app = FastAPI(
         "stase, version de chaque fiche) et ses droits. Point d'entrée : "
         "`GET /v1`."
     ),
-    contact={"name": "INRAE, UR RiverLy",
+    contact={"name": "Louis Héraut (INRAE, UR RiverLy) : dépôt GitHub du service",
              "url": "https://github.com/lou-heraut/card-api"},
     license_info={"name": "GPL-3.0-or-later",
                   "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
     openapi_tags=_TAGS,
+    docs_url=None,          # remplacé par /docs ci-dessous (thème sombre)
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# Swagger par défaut : fond blanc, pleine largeur (les yeux balaient un
+# 16:9 pour rien), bandeau vert inutile, et il faut cliquer « Try it out »
+# avant chaque essai. On sert donc notre propre page : sombre et sobre,
+# colonne centrée, champs éditables d'emblée.
+_DOCS_CSS = """
+:root { color-scheme: dark; }
+body { background:#101215; }
+.swagger-ui .topbar { display:none; }
+.swagger-ui { color:#d7dae0; }
+.swagger-ui .wrapper { max-width:1080px; margin:0 auto; padding:0 24px; }
+.swagger-ui .info { margin:28px 0; }
+.swagger-ui .info .title, .swagger-ui .info p, .swagger-ui .info li,
+.swagger-ui .info a, .swagger-ui .opblock-tag, .swagger-ui label,
+.swagger-ui table thead tr th, .swagger-ui .parameter__name,
+.swagger-ui .response-col_status, .swagger-ui .tab li,
+.swagger-ui .opblock .opblock-summary-description { color:#d7dae0; }
+.swagger-ui .opblock-tag { border-bottom:1px solid #23262c; }
+.swagger-ui .opblock, .swagger-ui .opblock.opblock-get,
+.swagger-ui .opblock.opblock-post, .swagger-ui .opblock.opblock-delete {
+  background:#171a1f; border:1px solid #23262c; box-shadow:none; }
+.swagger-ui .opblock .opblock-summary { border-color:#23262c; }
+.swagger-ui .markdown p, .swagger-ui .markdown li,
+.swagger-ui .renderedMarkdown p, .swagger-ui .opblock-description-wrapper p,
+.swagger-ui .parameter__type, .swagger-ui .prop-format { color:#aab1bc; }
+.swagger-ui .btn { background:#1f232a; color:#d7dae0; border-color:#333842; }
+.swagger-ui select, .swagger-ui input[type=text], .swagger-ui textarea {
+  background:#0d0f12; color:#d7dae0; border:1px solid #333842;
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+.swagger-ui .microlight, .swagger-ui .highlight-code > .microlight {
+  background:#0d0f12 !important; color:#cfd3da !important;
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+.swagger-ui section.models, .swagger-ui .model-box {
+  background:#171a1f; border-color:#23262c; }
+.swagger-ui .opblock.opblock-get .opblock-summary-method { background:#2b6cb0; }
+.swagger-ui .opblock.opblock-post .opblock-summary-method { background:#2f855a; }
+.swagger-ui .opblock.opblock-delete .opblock-summary-method { background:#9b2c2c; }
+.swagger-ui svg { fill:#d7dae0; }
+"""
+
+
+@app.get("/docs", include_in_schema=False)
+def docs():
+    """Documentation interactive, thème sombre et colonne centrée."""
+    html = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} : documentation",
+        swagger_ui_parameters={
+            # champs éditables sans cliquer « Try it out » à chaque fois
+            "tryItOutEnabled": True,
+            "defaultModelsExpandDepth": -1,   # masque le pavé « Schemas »
+            "docExpansion": "list",
+            "syntaxHighlight": {"theme": "obsidian"},
+        },
+    ).body.decode()
+    return HTMLResponse(
+        html.replace("</head>", f"<style>{_DOCS_CSS}</style></head>"))
 # API publique en lecture : un client navigateur (site web tiers) doit
 # pouvoir l'appeler. Origines ouvertes, sans cookies d'identité.
 app.add_middleware(
@@ -260,7 +320,7 @@ def cards(domain: str | None = None,
 
 
 @app.get("/v1/cards/{card_id}", tags=["cards"], dependencies=[Depends(usage.rate_light)])
-def card_detail(card_id: str, lang: str = "fr"):
+def card_detail(card_id: str = PathParam(examples=["VCN10"]), lang: str = "fr"):
     """Détail d'une fiche : métadonnées complètes et classification.
 
     Deux liens vers la définition employée : `yaml` pointe le fichier sur
@@ -300,7 +360,7 @@ def card_detail(card_id: str, lang: str = "fr"):
 @app.get("/v1/cards/{card_id}/figure", tags=["cards"],
          response_class=PlainTextResponse,
          dependencies=[Depends(usage.rate_light)])
-def card_figure(card_id: str, lang: str = "fr"):
+def card_figure(card_id: str = PathParam(examples=["QA"]), lang: str = "fr"):
     """La fiche **dessinée** : chaîne de calcul, fonctions et réglages,
     fenêtre d'échantillonnage sur douze mois, ce qui est produit.
 
@@ -331,8 +391,10 @@ def vocabulary():
 
 
 @app.get("/v1/stations", tags=["stations"], dependencies=[Depends(usage.rate_light)])
-def stations(libelle: str | None = None, code: str | None = None,
-             departement: str | None = None, size: int = Query(20, le=100)):
+def stations(libelle: str | None = Query(None, examples=["Austerlitz"]),
+             code: str | None = None,
+             departement: str | None = Query(None, examples=["07"]),
+             size: int = Query(20, le=100)):
     """Recherche de stations hydrométriques (référentiel Hub'Eau).
     Utile aussi pour retrouver les nouveaux codes : depuis la refonte
     Hydro, les anciens codes Banque Hydro ne sont plus valides."""
@@ -485,7 +547,9 @@ def _run_extract(st, cd, start, end, sampling=None):
 
 
 @app.get("/v1/extract", tags=["data"], dependencies=[Depends(usage.rate_compute)])
-def extract(request: Request, stations: str, cards: str,
+def extract(request: Request,
+            stations: str = Query(examples=["F700000103"]),
+            cards: str = Query(examples=["QA,VCN10"]),
             start: str | None = None, end: str | None = None,
             sampling: str | None = None,
             stations_meta: bool = False,
@@ -548,7 +612,9 @@ def extract(request: Request, stations: str, cards: str,
 
 
 @app.get("/v1/trend", tags=["data"], dependencies=[Depends(usage.rate_compute)])
-def trend(request: Request, stations: str, cards: str,
+def trend(request: Request,
+          stations: str = Query(examples=["F700000103"]),
+          cards: str = Query(examples=["QA,VCN10"]),
           start: str | None = None, end: str | None = None,
           sampling: str | None = None,
           mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
