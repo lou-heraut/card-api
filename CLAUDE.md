@@ -15,14 +15,23 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
 
 ```
 src/card_api/
-  main.py       # endpoints /v1 : cards, cards/{id}, stations, extract,
+  main.py       # endpoints /v1 : racine /v1 (écosystème, réutilisation,
+                #   droits), cards, cards/{id}, cards/{id}/figure (la fiche
+                #   DESSINÉE en text/plain ; le détail reste du JSON),
+                #   vocabulary (valeurs de facette valides = filtres de
+                #   cards), stations, extract,
                 #   trend (mk défaut AR1, sampling=preferred|MM-JJ,
                 #   series=true joint les séries extraites au diagnostic ;
                 #   stations_meta=true joint le référentiel Hub'Eau des
                 #   stations : résultat autoportant), jobs (POST + statut
                 #   + result + DELETE dismiss par ticket ; GET /v1/jobs =
                 #   « mes jobs » par clé, 401 sinon), health (file,
-                #   disque VM entière vs empreinte data du service)
+                #   disque VM entière vs empreinte data du service).
+                #   CORS ouvert en lecture (usage navigateur) ; bloc rights
+                #   dans les résultats (données Etalab, définitions GPL) ;
+                #   /docs est servie par nous, thème sombre + try-it-out +
+                #   exemples pré-remplis (palette en variables CSS en tête
+                #   de _DOCS_CSS, facile à retoucher)
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;

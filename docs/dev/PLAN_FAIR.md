@@ -76,7 +76,18 @@
 - [x] Phase 2 — `card.figure`/`card.vocabulary` ouverts côté card ;
       `/v1/cards/{id}/figure` (text/plain) et `/v1/vocabulary`
       (2026-07-24)
-- [~] Phase 3 — README : URL finale card-api.riverly.inrae.fr, endpoints
-      à jour. Reste : schéma d'écosystème et pistes de réutilisation
-      développées (2026-07-24)
+- [x] Phase 3 — README : URL finale card-api.riverly.inrae.fr, schéma
+      mermaid de l'écosystème, tableau « quelle porte prendre » avec des
+      liens qui montrent. Le champ `reuse` reste une phrase, choix acté :
+      la version structurée n'apportait rien (2026-07-24)
+- [x] Thème de /docs — validé sur maquette avant application. Décisions :
+      gris strictement neutres et **gamme ouverte** (creux 0e, fond 13,
+      bloc 1d, filet 38, texte ec) ; tasser près du noir donnait un effet
+      « filtre basse luminosité ». Couleur réservée aux méthodes, hors axe
+      rouge/vert pour le daltonisme (POST vers le bleu-vert `#72b3a2`,
+      DELETE vers l'orange `#e09b78`), et jamais seule : le mot GET/POST/
+      DELETE reste le repère. Barre de couleur au bord **retirée** (elle ne
+      rendait pas étendue à toute la hauteur), laissée en commentaire dans
+      `_DOCS_CSS` pour y revenir. Palette en variables CSS, retouchable
+      sans toucher au reste (2026-07-24)
 - [ ] Phase 4 (réserve) — UCUM, JSON-LD/SKOS, DCAT

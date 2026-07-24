@@ -43,6 +43,27 @@ des deux endroits.
 
   Plan complet et phases suivantes : `docs/dev/PLAN_FAIR.md`.
 
+- **Thème de `/docs`, validé sur maquette avant d'être appliqué.** Le
+  Swagger par défaut était blanc, pleine largeur et exigeait un clic
+  « Try it out » à chaque essai. La page est désormais servie par le
+  service : sombre, colonne centrée, champs éditables d'emblée, exemples
+  pré-remplis (on ouvre `/docs` et on exécute une vraie requête sans rien
+  chercher). Trois partis pris, chacun venu d'un retour :
+  - **gris strictement neutres et gamme ouverte** (creux `#0e0e0e`, fond
+    `#131313`, bloc `#1d1d1d`, filet `#383838`, texte `#ececec`) : des
+    valeurs tassées près du noir donnaient un effet de filtre basse
+    luminosité, ce sont les paliers qui font le relief ;
+  - **la couleur ne sert qu'aux méthodes HTTP, et jamais seule.** Elle
+    évite l'axe rouge/vert pour rester lisible en cas de daltonisme (POST
+    vers le bleu-vert, DELETE vers l'orange) ; le mot GET, POST ou DELETE
+    reste le repère, la teinte n'est qu'un renfort ;
+  - **hiérarchie par la typographie** (taille, graisse, sans contre mono)
+    plutôt que par la couleur.
+
+  La palette vit en variables CSS en tête de `_DOCS_CSS` : la retoucher ne
+  demande pas de lire le reste. La barre de couleur au bord des blocs est
+  retirée mais laissée en commentaire, pour y revenir sans la réécrire.
+
 - **La fiche dessinée et le vocabulaire, servis** (phase 2). Deux
   représentations d'une même fiche, sans mélanger les publics :
   - `GET /v1/cards/{id}` reste **JSON**, pour les machines ;
