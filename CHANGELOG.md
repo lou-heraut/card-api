@@ -41,8 +41,22 @@ des deux endroits.
     `license_info`, endpoints groupés par tags (service, cards, data,
     stations, jobs).
 
-  Plan complet et phases suivantes (figure servie, endpoint vocabulaire,
-  doc écosystème) : `docs/dev/PLAN_FAIR.md`.
+  Plan complet et phases suivantes : `docs/dev/PLAN_FAIR.md`.
+
+- **La fiche dessinée et le vocabulaire, servis** (phase 2). Deux
+  représentations d'une même fiche, sans mélanger les publics :
+  - `GET /v1/cards/{id}` reste **JSON**, pour les machines ;
+  - `GET /v1/cards/{id}/figure` rend la fiche **dessinée** en
+    `text/plain` : chaîne de calcul, réglages, fenêtre sur douze mois,
+    sorties. On comprend ce qu'une fiche calcule sans lire son YAML.
+  - `GET /v1/vocabulary` donne les valeurs valides de chaque facette
+    (fr/en), c'est-à-dire les filtres acceptés par `/v1/cards` : de quoi
+    construire une requête juste ou peupler un menu sans deviner.
+
+  Au passage, le détail d'une fiche appelle `card.info(quiet=True)` : la
+  figure ne part plus dans les logs du serveur à chaque requête, calculée
+  pour rien. Nécessite card ≥ le commit qui ouvre `card.figure` et
+  `card.vocabulary`.
 
 ### Modifié
 

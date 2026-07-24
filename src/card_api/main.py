@@ -25,7 +25,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 import card
@@ -219,6 +219,8 @@ def root():
         },
         "endpoints": {
             "cards": "/v1/cards", "card_detail": "/v1/cards/{id}",
+            "card_figure": "/v1/cards/{id}/figure",
+            "vocabulary": "/v1/vocabulary",
             "stations": "/v1/stations", "extract": "/v1/extract",
             "trend": "/v1/trend", "jobs": "/v1/jobs", "health": "/v1/health",
             "openapi": "/openapi.json", "docs": "/docs",
@@ -268,7 +270,10 @@ def card_detail(card_id: str, lang: str = "fr"):
     if lang not in ("fr", "en"):
         raise HTTPException(422, "lang doit être 'fr' ou 'en'")
     try:
-        meta = card.info(card_id, lang=lang)
+        # quiet : le service n'a pas de terminal ; sans lui, la figure
+        # partirait dans les logs à chaque requête, calculée pour rien.
+        # Elle est servie telle quelle par /v1/cards/{id}/figure.
+        meta = card.info(card_id, lang=lang, quiet=True)
     except FileNotFoundError as e:
         # Deux causes distinctes derrière la même exception : fiche absente
         # du corpus (levée nue par card, sans filename) ou fichier de
@@ -290,6 +295,39 @@ def card_detail(card_id: str, lang: str = "fr"):
     if meta.get("swhid"):
         meta["archive"] = f"https://archive.softwareheritage.org/{meta['swhid']}"
     return {**versions(), "lang": lang, "card": meta}
+
+
+@app.get("/v1/cards/{card_id}/figure", tags=["cards"],
+         response_class=PlainTextResponse,
+         dependencies=[Depends(usage.rate_light)])
+def card_figure(card_id: str, lang: str = "fr"):
+    """La fiche **dessinée** : chaîne de calcul, fonctions et réglages,
+    fenêtre d'échantillonnage sur douze mois, ce qui est produit.
+
+    Même fiche que `/v1/cards/{id}`, autre représentation : celui-ci reste
+    du JSON pour les machines, celui-là est du texte pour comprendre d'un
+    coup d'oeil ce que la fiche calcule, sans lire son YAML.
+    """
+    if lang not in ("fr", "en"):
+        raise HTTPException(422, "lang doit être 'fr' ou 'en'")
+    try:
+        return card.figure(card_id, lang=lang)
+    except FileNotFoundError as e:
+        if e.filename:                       # bug serveur, pas fiche absente
+            raise
+        raise HTTPException(404, f"fiche inconnue : {card_id}")
+
+
+@app.get("/v1/vocabulary", tags=["cards"],
+         dependencies=[Depends(usage.rate_light)])
+def vocabulary():
+    """Valeurs valides des facettes de classification, en français et en
+    anglais.
+
+    Ce sont exactement les filtres acceptés par `/v1/cards` : de quoi
+    construire une requête juste, ou peupler un menu, sans les deviner.
+    """
+    return {**versions(), "vocabulary": card.vocabulary()}
 
 
 @app.get("/v1/stations", tags=["stations"], dependencies=[Depends(usage.rate_light)])

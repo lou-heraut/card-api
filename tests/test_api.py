@@ -140,3 +140,49 @@ def test_empreinte_des_donnees_identifie_la_source():
     a, b = hubeau.fingerprint(df), hubeau.fingerprint(revise)
     assert (hubeau.combine_fingerprints({"S1": a, "S2": b})
             == hubeau.combine_fingerprints({"S2": b, "S1": a}))
+
+
+def test_racine_situe_le_service_et_ses_droits():
+    """Point d'entrée : un client doit trouver ce qu'est le service, ce
+    qu'il relie, et sous quels droits réutiliser le résultat."""
+    b = client.get("/v1").json()
+    assert b["service"] == "card-api"
+    assert {"card", "stase", "hubeau"} <= set(b["ecosystem"])
+    assert b["rights"]["data"]["license"].startswith("Licence Ouverte")
+    assert b["rights"]["definitions"]["license"] == "GPL-3.0-or-later"
+    assert "/v1/cards" in b["endpoints"].values()
+
+
+def test_figure_est_servie_en_texte_et_le_detail_reste_json():
+    """Les deux représentations : JSON par défaut pour les machines,
+    figure dessinée sur son propre endpoint pour comprendre."""
+    r = client.get("/v1/cards/QA/figure")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/plain")
+    assert "QA" in r.text and "▼" in r.text
+    # le détail JSON ne se met pas à charrier la figure
+    assert "figure" not in client.get("/v1/cards/QA").json()["card"]
+
+
+def test_figure_fiche_inconnue_et_langue_invalide():
+    assert client.get("/v1/cards/PASUNEFICHE/figure").status_code == 404
+    assert client.get("/v1/cards/QA/figure?lang=de").status_code == 422
+
+
+def test_vocabulaire_donne_les_filtres_valides():
+    """Sans lui, un client devine les valeurs de facette."""
+    b = client.get("/v1/vocabulary").json()
+    v = b["vocabulary"]
+    assert {"domain", "phenomenon", "output"} <= set(v)
+    assert v["phenomenon"]["low flows"]["fr"] == "basses eaux"
+    # et ces valeurs filtrent réellement le catalogue
+    r = client.get("/v1/cards", params={"phenomenon": "low flows"})
+    assert r.status_code == 200 and r.json()["count"] > 0
+
+
+def test_droits_dans_un_resultat_de_donnees(monkeypatch):
+    """Un résultat qui circule doit dire sous quels droits il circule."""
+    import card_api.main as m
+    b = client.get("/v1/cards").json()
+    assert "card_swhid" in b or "card_version" in b   # provenance déjà là
+    assert m.rights()["cite"].endswith("CITATION.cff")

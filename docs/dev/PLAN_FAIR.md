@@ -69,9 +69,12 @@
 
 ## Avancement
 
-- [ ] Phase 0 (avec phase 2)
+- [x] Phase 0 — `card.info(quiet=True)` : plus de figure dans les logs
+      (2026-07-24)
 - [x] Phase 1 — CORS, OpenAPI enrichi + tags, route `/v1`, bloc `rights`
       (2026-07-24)
-- [ ] Phase 2
-- [ ] Phase 3
-- [ ] Phase 4 (réserve)
+- [x] Phase 2 — `card.figure`/`card.vocabulary` ouverts côté card ;
+      `/v1/cards/{id}/figure` (text/plain) et `/v1/vocabulary`
+      (2026-07-24)
+- [ ] Phase 3 — doc écosystème et pistes de réutilisation
+- [ ] Phase 4 (réserve) — UCUM, JSON-LD/SKOS, DCAT
