@@ -23,6 +23,7 @@ import shutil
 import httpx
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -140,21 +141,96 @@ def versions():
         v["stase_swhid"] = f"swh:1:rev:{STASE_COMMIT}"
     return v
 
+
+def rights():
+    """Droits sur un résultat : il combine des données ouvertes (Hub'Eau)
+    et des définitions GPL (fiches CARD). Les énoncer, c'est le rendre
+    réutilisable sans zone grise (FAIR, le R de Reusable)."""
+    return {
+        "data": {
+            "source": "Hub'Eau (eaufrance)",
+            "license": "Licence Ouverte / Etalab 2.0",
+            "url": "https://hubeau.eaufrance.fr/",
+        },
+        "definitions": {
+            "source": "fiches CARD",
+            "license": "GPL-3.0-or-later",
+            "url": "https://github.com/lou-heraut/card",
+        },
+        "cite": "https://github.com/lou-heraut/card/blob/main/CITATION.cff",
+    }
+
+
+_TAGS = [
+    {"name": "service", "description": "Identité, versions et santé du service."},
+    {"name": "cards", "description": "Catalogue et détail des fiches CARD."},
+    {"name": "data", "description": "Extraction et tendance sur les débits Hub'Eau."},
+    {"name": "stations", "description": "Référentiel des stations hydrométriques."},
+    {"name": "jobs", "description": "File de calcul asynchrone (grosses demandes)."},
+]
+
 app = FastAPI(
     title="card-api",
     version=API_VERSION,
     description=(
-        "Extraction de variables hydroclimatiques (fiches CARD) sur les "
-        "données Hub'Eau. Service public de recherche (INRAE, UR RiverLy). "
-        "Code GPL-3 : https://github.com/lou-heraut/card"
+        "Variables hydroclimatiques prêtes à l'emploi, calculées sur les "
+        "débits Hub'Eau, avec diagnostic de tendance. Façade du projet "
+        "CARD : les fiches [card](https://github.com/lou-heraut/card) "
+        "définissent les variables, le moteur "
+        "[stase](https://github.com/lou-heraut/stase) les calcule, "
+        "[Hub'Eau](https://hubeau.eaufrance.fr/) fournit les observations. "
+        "Service public de recherche (INRAE, UR RiverLy), accès ouvert. "
+        "Chaque réponse porte sa provenance (commit et SWHID de card et "
+        "stase, version de chaque fiche) et ses droits. Point d'entrée : "
+        "`GET /v1`."
     ),
+    contact={"name": "INRAE, UR RiverLy",
+             "url": "https://github.com/lou-heraut/card-api"},
+    license_info={"name": "GPL-3.0-or-later",
+                  "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
+    openapi_tags=_TAGS,
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+# API publique en lecture : un client navigateur (site web tiers) doit
+# pouvoir l'appeler. Origines ouvertes, sans cookies d'identité.
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"], allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"], allow_headers=["*"],
+)
 
 
 
 
-@app.get("/v1/cards", dependencies=[Depends(usage.rate_light)])
+@app.get("/v1", tags=["service"])
+def root():
+    """Point d'entrée : ce qu'est le service, ce qu'il relie, où le réutiliser."""
+    return {
+        **versions(),
+        "service": "card-api",
+        "summary": "Variables hydroclimatiques (fiches CARD) sur les débits "
+                   "Hub'Eau, avec diagnostic de tendance.",
+        "ecosystem": {
+            "card": {"role": "définit les variables (fiches YAML)",
+                     "url": "https://github.com/lou-heraut/card"},
+            "stase": {"role": "moteur de calcul et de stationnarité",
+                      "url": "https://github.com/lou-heraut/stase"},
+            "hubeau": {"role": "fournit les débits observés",
+                       "url": "https://hubeau.eaufrance.fr/"},
+        },
+        "endpoints": {
+            "cards": "/v1/cards", "card_detail": "/v1/cards/{id}",
+            "stations": "/v1/stations", "extract": "/v1/extract",
+            "trend": "/v1/trend", "jobs": "/v1/jobs", "health": "/v1/health",
+            "openapi": "/openapi.json", "docs": "/docs",
+        },
+        "reuse": "API pour l'usage ponctuel ; la bibliothèque Python card "
+                 "pour le gros volume et l'intégration ; citer une fiche par "
+                 "son swhid (présent dans les métadonnées) pour reproduire.",
+        "rights": rights(),
+    }
+
+
+@app.get("/v1/cards", tags=["cards"], dependencies=[Depends(usage.rate_light)])
 def cards(domain: str | None = None,
           phenomenon: str | None = None,
           aspect: str | None = None,
@@ -181,7 +257,7 @@ def cards(domain: str | None = None,
     }
 
 
-@app.get("/v1/cards/{card_id}", dependencies=[Depends(usage.rate_light)])
+@app.get("/v1/cards/{card_id}", tags=["cards"], dependencies=[Depends(usage.rate_light)])
 def card_detail(card_id: str, lang: str = "fr"):
     """Détail d'une fiche : métadonnées complètes et classification.
 
@@ -216,7 +292,7 @@ def card_detail(card_id: str, lang: str = "fr"):
     return {**versions(), "lang": lang, "card": meta}
 
 
-@app.get("/v1/stations", dependencies=[Depends(usage.rate_light)])
+@app.get("/v1/stations", tags=["stations"], dependencies=[Depends(usage.rate_light)])
 def stations(libelle: str | None = None, code: str | None = None,
              departement: str | None = None, size: int = Query(20, le=100)):
     """Recherche de stations hydrométriques (référentiel Hub'Eau).
@@ -370,7 +446,7 @@ def _run_extract(st, cd, start, end, sampling=None):
     return res, empreintes
 
 
-@app.get("/v1/extract", dependencies=[Depends(usage.rate_compute)])
+@app.get("/v1/extract", tags=["data"], dependencies=[Depends(usage.rate_compute)])
 def extract(request: Request, stations: str, cards: str,
             start: str | None = None, end: str | None = None,
             sampling: str | None = None,
@@ -416,6 +492,7 @@ def extract(request: Request, stations: str, cards: str,
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
     out = {
         **versions(),
+        "rights": rights(),
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
@@ -432,7 +509,7 @@ def extract(request: Request, stations: str, cards: str,
     return out
 
 
-@app.get("/v1/trend", dependencies=[Depends(usage.rate_compute)])
+@app.get("/v1/trend", tags=["data"], dependencies=[Depends(usage.rate_compute)])
 def trend(request: Request, stations: str, cards: str,
           start: str | None = None, end: str | None = None,
           sampling: str | None = None,
@@ -487,6 +564,7 @@ def trend(request: Request, stations: str, cards: str,
     usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
     out = {
         **versions(),
+        "rights": rights(),
         "stations": st,
         "cards": cd,
         "period": {"start": start, "end": end},
@@ -523,7 +601,7 @@ class JobRequest(BaseModel):
     orient: str = "records"
 
 
-@app.post("/v1/jobs", status_code=202,
+@app.post("/v1/jobs", status_code=202, tags=["jobs"],
           dependencies=[Depends(usage.rate_compute)])
 def create_job(request: Request, req: JobRequest):
     """Dépose une demande massive en file de calcul (public, sans clé).
@@ -575,7 +653,7 @@ def create_job(request: Request, req: JobRequest):
     return _job_response(job)
 
 
-@app.get("/v1/jobs", dependencies=[Depends(usage.rate_light)])
+@app.get("/v1/jobs", tags=["jobs"], dependencies=[Depends(usage.rate_light)])
 def job_list(request: Request):
     """Jobs déposés avec la clé de priorité présentée (« mes jobs »,
     forme du GET /jobs d'OGC API Processes restreinte à la clé).
@@ -593,7 +671,7 @@ def job_list(request: Request):
     return {"key": prio["prefix"], "jobs": jobs.list_for(prio["prefix"])}
 
 
-@app.get("/v1/jobs/{job_id}", dependencies=[Depends(usage.rate_light)])
+@app.get("/v1/jobs/{job_id}", tags=["jobs"], dependencies=[Depends(usage.rate_light)])
 def job_status(job_id: str, response: Response):
     """Statut et progression d'un job (queued, running, done, failed)."""
     job = jobs.load(job_id)
@@ -613,7 +691,7 @@ def job_status(job_id: str, response: Response):
     }
 
 
-@app.get("/v1/jobs/{job_id}/result",
+@app.get("/v1/jobs/{job_id}/result", tags=["jobs"],
          dependencies=[Depends(usage.rate_light)])
 def job_result(job_id: str):
     """Résultat d'un job terminé (même format que l'endpoint synchrone,
@@ -646,7 +724,7 @@ def _tree_mb(path) -> float:
     return round(total / 1e6, 1)
 
 
-@app.delete("/v1/jobs/{job_id}", status_code=204,
+@app.delete("/v1/jobs/{job_id}", status_code=204, tags=["jobs"],
             dependencies=[Depends(usage.rate_light)])
 def job_delete(request: Request, job_id: str):
     """Supprime un job et son résultat sans attendre le TTL (le
@@ -664,7 +742,7 @@ def job_delete(request: Request, job_id: str):
     return Response(status_code=204)
 
 
-@app.get("/v1/health")
+@app.get("/v1/health", tags=["service"])
 def health():
     """Sonde de vie et charge (déploiement, supervision), lisible par
     n'importe quelle sonde. `disk` décrit le système de fichiers de la

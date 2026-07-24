@@ -22,6 +22,28 @@ des deux endroits.
 
 ## Non publié
 
+### Ajouté
+
+- **Revue FAIR (2026-07-24) et premiers correctifs.** Aucun changement
+  récent de card ne casse le service (les 41 tests hors-ligne passent
+  contre le card à jour : le rangement des fiches par régime et les
+  renommages remontent par l'API Python, jamais par des chemins). Livré
+  en phase 1 :
+  - **route d'accueil `GET /v1`** : décrit le service, relie l'écosystème
+    (card définit, stase calcule, Hub'Eau fournit) et pointe la
+    réutilisation (API ponctuelle, lib Python, citation par swhid) ;
+  - **bloc `rights`** dans les réponses de résultat et l'accueil : données
+    Hub'Eau en Licence Ouverte / Etalab 2.0, définitions en GPL-3.0,
+    résultat citable. Le trou FAIR-Reusable le plus réel (les droits sur
+    la sortie n'étaient énoncés nulle part) ;
+  - **CORS** ouvert (lecture) : un site web tiers peut appeler le service ;
+  - **OpenAPI enrichi** : description qui situe le projet, `contact`,
+    `license_info`, endpoints groupés par tags (service, cards, data,
+    stations, jobs).
+
+  Plan complet et phases suivantes (figure servie, endpoint vocabulaire,
+  doc écosystème) : `docs/dev/PLAN_FAIR.md`.
+
 ### Modifié
 
 - README : les cinq exemples Python et les quatre exemples R sont

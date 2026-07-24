@@ -280,7 +280,7 @@ def _execute(job: dict, progress) -> dict:
             res = {"data": tr["data"], "meta": res["meta"]}
 
     orient = p.get("orient", "records")
-    from .main import LTP_SEED, SOURCE, versions
+    from .main import LTP_SEED, SOURCE, rights, versions
     out = {
         "job": {
             "id": job["id"],
@@ -289,6 +289,7 @@ def _execute(job: dict, progress) -> dict:
             "params": {k: v for k, v in p.items() if v is not None},
         },
         **versions(),
+        "rights": rights(),
         "stations": p["stations"],
         "cards": p["cards"],
         "period": {"start": p.get("start"), "end": p.get("end")},
