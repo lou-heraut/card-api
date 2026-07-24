@@ -13,6 +13,32 @@ Service public de recherche (INRAE, UR RiverLy). Ouvert, sans
 inscription ; code GPL-3, données Hub'Eau en Licence Ouverte.
 Déploiement et développement : [INSTALL.md](INSTALL.md).
 
+## Comment les pièces s'emboîtent
+
+```mermaid
+flowchart LR
+  CARD["card<br/>fiches YAML<br/><i>quoi calculer</i>"] --> API
+  STASE["stase<br/>moteur<br/><i>comment calculer</i>"] --> API
+  HE["Hub'Eau<br/>eaufrance<br/><i>débits observés</i>"] --> API
+  API["card-api<br/>ce service"] --> OUT["résultat JSON<br/>provenance + droits"]
+```
+
+card ne calcule rien, stase ne connaît pas les fiches, et la donnée vient
+d'ailleurs. C'est pourquoi chaque réponse porte la version des trois, et
+les droits qui vont avec.
+
+## Quelle porte prendre
+
+| Votre cas | La porte | Pour voir |
+|---|---|---|
+| Quelques stations, ponctuellement | ce service | [la doc interactive](https://card-api.riverly.inrae.fr/docs) |
+| Des milliers de stations, ou vos propres données | la bibliothèque Python, en local, sans quota | [dépôt card](https://github.com/lou-heraut/card) |
+| Comprendre ce qu'une fiche calcule | la fiche dessinée | [`VCN10` en figure](https://card-api.riverly.inrae.fr/v1/cards/VCN10/figure) |
+| Savoir quels filtres existent | le vocabulaire de classification | [`/v1/vocabulary`](https://card-api.riverly.inrae.fr/v1/vocabulary) |
+| Brancher un site web | l'API depuis le navigateur (CORS ouvert) | [les fiches d'étiage](https://card-api.riverly.inrae.fr/v1/cards?phenomenon=basses%20eaux) |
+| Publier un résultat | citer la fiche par son `swhid`, présent dans la réponse | [CITATION.cff](https://github.com/lou-heraut/card/blob/main/CITATION.cff) |
+| Une variable qui n'existe pas | copier une fiche, l'adapter, l'exécuter chez vous | [développer sa propre fiche](https://github.com/lou-heraut/card#développer-sa-propre-fiche) |
+
 ## Les endpoints
 
 | Endpoint | Rôle |
