@@ -29,9 +29,10 @@ src/card_api/
                 #   disque VM entière vs empreinte data du service).
                 #   CORS ouvert en lecture (usage navigateur) ; bloc rights
                 #   dans les résultats (données Etalab, définitions GPL) ;
-                #   /docs est servie par nous, thème sombre + try-it-out +
-                #   exemples pré-remplis (palette en variables CSS en tête
-                #   de _DOCS_CSS, facile à retoucher)
+                #   /docs = Swagger standard, avec try-it-out actif et
+                #   exemples pré-remplis. Un thème sombre a été tenté puis
+                #   RETIRÉ (recouvrir le CSS de Swagger demande bien plus
+                #   que quelques règles) : cf. docs/dev/PLAN_FAIR.md
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;

@@ -43,41 +43,20 @@ des deux endroits.
 
   Plan complet et phases suivantes : `docs/dev/PLAN_FAIR.md`.
 
-- **Thème de `/docs`, validé sur maquette avant d'être appliqué.** Le
-  Swagger par défaut était blanc, pleine largeur et exigeait un clic
-  « Try it out » à chaque essai. La page est désormais servie par le
-  service : sombre, colonne centrée, champs éditables d'emblée, exemples
-  pré-remplis (on ouvre `/docs` et on exécute une vraie requête sans rien
-  chercher). Trois partis pris, chacun venu d'un retour :
-  - **gris strictement neutres et gamme ouverte** (creux `#0e0e0e`, fond
-    `#131313`, bloc `#1d1d1d`, filet `#383838`, texte `#ececec`) : des
-    valeurs tassées près du noir donnaient un effet de filtre basse
-    luminosité, ce sont les paliers qui font le relief ;
-  - **la couleur ne sert qu'aux méthodes HTTP, et jamais seule.** Elle
-    évite l'axe rouge/vert pour rester lisible en cas de daltonisme (POST
-    vers le bleu-vert, DELETE vers l'orange) ; le mot GET, POST ou DELETE
-    reste le repère, la teinte n'est qu'un renfort ;
-  - **hiérarchie par la typographie** (taille, graisse, sans contre mono)
-    plutôt que par la couleur.
+- **`/docs` : champs éditables d'emblée et exemples pré-remplis.** Il
+  fallait cliquer « Try it out » avant chaque essai, et les champs étaient
+  vides. On ouvre maintenant `/docs`, on déplie `/v1/extract` et on exécute
+  une vraie requête sans rien chercher (`F700000103`, `QA,VCN10`). Le pavé
+  « Schemas » est masqué, il noyait la page. Les endpoints sont groupés par
+  tags, le contact dit ce qu'il est (dépôt GitHub du service, il annonçait
+  « INRAE, UR RiverLy » en pointant un dépôt personnel).
 
-  La palette vit en variables CSS en tête de `_DOCS_CSS` : la retoucher ne
-  demande pas de lire le reste. La barre de couleur au bord des blocs est
-  retirée mais laissée en commentaire, pour y revenir sans la réécrire.
-
-- **La fiche dessinée et le vocabulaire, servis** (phase 2). Deux
-  représentations d'une même fiche, sans mélanger les publics :
-  - `GET /v1/cards/{id}` reste **JSON**, pour les machines ;
-  - `GET /v1/cards/{id}/figure` rend la fiche **dessinée** en
-    `text/plain` : chaîne de calcul, réglages, fenêtre sur douze mois,
-    sorties. On comprend ce qu'une fiche calcule sans lire son YAML.
-  - `GET /v1/vocabulary` donne les valeurs valides de chaque facette
-    (fr/en), c'est-à-dire les filtres acceptés par `/v1/cards` : de quoi
-    construire une requête juste ou peupler un menu sans deviner.
-
-  Au passage, le détail d'une fiche appelle `card.info(quiet=True)` : la
-  figure ne part plus dans les logs du serveur à chaque requête, calculée
-  pour rien. Nécessite card ≥ le commit qui ouvre `card.figure` et
-  `card.vocabulary`.
+  Un **thème sombre a été tenté puis retiré** le même jour : la maquette
+  validée était une page maison, quand Swagger UI a un DOM différent et des
+  milliers de lignes de CSS que quelques règles ne recouvrent pas. Le
+  résultat était pire que le défaut. La maquette reste la cible visuelle si
+  on y revient, avec les deux voies possibles, dans
+  `docs/dev/PLAN_FAIR.md`.
 
 ### Modifié
 

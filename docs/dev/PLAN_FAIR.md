@@ -80,14 +80,30 @@
       mermaid de l'écosystème, tableau « quelle porte prendre » avec des
       liens qui montrent. Le champ `reuse` reste une phrase, choix acté :
       la version structurée n'apportait rien (2026-07-24)
-- [x] Thème de /docs — validé sur maquette avant application. Décisions :
-      gris strictement neutres et **gamme ouverte** (creux 0e, fond 13,
-      bloc 1d, filet 38, texte ec) ; tasser près du noir donnait un effet
-      « filtre basse luminosité ». Couleur réservée aux méthodes, hors axe
-      rouge/vert pour le daltonisme (POST vers le bleu-vert `#72b3a2`,
-      DELETE vers l'orange `#e09b78`), et jamais seule : le mot GET/POST/
-      DELETE reste le repère. Barre de couleur au bord **retirée** (elle ne
-      rendait pas étendue à toute la hauteur), laissée en commentaire dans
-      `_DOCS_CSS` pour y revenir. Palette en variables CSS, retouchable
-      sans toucher au reste (2026-07-24)
+- [ ] Thème de /docs — **tenté le 2026-07-24, puis retiré.** La maquette
+      validée était une page maison, avec ses propres classes ; Swagger UI
+      a un DOM entièrement différent et embarque des milliers de lignes de
+      CSS. Les ~130 lignes de surcharge n'en recouvraient qu'une fraction :
+      fond sombre et composants restés clairs, donc pire que le défaut. La
+      leçon : on avait vérifié que le CSS était *injecté*, jamais que la
+      page *rendait*. /docs est donc revenue au Swagger standard, en
+      gardant ce qui marchait vraiment (try-it-out actif, exemples
+      pré-remplis, tags, contact).
+
+      Maquette validée, à garder comme cible visuelle (palette et
+      typographie approuvées) :
+      https://claude.ai/code/artifact/05776a99-5691-442b-87a3-b3a46582fea1
+      Gris neutres à gamme ouverte : creux #0e0e0e, fond #131313, bloc
+      #1d1d1d, filet #383838, texte #ececec. Couleur réservée aux méthodes
+      et hors axe rouge/vert pour le daltonisme : GET #8ab4dc, POST
+      #72b3a2, DELETE #e09b78 ; jamais seule, le mot reste le repère.
+
+      Deux voies honnêtes si on y revient, à ne pas retenter à l'aveugle :
+      1. thème Swagger complet, écrit **avec la page sous les yeux** et
+         itéré visuellement (ou en partant d'un thème sombre Swagger
+         existant, puis en calant la palette dessus) ;
+      2. page de doc maison rendue depuis `/openapi.json`, qui aurait
+         exactement le rendu de la maquette, mais où il faudrait
+         réimplémenter l'exécution des requêtes que Swagger donne gratis.
+
 - [ ] Phase 4 (réserve) — UCUM, JSON-LD/SKOS, DCAT

@@ -26,8 +26,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import Path as PathParam   # pathlib.Path est pris ailleurs
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 import card
@@ -191,164 +190,16 @@ app = FastAPI(
     license_info={"name": "GPL-3.0-or-later",
                   "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
     openapi_tags=_TAGS,
-    docs_url=None,          # remplacé par /docs ci-dessous (thème sombre)
+    # Les deux réglages qui valaient le coup, sans thème maison : les
+    # champs sont éditables sans cliquer « Try it out », et le pavé
+    # « Schemas » ne noie plus la page. Un thème sombre complet demande
+    # de recouvrir tout le CSS de Swagger : chantier à part, cf.
+    # docs/dev/PLAN_FAIR.md.
+    swagger_ui_parameters={"tryItOutEnabled": True,
+                           "defaultModelsExpandDepth": -1},
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-# Swagger par défaut : fond blanc, pleine largeur (les yeux balaient un
-# 16:9 pour rien), bandeau vert inutile, et il faut cliquer « Try it out »
-# avant chaque essai. On sert donc notre propre page : sombre et sobre,
-# colonne centrée, champs éditables d'emblée.
-_DOCS_CSS = """
-/* Thème de la page /docs. Palette validée en maquette : gris strictement
-   neutres et surtout une GAMME OUVERTE (creux 0e, fond 13, bloc 1d, filet
-   38, texte ec). Tasser ces valeurs près du noir donne l'impression d'un
-   filtre basse luminosité, sans relief : ce sont les paliers qui font le
-   contraste. Pour ajuster, il suffit de toucher aux variables ci-dessous.
-
-   La couleur ne sert qu'aux méthodes HTTP, et jamais seule : le mot GET,
-   POST ou DELETE reste le repère, la teinte n'est qu'un renfort. Elles
-   évitent l'axe rouge/vert (POST tire vers le bleu-vert, DELETE vers
-   l'orange) pour rester distinguables en cas de daltonisme. */
-:root {
-  color-scheme: dark;
-  --g-ground:    #131313;
-  --g-surface:   #1d1d1d;
-  --g-well:      #0e0e0e;
-  --g-line:      #383838;
-  --g-line-soft: #2a2a2a;
-  --g-text:      #ececec;
-  --g-muted:     #a3a3a3;
-  --g-faint:     #7a7a7a;
-  --m-get:       #8ab4dc;
-  --m-post:      #72b3a2;
-  --m-delete:    #e09b78;
-  --m-put:       #d9c07f;
-  --g-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-body { background: var(--g-ground); }
-.swagger-ui { color: var(--g-text); }
-.swagger-ui .topbar { display: none; }
-.swagger-ui .wrapper { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-.swagger-ui .info { margin: 30px 0; }
-
-/* Hiérarchie par la typographie plutôt que par la couleur. */
-.swagger-ui .info .title { color: var(--g-text); font-weight: 600; }
-.swagger-ui .info p, .swagger-ui .info li,
-.swagger-ui .markdown p, .swagger-ui .markdown li,
-.swagger-ui .renderedMarkdown p,
-.swagger-ui .opblock-description-wrapper p { color: var(--g-muted); }
-.swagger-ui .info a, .swagger-ui a.nostyle { color: var(--m-get); }
-.swagger-ui .opblock-tag {
-  color: var(--g-text); font-size: 15px; font-weight: 600;
-  border-bottom: 1px solid var(--g-line-soft);
-}
-.swagger-ui .opblock-tag small { color: var(--g-faint); }
-.swagger-ui .opblock .opblock-summary-path,
-.swagger-ui .opblock .opblock-summary-path__deprecated {
-  color: var(--g-text); font-family: var(--g-mono); font-weight: 500;
-}
-.swagger-ui .opblock .opblock-summary-description { color: var(--g-faint); }
-
-/* Blocs d'opération : un seul aplat, un filet visible, pas d'ombre. */
-.swagger-ui .opblock,
-.swagger-ui .opblock.opblock-get, .swagger-ui .opblock.opblock-post,
-.swagger-ui .opblock.opblock-delete, .swagger-ui .opblock.opblock-put,
-.swagger-ui .opblock.opblock-patch {
-  background: var(--g-surface);
-  border: 1px solid var(--g-line);
-  border-radius: 4px;
-  box-shadow: none;
-  margin: 0 0 8px;
-}
-.swagger-ui .opblock .opblock-summary { border-color: var(--g-line-soft); }
-
-/* Barre de couleur courant le bord gauche du bloc : retirée (elle ne rend
-   pas une fois étendue à toute la hauteur). Pour la retrouver, décommenter.
-.swagger-ui .opblock.opblock-get    { border-left: 3px solid var(--m-get); }
-.swagger-ui .opblock.opblock-post   { border-left: 3px solid var(--m-post); }
-.swagger-ui .opblock.opblock-delete { border-left: 3px solid var(--m-delete); }
-.swagger-ui .opblock.opblock-put    { border-left: 3px solid var(--m-put); }
-*/
-
-/* Le bouton de méthode : pastel plein, texte très sombre. */
-.swagger-ui .opblock .opblock-summary-method {
-  background: var(--g-line); color: var(--g-ground);
-  font-family: var(--g-mono); font-weight: 700; font-size: 11px;
-  letter-spacing: 0.08em; text-shadow: none;
-  border-radius: 3px; min-width: 74px;
-}
-.swagger-ui .opblock.opblock-get .opblock-summary-method    { background: var(--m-get); }
-.swagger-ui .opblock.opblock-post .opblock-summary-method   { background: var(--m-post); }
-.swagger-ui .opblock.opblock-delete .opblock-summary-method { background: var(--m-delete); }
-.swagger-ui .opblock.opblock-put .opblock-summary-method    { background: var(--m-put); }
-
-/* Tableaux de paramètres. */
-.swagger-ui table thead tr th, .swagger-ui table thead tr td {
-  color: var(--g-muted); border-bottom: 1px solid var(--g-line-soft);
-  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-}
-.swagger-ui .parameters-col_description p { color: var(--g-muted); }
-.swagger-ui .parameter__name { color: var(--g-text); font-family: var(--g-mono); }
-.swagger-ui .parameter__type, .swagger-ui .parameter__in,
-.swagger-ui .prop-format { color: var(--g-faint); font-family: var(--g-mono); }
-.swagger-ui .parameter__name.required span { color: var(--m-delete); }
-.swagger-ui .response-col_status { color: var(--g-text); font-family: var(--g-mono); }
-.swagger-ui .response-col_links { color: var(--g-faint); }
-.swagger-ui .tab li, .swagger-ui label { color: var(--g-muted); }
-
-/* Champs et code : en creux, plus sombres que le bloc. */
-.swagger-ui select, .swagger-ui input[type=text],
-.swagger-ui input[type=email], .swagger-ui input[type=password],
-.swagger-ui textarea {
-  background: var(--g-well); color: var(--g-text);
-  border: 1px solid var(--g-line); border-radius: 3px;
-  font-family: var(--g-mono);
-}
-.swagger-ui .microlight, .swagger-ui .highlight-code > .microlight {
-  background: var(--g-well) !important; color: #d2d2d2 !important;
-  font-family: var(--g-mono);
-}
-.swagger-ui .btn {
-  background: transparent; color: var(--g-text);
-  border: 1px solid var(--g-line); border-radius: 3px; box-shadow: none;
-}
-.swagger-ui .btn:hover { border-color: var(--m-get); color: var(--m-get); }
-.swagger-ui .btn.execute {
-  background: transparent; border-color: var(--g-line); color: var(--g-text);
-}
-
-/* Modèles et divers. */
-.swagger-ui section.models, .swagger-ui .model-box {
-  background: var(--g-surface); border-color: var(--g-line);
-}
-.swagger-ui section.models .model-container { background: var(--g-well); }
-.swagger-ui .model-title, .swagger-ui .model { color: var(--g-text); }
-.swagger-ui svg { fill: var(--g-text); }
-.swagger-ui .scheme-container {
-  background: var(--g-surface); box-shadow: none;
-  border-bottom: 1px solid var(--g-line-soft);
-}
-"""
-
-
-@app.get("/docs", include_in_schema=False)
-def docs():
-    """Documentation interactive, thème sombre et colonne centrée."""
-    html = get_swagger_ui_html(
-        openapi_url=app.openapi_url,
-        title=f"{app.title} : documentation",
-        swagger_ui_parameters={
-            # champs éditables sans cliquer « Try it out » à chaque fois
-            "tryItOutEnabled": True,
-            "defaultModelsExpandDepth": -1,   # masque le pavé « Schemas »
-            "docExpansion": "list",
-            "syntaxHighlight": {"theme": "obsidian"},
-        },
-    ).body.decode()
-    return HTMLResponse(
-        html.replace("</head>", f"<style>{_DOCS_CSS}</style></head>"))
 # API publique en lecture : un client navigateur (site web tiers) doit
 # pouvoir l'appeler. Origines ouvertes, sans cookies d'identité.
 app.add_middleware(
