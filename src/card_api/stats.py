@@ -22,7 +22,7 @@ import json
 import shutil
 import time
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from . import jobs
 from .hubeau import data_dir

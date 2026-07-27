@@ -6,6 +6,8 @@ En production l'image Docker installe card et stase depuis GitHub.
 import sys
 from pathlib import Path
 
+import pytest
+
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 
@@ -16,9 +18,6 @@ for p in (
 ):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
-
-
-import pytest
 
 
 @pytest.fixture(autouse=True)
