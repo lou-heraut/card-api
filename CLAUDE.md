@@ -34,8 +34,12 @@ src/card_api/
                 #   GÉNÉRÉ depuis le CSS réel de Swagger, jamais écrit à
                 #   la main, et se juge à la CAPTURE D'ÉCRAN, pas à
                 #   l'injection : docs/dev/THEME_DOCS.md
-  static/       # servi tel quel : swagger-theme.css, artefact de
-                #   scripts/build_theme.py (+ scripts/theme-identity.css)
+  static/       # deux feuilles servies dans cet ordre :
+                #   swagger-colors.css   GÉNÉRÉ (scripts/build_theme.py),
+                #     à refaire seulement quand Swagger monte de version
+                #   theme-identity.css   ÉCRIT À LA MAIN : c'est CE
+                #     fichier qu'on retouche, puis on recharge la page,
+                #     rien à reconstruire (cf. docs/dev/THEME_DOCS.md)
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
@@ -104,6 +108,9 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
   réponse. Ne jamais recopier un numéro de version à la main dans une
   réponse : passer par `versions()`, sinon un point de sortie finira par
   mentir. Cf. « Versions et citation » plus bas.
+- **Jamais de fenêtre de choix à cocher** (outil de question à options) :
+  elle coupe la conversation. Une décision à prendre s'expose en prose
+  dans la réponse, avec une recommandation, et se discute dans le fil.
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
 

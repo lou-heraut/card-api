@@ -15,11 +15,13 @@ par IP et journal d'usage anonymisé (usage.py).
 """
 
 import datetime as dt
+import hashlib
 import json
 import os
 import pathlib
 import re
 import shutil
+from typing import Literal
 
 import httpx
 import pandas as pd
@@ -30,7 +32,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import (HTMLResponse, JSONResponse, PlainTextResponse,
                                Response as _RawResponse)
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import card
 
@@ -165,6 +167,118 @@ def rights():
     }
 
 
+# ── Vocabulaire de classification : des menus, pas des champs libres ──
+#
+# Les valeurs valides des facettes ne sont pas écrites ici : elles sont
+# LUES dans card (topics.yaml, via card.vocabulary()). Déclarées en
+# énumérations, elles partent dans l'OpenAPI, ce qui a deux effets d'un
+# seul geste : une machine connaît les valeurs sans appeler
+# /v1/vocabulary, et Swagger rend le champ en MENU DÉROULANT au lieu
+# d'une saisie libre que personne ne peut deviner.
+#
+# L'API canonise sur le SLUG. `card.list_cards` accepte aussi les
+# libellés fr/en ('basses eaux' vaut 'low-flows'), mais un contrat n'a
+# qu'un identifiant par concept, et un menu à trois orthographes du même
+# phénomène serait illisible. Le slug est justement ce qui n'appartient à
+# aucune des deux langues (cf. docs/dev/TOPICS.md de card).
+_VOCAB = card.vocabulary()
+
+
+def _facet_enum(facette):
+    """Type énuméré d'une facette, dans l'ordre déclaré du vocabulaire.
+
+    L'ordre vient de topics.yaml et il est signifiant (basses eaux,
+    moyennes eaux, hautes eaux...) : le trier alphabétiquement rendrait
+    le menu plus difficile à lire, pas moins.
+    """
+    return Literal[tuple(_VOCAB[facette])]
+
+
+def _facet_doc(facette, intro):
+    """Description d'un filtre de facette, slugs glosés en français.
+
+    Le menu déroulant n'affiche que des slugs : sans cette glose, rien à
+    l'écran ne dit que `low-flows` désigne les basses eaux.
+    """
+    gloss = ", ".join(f"{slug} = {e['fr']}"
+                      for slug, e in _VOCAB[facette].items())
+    return f"{intro} {gloss}."
+
+
+_Domain = _facet_enum("domain")
+_Phenomenon = _facet_enum("phenomenon")
+_Aspect = _facet_enum("aspect")
+_Season = _facet_enum("season")
+_Output = _facet_enum("output")
+_Purpose = _facet_enum("purpose")
+
+# Les autres listes fermées du service. Énumérées plutôt que vérifiées à
+# la main : le contrat les annonce, Swagger en fait des menus, et le 422
+# qu'on écrivait ligne à ligne devient automatique.
+_Orient = Literal["records", "columns"]
+_Mk = Literal["INDE", "AR1", "LTP"]
+_Endpoint = Literal["extract", "trend"]
+
+# Descriptions des paramètres communs à /v1/extract, /v1/trend et au corps
+# de POST /v1/jobs. Écrites une fois : les trois points d'entrée décrivent
+# les mêmes champs, et trois copies finiraient par diverger.
+_D_STATIONS = ("Codes de stations Hub'Eau, séparés par des virgules. "
+               "Les retrouver par nom avec /v1/stations : depuis la "
+               "refonte Hydro, les anciens codes Banque Hydro ne valent "
+               "plus.")
+_D_CARDS = ("Identifiants de fiches, séparés par des virgules (colonne "
+            "`id` de /v1/cards). Fiches à entrée Q uniquement, puisque "
+            "les données sont hydrométriques.")
+_D_START = "Début de la période, AAAA-MM-JJ. Par défaut, tout l'historique."
+_D_END = "Fin de la période, AAAA-MM-JJ. Par défaut, tout l'historique."
+_D_SAMPLING = (
+    "Écrase la fenêtre annuelle des fiches. `preferred` : fenêtre fixe "
+    "déclarée par chaque fiche (reproductible, protocole MAKAHO). "
+    "`MM-JJ` (ex. `09-01`) : année hydrologique imposée. Par défaut, la "
+    "fenêtre de la fiche, adaptative par station pour les fiches "
+    "d'étiage et de crue.")
+_D_STATIONS_META = (
+    "Joint sous `stations_meta` les fiches du référentiel Hub'Eau des "
+    "stations demandées (libellé, longitude, latitude...). Le résultat "
+    "devient autoportant : tracer une carte ne demande aucun fichier "
+    "local.")
+_D_ORIENT = ("Forme des tableaux rendus. `records` : liste d'objets, "
+             "comme Hub'Eau. `columns` : {colonne: [valeurs]}, plus "
+             "compact.")
+_D_MK = ("Hypothèse du test de Mann-Kendall. `AR1` : robuste à "
+         "l'autocorrélation d'ordre 1, fréquente sur les séries "
+         "annuelles d'étiage (Hamed & Rao 1998). `INDE` : test "
+         "standard, hypothèse d'indépendance. `LTP` : mémoire longue "
+         "(Hamed 2008).")
+_D_LEVEL = "Niveau de signification du test."
+_D_SERIES = (
+    "Joint sous `series` les séries extraites sur lesquelles la tendance "
+    "a été calculée. Mêmes données garanties, puisque tout vient du même "
+    "calcul : de quoi tracer les points et la tendance sans second appel.")
+_D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
+
+# ── Exemples : ce qui remplit vraiment le champ ───────────────────────
+#
+# Forme `openapi_examples` et non `examples`. La seconde range l'exemple
+# dans le SCHÉMA du paramètre, et Swagger ne s'en sert PAS pour remplir
+# la case : vérifié à l'écran, le champ restait vide avec son placeholder
+# gris, alors que le service annonçait des exemples pré-remplis. La
+# première produit les `examples` AU NIVEAU DU PARAMÈTRE, que Swagger
+# rend en menu d'exemples nommés et recopie dans le champ. On déplie une
+# opération, on clique Execute, on a un résultat, sans rien saisir.
+#
+# Les paramètres optionnels qui changent le CALCUL ne sont pas
+# pré-remplis (`sampling` : le pré-remplir ferait exécuter un protocole
+# à qui n'en a pas demandé). Leur description dit les valeurs acceptées.
+_X_STATIONS = {"seine": {"summary": "La Seine à Paris (Austerlitz)",
+                         "value": "F700000103"}}
+_X_CARDS = {"module_etiage": {"summary": "Module et étiage (QA, VCN10)",
+                              "value": "QA,VCN10"}}
+_X_START = {"1970": {"summary": "À partir de 1970", "value": "1970-01-01"}}
+_X_END = {"2020": {"summary": "Jusqu'à fin 2020", "value": "2020-12-31"}}
+_X_JOB_ID = {"ticket": {"summary": "Ticket rendu au dépôt du job",
+                        "value": "3f2a9c1b7e4d8506"}}
+
 _TAGS = [
     {"name": "service", "description": "Identité, versions et santé du service."},
     {"name": "cards", "description": "Catalogue et détail des fiches CARD."},
@@ -193,10 +307,24 @@ app = FastAPI(
     license_info={"name": "GPL-3.0-or-later",
                   "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
     openapi_tags=_TAGS,
-    # Les champs sont éditables sans cliquer « Try it out », et le pavé
-    # « Schemas » ne noie plus la page.
-    swagger_ui_parameters={"tryItOutEnabled": True,
-                           "defaultModelsExpandDepth": -1},
+    # Réglages d'AFFICHAGE de Swagger. Ils ne touchent pas au contrat :
+    # `openapi.json` reste complet, c'est la page qui décide de ce
+    # qu'elle montre d'emblée.
+    swagger_ui_parameters={
+        # Champs éditables sans cliquer « Try it out » d'abord.
+        "tryItOutEnabled": True,
+        # Le pavé « Schemas » en bas de page noyait tout le reste.
+        "defaultModelsExpandDepth": -1,
+        # Sections ouvertes, opérations repliées : on voit d'un coup
+        # d'oeil TOUTES les actions possibles et ce que chacune fait
+        # (leur `summary` s'affiche dans la barre), sans dérouler.
+        "docExpansion": "list",
+        # `pattern`, `maxLength`, `minimum`... sur chaque paramètre :
+        # c'est FastAPI qui les allume par défaut, pas Swagger. Détail
+        # de machine, et il est de toute façon dans openapi.json.
+        "showCommonExtensions": False,
+        "showExtensions": False,
+    },
     docs_url=None,          # servi plus bas, avec le thème
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
@@ -210,12 +338,44 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 # re-déclare chacune de ses règles de couleur ; écrire ces règles à la
 # main revient à en oublier, et un thème à moitié appliqué est pire
 # qu'un thème absent (leçon du 2026-07-23, cf. docs/dev/THEME_DOCS.md).
-_THEME_CSS = pathlib.Path(__file__).with_name("static") / "swagger-theme.css"
+# DEUX feuilles, servies dans cet ordre, et c'est délibéré :
+#
+#   swagger-colors.css   GÉNÉRÉ par scripts/build_theme.py. Ne contient
+#                        que des couleurs transposées. Ne bouge qu'à une
+#                        montée de version de Swagger.
+#   theme-identity.css   ÉCRIT À LA MAIN. Gamme, typographie, densité,
+#                        forme. C'est le fichier qu'on retouche.
+#
+# Les coller en un seul fichier obligerait à relancer le générateur pour
+# la moindre virgule de style. Séparés, retoucher l'apparence se résume
+# à éditer theme-identity.css et à recharger la page.
+_STATIC = pathlib.Path(__file__).with_name("static")
+_CSS_LAYERS = ("swagger-colors.css", "theme-identity.css")
 
 
-@app.get("/static/swagger-theme.css", include_in_schema=False)
-def swagger_theme() -> _RawResponse:
-    return _RawResponse(_THEME_CSS.read_bytes(), media_type="text/css",
+def _css_tag(path) -> str:
+    """Empreinte courte d'une feuille, à coller dans l'URL du `<link>`.
+
+    Sans elle, le navigateur garde sa copie une heure durant (le
+    `Cache-Control` plus bas) : on retouche le CSS et l'écran ne bouge
+    pas, ce qui fait croire que la règle est mauvaise alors qu'elle
+    n'est simplement pas arrivée. Avec elle, l'URL change dès que le
+    fichier change : on garde le cache sans garder le périmé.
+
+    Vaut aussi en production, où un `make update` prend effet tout de
+    suite au lieu d'attendre l'expiration chez chaque visiteur.
+    """
+    st = path.stat()
+    return hashlib.sha256(
+        f"{st.st_mtime_ns}:{st.st_size}".encode()).hexdigest()[:12]
+
+
+@app.get("/static/{sheet}.css", include_in_schema=False)
+def theme_css(sheet: str) -> _RawResponse:
+    name = f"{sheet}.css"
+    if name not in _CSS_LAYERS:            # pas de traversée de chemin
+        raise HTTPException(404, f"feuille inconnue : {name}")
+    return _RawResponse((_STATIC / name).read_bytes(), media_type="text/css",
                         headers={"Cache-Control": "public, max-age=3600"})
 
 
@@ -226,8 +386,10 @@ def swagger_docs(request: Request) -> HTMLResponse:
         title=f"{app.title} : documentation interactive",
         swagger_ui_parameters=app.swagger_ui_parameters,
     ).body.decode()
-    link = '<link rel="stylesheet" href="static/swagger-theme.css">'
-    return HTMLResponse(page.replace("</head>", link + "\n</head>", 1))
+    links = "\n".join(
+        f'<link rel="stylesheet" href="static/{n}?v={_css_tag(_STATIC / n)}">'
+        for n in _CSS_LAYERS)
+    return HTMLResponse(page.replace("</head>", links + "\n</head>", 1))
 
 # API publique en lecture : un client navigateur (site web tiers) doit
 # pouvoir l'appeler. Origines ouvertes, sans cookies d'identité.
@@ -239,7 +401,8 @@ app.add_middleware(
 
 
 
-@app.get("/v1", tags=["service"])
+@app.get("/v1", tags=["service"],
+         summary="Point d'entrée : ce que fait le service")
 def root():
     """Point d'entrée : ce qu'est le service, ce qu'il relie, où le réutiliser."""
     return {
@@ -270,21 +433,52 @@ def root():
     }
 
 
-@app.get("/v1/cards", tags=["cards"], dependencies=[Depends(usage.rate_light)])
-def cards(domain: str | None = None,
-          phenomenon: str | None = None,
-          aspect: str | None = None,
-          season: str | None = None,
-          output: str | None = None,
-          purpose: str | None = None,
-          operator: str | None = None,
-          function: str | None = None,
-          variable: str | None = None,
-          search: str | None = None,
-          limit: int = Query(default=1000, le=1000)):
-    """Catalogue des fiches (une ligne par variable), filtres par facette
-    de classification, dans les deux langues ; mêmes filtres que
-    card.list_cards()."""
+@app.get("/v1/cards", tags=["cards"],
+         summary="Catalogue, filtrable par facette",
+         dependencies=[Depends(usage.rate_light)])
+def cards(
+    domain: _Domain | None = Query(
+        None, description=_facet_doc("domain", "Grandeur mesurée.")),
+    phenomenon: _Phenomenon | None = Query(
+        None, description=_facet_doc("phenomenon", "Phénomène décrit.")),
+    aspect: _Aspect | None = Query(
+        None, description=_facet_doc("aspect", "Dimension IHA.")),
+    season: _Season | None = Query(
+        None, description=_facet_doc("season", "Fenêtre d'échantillonnage.")),
+    output: _Output | None = Query(
+        None, description=_facet_doc("output", "Forme du résultat.")),
+    purpose: _Purpose | None = Query(
+        None, description=_facet_doc("purpose", "Finalité particulière.")),
+    operator: str | None = Query(
+        None,
+        description="Opérateur inter-annuel, lu sur le préfixe de l'id. "
+                    "Valeurs rencontrées : mean, median, delta, "
+                    "trend slope, trend test, count."),
+    function: str | None = Query(
+        None,
+        description="Sous-chaîne d'un nom de fonction employée dans le "
+                    "calcul : rollmean, baseflow, return_level, delta, "
+                    "apply_threshold..."),
+    variable: str | None = Query(
+        None,
+        description="Sous-chaîne du nom de variable produit : VCN attrape "
+                    "toute la famille des étiages, QA le module annuel."),
+    search: str | None = Query(
+        None,
+        description="Recherche libre dans le nom, la description et la "
+                    "variable, en français comme en anglais, insensible à "
+                    "la casse. Un fragment suffit : « basses », "
+                    "« minimum », « maximal »."),
+    limit: int = Query(default=1000, le=1000,
+                       description="Nombre maximal de lignes rendues."),
+):
+    """Catalogue des fiches, une ligne par variable produite.
+
+    Les six premiers filtres sont les facettes de classification : ce
+    sont des listes fermées, proposées en menu, et `/v1/vocabulary` les
+    rend aussi sous forme de données. Les quatre suivants sont du texte
+    libre. Tous se combinent, et ce sont ceux de `card.list_cards()`.
+    """
     df = card.list_cards(domain=domain, phenomenon=phenomenon,
                          aspect=aspect, season=season, output=output,
                          purpose=purpose, operator=operator,
@@ -297,16 +491,24 @@ def cards(domain: str | None = None,
     }
 
 
-@app.get("/v1/cards/{card_id}", tags=["cards"], dependencies=[Depends(usage.rate_light)])
-def card_detail(card_id: str = PathParam(examples=["VCN10"]), lang: str = "fr"):
+@app.get("/v1/cards/{card_id}", tags=["cards"],
+         summary="Détail d'une fiche, en JSON",
+         dependencies=[Depends(usage.rate_light)])
+def card_detail(
+    card_id: str = PathParam(
+        openapi_examples={"vcn10": {"summary": "Étiage VCN10",
+                                     "value": "VCN10"}},
+        description="Identifiant de la fiche, tel que rendu par "
+                    "/v1/cards (colonne `id`)."),
+    lang: Literal["fr", "en"] = Query(
+        "fr", description="Langue des libellés et des descriptions."),
+):
     """Détail d'une fiche : métadonnées complètes et classification.
 
     Deux liens vers la définition employée : `yaml` pointe le fichier sur
     GitHub à la révision réellement exécutée, `archive` le même contenu
     dans Software Heritage, qui restera lisible même si le dépôt bouge.
     """
-    if lang not in ("fr", "en"):
-        raise HTTPException(422, "lang doit être 'fr' ou 'en'")
     try:
         # quiet : le service n'a pas de terminal ; sans lui, la figure
         # partirait dans les logs à chaque requête, calculée pour rien.
@@ -336,9 +538,18 @@ def card_detail(card_id: str = PathParam(examples=["VCN10"]), lang: str = "fr"):
 
 
 @app.get("/v1/cards/{card_id}/figure", tags=["cards"],
+         summary="La fiche dessinée, en texte",
          response_class=PlainTextResponse,
          dependencies=[Depends(usage.rate_light)])
-def card_figure(card_id: str = PathParam(examples=["QA"]), lang: str = "fr"):
+def card_figure(
+    card_id: str = PathParam(
+        openapi_examples={"qa": {"summary": "Module annuel QA",
+                                     "value": "QA"}},
+        description="Identifiant de la fiche, tel que rendu par "
+                    "/v1/cards (colonne `id`)."),
+    lang: Literal["fr", "en"] = Query(
+        "fr", description="Langue des libellés et des descriptions."),
+):
     """La fiche **dessinée** : chaîne de calcul, fonctions et réglages,
     fenêtre d'échantillonnage sur douze mois, ce qui est produit.
 
@@ -346,8 +557,6 @@ def card_figure(card_id: str = PathParam(examples=["QA"]), lang: str = "fr"):
     du JSON pour les machines, celui-là est du texte pour comprendre d'un
     coup d'oeil ce que la fiche calcule, sans lire son YAML.
     """
-    if lang not in ("fr", "en"):
-        raise HTTPException(422, "lang doit être 'fr' ou 'en'")
     try:
         return card.figure(card_id, lang=lang)
     except FileNotFoundError as e:
@@ -357,6 +566,7 @@ def card_figure(card_id: str = PathParam(examples=["QA"]), lang: str = "fr"):
 
 
 @app.get("/v1/vocabulary", tags=["cards"],
+         summary="Valeurs valides des facettes",
          dependencies=[Depends(usage.rate_light)])
 def vocabulary():
     """Valeurs valides des facettes de classification, en français et en
@@ -368,11 +578,26 @@ def vocabulary():
     return {**versions(), "vocabulary": card.vocabulary()}
 
 
-@app.get("/v1/stations", tags=["stations"], dependencies=[Depends(usage.rate_light)])
-def stations(libelle: str | None = Query(None, examples=["Austerlitz"]),
-             code: str | None = None,
-             departement: str | None = Query(None, examples=["07"]),
-             size: int = Query(20, le=100)):
+@app.get("/v1/stations", tags=["stations"],
+         summary="Chercher une station par son nom",
+         dependencies=[Depends(usage.rate_light)])
+def stations(
+    libelle: str | None = Query(
+        None, openapi_examples={"austerlitz": {"summary": "La Seine à Paris",
+                                               "value": "Austerlitz"}},
+        description="Fragment du nom de la station ou de son cours d'eau."),
+    code: str | None = Query(
+        None,
+        description="Code station Hub'Eau, si vous le connaissez déjà "
+                    "(ex. F700000103). Se combine en ET avec les autres "
+                    "critères."),
+    departement: str | None = Query(
+        None,
+        description="Numéro de département, sur deux caractères (ex. 07). "
+                    "Se combine en ET avec les autres critères."),
+    size: int = Query(20, le=100,
+                      description="Nombre maximal de stations rendues."),
+):
     """Recherche de stations hydrométriques (référentiel Hub'Eau).
     Utile aussi pour retrouver les nouveaux codes : depuis la refonte
     Hydro, les anciens codes Banque Hydro ne sont plus valides."""
@@ -524,37 +749,28 @@ def _run_extract(st, cd, start, end, sampling=None):
     return res, empreintes
 
 
-@app.get("/v1/extract", tags=["data"], dependencies=[Depends(usage.rate_compute)])
-def extract(request: Request,
-            stations: str = Query(examples=["F700000103"]),
-            cards: str = Query(examples=["QA,VCN10"]),
-            start: str | None = None, end: str | None = None,
-            sampling: str | None = None,
-            stations_meta: bool = False,
-            orient: str = "records"):
+@app.get("/v1/extract", tags=["data"],
+         summary="Chroniques Hub'Eau vers variables CARD",
+         dependencies=[Depends(usage.rate_compute)])
+def extract(
+    request: Request,
+    stations: str = Query(openapi_examples=_X_STATIONS,
+                          description=_D_STATIONS),
+    cards: str = Query(openapi_examples=_X_CARDS, description=_D_CARDS),
+    start: str | None = Query(None, openapi_examples=_X_START,
+                              description=_D_START),
+    end: str | None = Query(None, openapi_examples=_X_END,
+                            description=_D_END),
+    sampling: str | None = Query(None, description=_D_SAMPLING),
+    stations_meta: bool = Query(False, description=_D_STATIONS_META),
+    orient: _Orient = Query("records", description=_D_ORIENT),
+):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
-    stations : codes séparés par des virgules.
-    cards    : ids de fiches séparés par des virgules ;
-               fiches à entrée Q uniquement (données hydrométriques).
     Au-dessus des plafonds synchrones (défaut 10 stations, 20 fiches),
     la demande devient un job : réponse 202 avec un ticket à suivre
     (cf. /v1/jobs/{id}).
-    start/end: bornes AAAA-MM-JJ optionnelles (défaut : tout).
-    sampling : écrase la fenêtre annuelle des fiches. 'preferred' :
-               fenêtre fixe déclarée par chaque fiche (reproductible,
-               protocole MAKAHO) ; 'MM-JJ' (ex. '09-01') : année
-               hydrologique imposée. Défaut : fenêtre de la fiche
-               (adaptative par station pour les fiches d'étiage/crue).
-    stations_meta : true pour joindre sous 'stations_meta' les fiches
-               du référentiel Hub'Eau des stations demandées (libellé,
-               longitude/latitude...) : résultat autoportant, une
-               carte ne demande aucun fichier local.
-    orient   : 'records' (défaut, liste d'objets, style Hub'Eau) ou
-               'columns' (colonnaire : {colonne: [valeurs]}, compact).
     """
-    if orient not in ("records", "columns"):
-        raise HTTPException(422, "orient : 'records' ou 'columns'")
     _check_sampling(sampling)
     prio = usage.priority_of(request)
     st, cd = _parse_lists(stations, cards, prio)
@@ -589,40 +805,32 @@ def extract(request: Request,
     return out
 
 
-@app.get("/v1/trend", tags=["data"], dependencies=[Depends(usage.rate_compute)])
-def trend(request: Request,
-          stations: str = Query(examples=["F700000103"]),
-          cards: str = Query(examples=["QA,VCN10"]),
-          start: str | None = None, end: str | None = None,
-          sampling: str | None = None,
-          mk: str = "AR1", level: float = Query(0.1, gt=0, lt=1),
-          series: bool = False,
-          stations_meta: bool = False,
-          orient: str = "records"):
+@app.get("/v1/trend", tags=["data"],
+         summary="Tendance et test de stationnarité",
+         dependencies=[Depends(usage.rate_compute)])
+def trend(
+    request: Request,
+    stations: str = Query(openapi_examples=_X_STATIONS,
+                          description=_D_STATIONS),
+    cards: str = Query(openapi_examples=_X_CARDS, description=_D_CARDS),
+    start: str | None = Query(None, openapi_examples=_X_START,
+                              description=_D_START),
+    end: str | None = Query(None, openapi_examples=_X_END,
+                            description=_D_END),
+    sampling: str | None = Query(None, description=_D_SAMPLING),
+    mk: _Mk = Query("AR1", description=_D_MK),
+    level: float = Query(0.1, gt=0, lt=1, description=_D_LEVEL),
+    series: bool = Query(False, description=_D_SERIES),
+    stations_meta: bool = Query(False, description=_D_STATIONS_META),
+    orient: _Orient = Query("records", description=_D_ORIENT),
+):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (card.trend) sur chaque série.
 
-    sampling : écrase la fenêtre annuelle des fiches ('preferred' ou
-            'MM-JJ', cf. /v1/extract) ; les analyses MAKAHO
-            correspondent à sampling=preferred.
-    mk    : 'AR1' (défaut, robuste à l'autocorrélation d'ordre 1,
-            fréquente sur les séries annuelles d'étiage ; Hamed & Rao
-            1998), 'INDE' (test standard, hypothèse d'indépendance) ou
-            'LTP' (mémoire longue, Hamed 2008).
-    level : niveau de signification du test (défaut 0.1).
-    series: true pour joindre sous 'series' les séries extraites sur
-            lesquelles la tendance a été calculée (mêmes données
-            garanties : tout vient du même calcul ; pratique pour
-            tracer points + tendance sans second appel).
-    stations_meta : true pour joindre les fiches du référentiel
-            Hub'Eau des stations (cf. /v1/extract).
-    Fiches acceptées : sorties de forme 'series' uniquement (la
-    tendance d'un scalaire ou d'une courbe n'a pas de sens).
+    Fiches acceptées : sorties de forme `series` uniquement, la tendance
+    d'un scalaire ou d'une courbe n'ayant pas de sens. Les analyses
+    MAKAHO correspondent à `sampling=preferred`.
     """
-    if orient not in ("records", "columns"):
-        raise HTTPException(422, "orient : 'records' ou 'columns'")
-    if mk not in ("INDE", "AR1", "LTP"):
-        raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
     _check_sampling(sampling)
     prio = usage.priority_of(request)
     st, cd = _parse_lists(stations, cards, prio)
@@ -670,20 +878,40 @@ def trend(request: Request,
 # ── Jobs : demandes massives en file de calcul ──────────────────────────────
 
 class JobRequest(BaseModel):
-    endpoint: str                        # "extract" | "trend"
-    stations: str | list[str]
-    cards: str | list[str]
-    start: str | None = None
-    end: str | None = None
-    sampling: str | None = None
-    mk: str = "AR1"
-    level: float = 0.1
-    series: bool = False                 # trend : joindre les séries extraites
-    stations_meta: bool = False          # joindre le référentiel des stations
-    orient: str = "records"
+    """Corps d'un dépôt de job : les paramètres de /v1/extract ou de
+    /v1/trend, plus le nom de celui qu'on veut faire tourner."""
+
+    endpoint: _Endpoint = Field(
+        description="Traitement à exécuter sur la demande.")
+    stations: str | list[str] = Field(description=_D_STATIONS)
+    cards: str | list[str] = Field(description=_D_CARDS)
+    start: str | None = Field(None, description=_D_START)
+    end: str | None = Field(None, description=_D_END)
+    sampling: str | None = Field(None, description=_D_SAMPLING)
+    mk: _Mk = Field("AR1", description=_D_MK)
+    level: float = Field(0.1, gt=0, lt=1, description=_D_LEVEL)
+    series: bool = Field(False, description=_D_SERIES)
+    stations_meta: bool = Field(False, description=_D_STATIONS_META)
+    orient: _Orient = Field("records", description=_D_ORIENT)
+
+    # Un corps d'exemple complet : Swagger pré-remplit la zone de saisie
+    # avec, donc déposer un vrai job ne demande aucune rédaction.
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "endpoint": "trend",
+                "stations": ["F700000103"],
+                "cards": ["QA", "VCN10"],
+                "start": "1970-01-01",
+                "sampling": "preferred",
+                "mk": "AR1",
+            }],
+        },
+    }
 
 
 @app.post("/v1/jobs", status_code=202, tags=["jobs"],
+          summary="Déposer une demande massive",
           dependencies=[Depends(usage.rate_compute)])
 def create_job(request: Request, req: JobRequest):
     """Dépose une demande massive en file de calcul (public, sans clé).
@@ -695,14 +923,6 @@ def create_job(request: Request, req: JobRequest):
     plafonds synchrones passées à /v1/extract ou /v1/trend basculent
     ici automatiquement.
     """
-    if req.endpoint not in ("extract", "trend"):
-        raise HTTPException(422, "endpoint : 'extract' ou 'trend'")
-    if req.orient not in ("records", "columns"):
-        raise HTTPException(422, "orient : 'records' ou 'columns'")
-    if req.mk not in ("INDE", "AR1", "LTP"):
-        raise HTTPException(422, "mk : 'INDE', 'AR1' ou 'LTP'")
-    if not (0 < req.level < 1):
-        raise HTTPException(422, "level : dans (0, 1)")
     _check_sampling(req.sampling)
     prio = usage.priority_of(request)
     st, cd = _parse_lists(req.stations, req.cards, prio)
@@ -735,7 +955,9 @@ def create_job(request: Request, req: JobRequest):
     return _job_response(job)
 
 
-@app.get("/v1/jobs", tags=["jobs"], dependencies=[Depends(usage.rate_light)])
+@app.get("/v1/jobs", tags=["jobs"],
+         summary="Mes jobs (clé de priorité requise)",
+         dependencies=[Depends(usage.rate_light)])
 def job_list(request: Request):
     """Jobs déposés avec la clé de priorité présentée (« mes jobs »,
     forme du GET /jobs d'OGC API Processes restreinte à la clé).
@@ -753,8 +975,14 @@ def job_list(request: Request):
     return {"key": prio["prefix"], "jobs": jobs.list_for(prio["prefix"])}
 
 
-@app.get("/v1/jobs/{job_id}", tags=["jobs"], dependencies=[Depends(usage.rate_light)])
-def job_status(job_id: str, response: Response):
+@app.get("/v1/jobs/{job_id}", tags=["jobs"],
+         summary="Statut et progression d'un job",
+         dependencies=[Depends(usage.rate_light)])
+def job_status(
+    response: Response,
+    job_id: str = PathParam(openapi_examples=_X_JOB_ID,
+                            description=_D_JOB_ID),
+):
     """Statut et progression d'un job (queued, running, done, failed)."""
     job = jobs.load(job_id)
     if job is None:
@@ -774,8 +1002,10 @@ def job_status(job_id: str, response: Response):
 
 
 @app.get("/v1/jobs/{job_id}/result", tags=["jobs"],
+         summary="Résultat d'un job terminé",
          dependencies=[Depends(usage.rate_light)])
-def job_result(job_id: str):
+def job_result(job_id: str = PathParam(openapi_examples=_X_JOB_ID,
+                                       description=_D_JOB_ID)):
     """Résultat d'un job terminé (même format que l'endpoint synchrone,
     plus un bloc de provenance : paramètres, versions, date des
     données)."""
@@ -807,8 +1037,11 @@ def _tree_mb(path) -> float:
 
 
 @app.delete("/v1/jobs/{job_id}", status_code=204, tags=["jobs"],
+            summary="Abandonner un job par son ticket",
             dependencies=[Depends(usage.rate_light)])
-def job_delete(request: Request, job_id: str):
+def job_delete(request: Request,
+               job_id: str = PathParam(openapi_examples=_X_JOB_ID,
+                                       description=_D_JOB_ID)):
     """Supprime un job et son résultat sans attendre le TTL (le
     « dismiss » d'OGC API Processes). Le ticket vaut capacité, comme
     pour la lecture. Un job en cours d'exécution n'est pas annulable
@@ -824,7 +1057,8 @@ def job_delete(request: Request, job_id: str):
     return Response(status_code=204)
 
 
-@app.get("/v1/health", tags=["service"])
+@app.get("/v1/health", tags=["service"],
+         summary="Sonde de vie et charge")
 def health():
     """Sonde de vie et charge (déploiement, supervision), lisible par
     n'importe quelle sonde. `disk` décrit le système de fichiers de la

@@ -65,7 +65,8 @@ Deux voies, à trancher au début de la reprise :
 
 **Outillage déjà en place pour reprendre vite** (détail dans
 `THEME_DOCS.md`) : `python scripts/build_theme.py` reconstruit le calque ;
-les retouches se font dans `scripts/theme-identity.css` ; la boucle de
+les retouches se font dans `src/card_api/static/theme-identity.css`,
+sans rien reconstruire ; la boucle de
 vérification est une capture `chromium --headless --screenshot`, à faire
 **page dépliée et requête exécutée**, sans quoi on ne voit rien des
 défauts réels.

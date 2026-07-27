@@ -15,15 +15,42 @@ Trois fichiers, un seul rôle chacun :
 
 | Fichier | Rôle |
 |---|---|
-| `scripts/build_theme.py` | fabrique le calque à partir du CSS réel de Swagger |
-| `scripts/theme-identity.css` | ce qui ne se déduit pas d'une couleur : gamme, typographie, gouttière, densité, états |
-| `src/card_api/static/swagger-theme.css` | **généré**, ne pas éditer ; c'est ce que sert la route |
+| `scripts/build_theme.py` | fabrique le calque de couleurs à partir du CSS réel de Swagger |
+| `src/card_api/static/swagger-colors.css` | **généré**, ne pas éditer |
+| `src/card_api/static/theme-identity.css` | **écrit à la main** : gamme, typographie, gouttière, densité, forme, états |
 
-Reconstruire après une montée de version de Swagger UI :
+Les deux feuilles sont servies dans cet ordre, l'identité en dernier,
+donc c'est elle qui tranche.
+
+## Retoucher l'apparence
+
+**Éditer `src/card_api/static/theme-identity.css`, puis recharger la
+page.** Rien d'autre. Pas de reconstruction, pas de vidage de cache : le
+`<link>` porte une empreinte du fichier, qui change quand le fichier
+change.
+
+C'est la raison d'être de la séparation en deux fichiers. Ils ont été
+concaténés jusqu'au 2026-07-27, ce qui obligeait à relancer le
+générateur pour la moindre virgule de style, et l'oubli se manifestait
+par « ma règle ne marche pas » alors qu'elle n'était simplement jamais
+partie au navigateur.
+
+Le générateur, lui, ne se relance qu'à une **montée de version de
+Swagger UI** :
 
 ```sh
 python scripts/build_theme.py
 ```
+
+Pour chercher une valeur (une marge, une taille), passer par
+l'inspecteur du navigateur et ne reporter dans le fichier que la valeur
+retenue : c'est instantané, alors qu'un aller-retour par le fichier ne
+l'est jamais tout à fait.
+
+Un dernier piège, celui-là silencieux : un **commentaire mal refermé**
+fait avaler la règle suivante par le navigateur, sans message. Le
+`check()` du générateur retire les commentaires avant de valider, donc
+il ne voit pas ce cas.
 
 ## Pourquoi c'est généré
 

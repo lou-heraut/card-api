@@ -23,10 +23,22 @@ def test_cards_catalogue():
 
 
 def test_cards_facet_filters():
-    fr = client.get("/v1/cards", params={"phenomenon": "basses eaux"}).json()
-    en = client.get("/v1/cards", params={"phenomenon": "low flows"}).json()
-    assert 0 < fr["count"] < 400
-    assert fr["count"] == en["count"]
+    """Une facette filtre par SLUG, et par lui seul.
+
+    Le slug est l'identifiant du concept, celui qui ne privilégie ni le
+    français ni l'anglais ; les libellés sont de la PRÉSENTATION, ils
+    vivent dans le résultat (colonnes _fr et _en), dans /v1/vocabulary et
+    dans le paramètre lang. Mélanger les deux dans la requête donnait
+    trois orthographes pour un concept, donc un contrat qui ne peut plus
+    annoncer ses valeurs valides.
+    """
+    r = client.get("/v1/cards", params={"phenomenon": "low-flows"})
+    assert r.status_code == 200
+    assert 0 < r.json()["count"] < 400
+    # un libellé n'est pas un identifiant : refus, avec les valeurs valides
+    refus = client.get("/v1/cards", params={"phenomenon": "basses eaux"})
+    assert refus.status_code == 422
+    assert "low-flows" in refus.text
     delta = client.get("/v1/cards", params={"operator": "delta"}).json()
     assert all(c["operator"] == "delta" for c in delta["cards"])
 
@@ -177,9 +189,13 @@ def test_vocabulaire_donne_les_filtres_valides():
     # clé = slug neutre, en et fr à égalité (pas d'anglais privilégié)
     assert v["phenomenon"]["low-flows"] == {"en": "low flows",
                                             "fr": "basses eaux"}
-    # et ces valeurs filtrent réellement le catalogue
-    r = client.get("/v1/cards", params={"phenomenon": "low flows"})
-    assert r.status_code == 200 and r.json()["count"] > 0
+    # et TOUS ces slugs sont acceptés par /v1/cards : le vocabulaire et
+    # les énumérations de l'OpenAPI sortent de la même source, ce test
+    # échouerait s'ils se mettaient à diverger.
+    for facette in ("domain", "phenomenon", "aspect", "season", "output"):
+        for slug in v[facette]:
+            r = client.get("/v1/cards", params={facette: slug})
+            assert r.status_code == 200, f"{facette}={slug}"
 
 
 def test_droits_dans_un_resultat_de_donnees(monkeypatch):

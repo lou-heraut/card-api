@@ -24,6 +24,113 @@ des deux endroits.
 
 ### Ajouté
 
+- **Le contrat OpenAPI pré-mâche le formulaire (2026-07-27).** Le travail
+  a porté sur `openapi.json`, pas sur l'habillage : ce qu'on y écrit sert
+  à la fois la personne qui remplit un champ dans `/docs` et la machine
+  qui lit le contrat, alors qu'une règle de CSS ne sert que la première.
+  - **Les six facettes de classification deviennent des énumérations**,
+    dérivées de `card.vocabulary()` et donc jamais recopiées ici. Swagger
+    les rend en **menus déroulants** au lieu d'une saisie libre que
+    personne ne pouvait deviner, et un client connaît les valeurs sans
+    appeler `/v1/vocabulary`. `lang`, `orient`, `mk` et `endpoint` de
+    même : **neuf vérifications écrites à la main disparaissent**, le 422
+    devient automatique et annonce les valeurs acceptées.
+  - **La documentation des paramètres passe de la prose à chaque champ**,
+    où elle se lit au moment de le remplir. Les facettes portent en plus
+    la glose française de chaque slug, sans quoi le menu n'afficherait
+    que `low-flows`.
+  - **Le corps de `POST /v1/jobs` porte un exemple complet**, donc
+    déposer un job ne demande plus de rédiger du JSON.
+
+  Côté affichage, trois réglages de Swagger et rien d'autre :
+  `docExpansion: "none"` (on arrive sur un index replié au lieu d'une
+  page entièrement dépliée), `showCommonExtensions` et `showExtensions`
+  remis à `false`, que **FastAPI** allume par défaut et qui imprimaient
+  `pattern`, `maxLength`, `minimum` sur chaque paramètre. Aucun de ces
+  réglages ne touche `openapi.json` : le contrat reste complet, c'est la
+  page qui choisit ce qu'elle montre d'emblée.
+
+- **Passe de forme sur `/docs`**, uniquement du CSS dans
+  `theme-identity.css` et des `summary` de routes. La barre
+  repliée d'une opération porte maintenant **ce que fait l'action**
+  (« Catalogue, filtrable par facette ») alignée à droite, au lieu du
+  nom de la fonction Python que FastAPI dérivait faute de `summary`. On
+  lit les quatorze actions sans en dérouler aucune. Chevrons supprimés,
+  badges de méthode réduits, pastilles de version ramenées à un seul
+  cadre, `Execute` rendu à la taille d'un bouton, barre de couleur sous
+  « Parameters » et doubles filets retirés.
+
+  La règle de travail vaut d'être notée : **rien qui ne soit une règle
+  CSS ou une chaîne de caractères.** Une règle qui cesse de s'appliquer
+  après une montée de Swagger laisse la page reprendre son apparence
+  d'origine, elle ne casse rien. C'est la différence de nature avec un
+  greffon, qui s'accroche à des noms de composants internes.
+
+- **Le thème se retouche à la main, sans rien reconstruire.** Le calque
+  écrit à la main était *concaténé* au calque de couleurs engendré :
+  toute retouche de style, même d'une virgule, exigeait de relancer
+  `build_theme.py`, et l'oublier se manifestait par « ma règle ne marche
+  pas » alors qu'elle n'était jamais partie au navigateur. Ce sont
+  désormais **deux feuilles servies l'une après l'autre** :
+  `static/swagger-colors.css` (engendré, ne bouge qu'à une montée de
+  version de Swagger) et `static/theme-identity.css` (écrit à la main,
+  servi tel quel). Retoucher l'apparence tient en deux gestes : éditer
+  le second, recharger la page.
+
+  Chaque `<link>` porte en plus une **empreinte du contenu du fichier**,
+  d'où deux effets : le navigateur ne sert plus une version périmée une
+  heure durant, et en production un `make update` prend effet tout de
+  suite au lieu d'attendre l'expiration chez chaque visiteur.
+
+  Le calque à la main a ensuite été rangé : sept sélecteurs étaient
+  déclarés deux ou trois fois et n'agissaient que par leur dernière
+  occurrence, un filet était posé puis retiré. 105 blocs sont devenus
+  92, à rendu strictement identique (comparaison des captures pixel à
+  pixel, avec témoins de stabilité des deux côtés).
+
+  Deux pièges rencontrés, tous deux invisibles hors de l'écran : le CSS
+  de Swagger vendorisé par un autre service n'a pas les mêmes règles que
+  celui du CDN (il faut lire le bon), et un commentaire mal refermé dans
+  le calque fait avaler la règle suivante sans le moindre message. Le
+  `check()` de `build_theme.py` retire les commentaires avant de valider,
+  donc il ne voit pas ce cas.
+
+  Tenté puis **retiré le même jour** : replier le tableau des réponses
+  documentées derrière un bouton. Swagger n'expose aucun réglage pour
+  ça, et y arriver demandait d'empiler un greffon React injecté par
+  remplacement de chaîne dans le gabarit HTML de FastAPI, un sélecteur
+  CSS disputant une classe que Swagger partage entre le tableau
+  documenté et la réponse réelle, et un correctif d'encodage pour les
+  libellés français du greffon. Trois bricolages pour replier un
+  tableau, et le bouton n'a même pas été vérifié au clic. Sur Swagger,
+  la couleur et la configuration sont bon marché, la **forme** ne l'est
+  pas : c'est le constat d'entrée de la session, et l'avoir éprouvé une
+  seconde fois ne l'a pas changé.
+
+### Corrigé
+
+- **Les exemples ne pré-remplissaient rien.** L'entrée du 2026-07-24
+  annonçait des champs pré-remplis permettant d'exécuter une requête
+  « sans rien chercher » : à l'écran, `stations` et `cards` affichaient
+  un placeholder gris. En cause, `examples=` de FastAPI, qui range la
+  valeur dans le **schéma** du paramètre, là où Swagger ne la lit pas.
+  La forme qu'il honore est `openapi_examples=`, qui produit les
+  `examples` **au niveau du paramètre** : le champ contient la valeur et
+  un menu d'exemples nommés le surmonte (« La Seine à Paris
+  (Austerlitz) »). Même leçon que le thème raté de juillet : constater
+  qu'une chose est déclarée ne dit rien de ce qui rend, ça se regarde.
+
+### Modifié
+
+- **Les facettes de `/v1/cards` filtrent par slug, et par lui seul**
+  (rupture assumée : `?phenomenon=basses eaux` renvoie désormais 422 avec
+  la liste des valeurs valides). Une requête désigne un concept, donc par
+  un identifiant neutre ; une réponse le présente, donc dans une langue.
+  Les libellés restent dans le résultat, dans `/v1/vocabulary` et sous
+  `lang=`. La bibliothèque `card.list_cards()` reste plus permissive et
+  accepte les libellés. Sans ce resserrement, un même concept avait trois
+  orthographes et le contrat ne pouvait plus annoncer ses valeurs.
+
 - **Revue FAIR (2026-07-24) et premiers correctifs.** Aucun changement
   récent de card ne casse le service (les 41 tests hors-ligne passent
   contre le card à jour : le rangement des fiches par régime et les

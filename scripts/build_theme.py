@@ -21,10 +21,16 @@ Deux garde-fous, tous deux issus d'un défaut constaté à l'écran :
 - le mode sombre natif de Swagger (`html.dark-mode`, jamais activé ici)
   est ignoré : le transposer n'ajoute que du bruit.
 
-Ce que la substitution ne sait pas faire (gamme de gris, typographie,
-gouttière, densité, états d'erreur) vit dans `scripts/theme-identity.css`,
-concaténé après. Le résultat va dans `src/card_api/static/`, d'où une
-route le sert.
+Ce script ne produit QUE le calque de couleurs. Ce que la substitution
+ne sait pas faire (gamme de gris, typographie, gouttière, densité, états
+d'erreur) vit dans `src/card_api/static/theme-identity.css`, qui est
+ÉCRIT À LA MAIN et servi tel quel, comme seconde feuille, après celle-ci.
+
+Les deux calques sont deux FICHIERS et non un seul, exprès : les coller
+obligerait à relancer ce script pour la moindre retouche de style, alors
+que le calque de couleurs, lui, ne change qu'à une montée de version de
+Swagger. Retoucher l'apparence = éditer theme-identity.css et recharger
+la page. Rien d'autre.
 
 Vérifier le résultat SE REGARDE, ça ne se déduit pas : voir la boucle de
 capture d'écran décrite dans `docs/dev/THEME_DOCS.md`.
@@ -41,8 +47,8 @@ import urllib.request
 SWAGGER_CSS = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-IDENTITY = ROOT / "scripts" / "theme-identity.css"
-TARGET = ROOT / "src" / "card_api" / "static" / "swagger-theme.css"
+STATIC = ROOT / "src" / "card_api" / "static"
+TARGET = STATIC / "swagger-colors.css"
 
 COLOR_PROPS = re.compile(
     r"^(color|background|background-color|background-image|border|border-\w+|"
@@ -77,8 +83,10 @@ EXACT = {
 
 BANNER = """/* FICHIER GÉNÉRÉ : ne pas éditer à la main.
    Produit par `python scripts/build_theme.py`, qui transpose le CSS de
-   Swagger UI ({src}) puis y ajoute `scripts/theme-identity.css`.
-   Toute retouche se fait dans l'un de ces deux fichiers.
+   Swagger UI ({src}) dans la gamme sombre. Il ne contient QUE des
+   couleurs : le reste du thème est écrit à la main dans
+   `theme-identity.css`, servi juste après celui-ci, et qui lui
+   s'édite sans rien reconstruire.
    Conception et façon de vérifier : docs/dev/THEME_DOCS.md */
 """
 
@@ -277,9 +285,7 @@ def main():
         with urllib.request.urlopen(SWAGGER_CSS, timeout=30) as r:
             src = r.read().decode("utf-8")
 
-    css = "\n".join([BANNER.format(src=SWAGGER_CSS),
-                     transpose(src),
-                     IDENTITY.read_text(encoding="utf-8")])
+    css = "\n".join([BANNER.format(src=SWAGGER_CSS), transpose(src)])
     check(css)
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

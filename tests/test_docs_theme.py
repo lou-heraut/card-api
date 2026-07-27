@@ -26,15 +26,41 @@ import build_theme  # noqa: E402
 
 client = TestClient(app)
 
-CSS_URL = "/static/swagger-theme.css"
+# Deux calques, servis dans cet ordre : les couleurs sont ENGENDREES et
+# ne bougent qu'a une montee de Swagger, l'identite est ECRITE A LA MAIN
+# et se retouche sans rien reconstruire. Les separer est ce qui rend la
+# seconde modifiable d'un simple rechargement de page.
+COLORS_URL = "/static/swagger-colors.css"
+IDENTITY_URL = "/static/theme-identity.css"
+
+
+def _fetch(url):
+    r = client.get(url)
+    assert r.status_code == 200, url
+    assert r.headers["content-type"].startswith("text/css")
+    return r.text
 
 
 @pytest.fixture(scope="module")
-def css():
-    r = client.get(CSS_URL)
-    assert r.status_code == 200
-    assert r.headers["content-type"].startswith("text/css")
-    return r.text
+def colors():
+    return _fetch(COLORS_URL)
+
+
+@pytest.fixture(scope="module")
+def identity():
+    return _fetch(IDENTITY_URL)
+
+
+@pytest.fixture(scope="module")
+def css(colors, identity):
+    """Les deux calques, dans l'ordre ou le navigateur les recoit."""
+    return colors + "\n" + identity
+
+
+def test_une_feuille_inconnue_est_refusee():
+    """La route prend un nom en parametre : elle ne doit servir que les
+    deux calques connus, pas un chemin arbitraire."""
+    assert client.get("/static/autre.css").status_code == 404
 
 
 def test_docs_charge_le_theme_apres_le_css_de_swagger():
@@ -42,8 +68,14 @@ def test_docs_charge_le_theme_apres_le_css_de_swagger():
     donc de spécificité égale, donc c'est le dernier chargé qui gagne."""
     html = client.get("/docs").text
     i_swagger = html.index("swagger-ui.css")
-    i_theme = html.index("swagger-theme.css")
-    assert i_swagger < i_theme
+    i_colors = html.index("swagger-colors.css")
+    i_identity = html.index("theme-identity.css")
+    # Swagger, puis les couleurs, puis l'identite qui tranche.
+    assert i_swagger < i_colors < i_identity
+    # Chaque feuille porte l'empreinte de son contenu : sans elle, une
+    # retouche reste invisible jusqu'a expiration du cache du navigateur.
+    assert "swagger-colors.css?v=" in html
+    assert "theme-identity.css?v=" in html
     # Les deux réglages d'usage, indépendants du thème.
     assert '"tryItOutEnabled": true' in html
     assert '"defaultModelsExpandDepth": -1' in html
@@ -91,18 +123,21 @@ def test_la_palette_validee_est_bien_celle_du_theme(css):
         assert f"{token}:{valeur}" in css, token
 
 
-def test_pas_de_mode_sombre_natif_de_swagger(css):
+def test_pas_de_mode_sombre_natif_de_swagger(colors):
     """Swagger a son propre `html.dark-mode`, qu'on n'active pas.
     Transposer ses règles n'ajouterait que du bruit, et les casserait
     pour qui l'activerait."""
-    assert "dark-mode" not in css
+    assert "dark-mode" not in colors
 
 
-def test_le_fichier_servi_est_bien_celui_que_produit_le_script(css):
-    """Le CSS est un artefact généré : s'il est retouché à la main, la
-    prochaine reconstruction efface la retouche sans prévenir."""
-    assert "FICHIER GÉNÉRÉ" in css
-    assert "scripts/build_theme.py" in css
+def test_seul_le_calque_de_couleurs_est_un_artefact(colors, identity):
+    """Un seul des deux fichiers est engendré, et il le dit : retouché à
+    la main, la prochaine reconstruction effacerait la retouche sans
+    prévenir. L'autre est la source, et ne doit surtout pas porter cet
+    avertissement, sinon plus personne ne sait lequel éditer."""
+    assert "FICHIER GÉNÉRÉ" in colors
+    assert "scripts/build_theme.py" in colors
+    assert "FICHIER GÉNÉRÉ" not in identity
 
 
 def test_le_calque_ne_retourne_pas_ce_qui_est_deja_sombre():

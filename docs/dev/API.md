@@ -57,9 +57,13 @@ Préfixe `/v1` dès le départ.
 ### Découverte
 
 - `GET /v1/cards` : le catalogue des fiches. Filtres = les facettes de
-  la classification, dans les deux langues, identiques à
-  `card.list_cards()` : `?phenomenon=basses eaux&output=série`,
-  `&operator=delta`, `&function=baseflow`, `&search=étiage`, `&lang=`.
+  la classification, désignées par leur **slug** (listes fermées
+  annoncées dans l'OpenAPI, donc rendues en menus déroulants) :
+  `?phenomenon=low-flows&output=series`, `&operator=delta`,
+  `&function=baseflow`, `&search=étiage`. La langue ne filtre pas, elle
+  s'affiche : les libellés fr/en sont dans le résultat, dans
+  `/v1/vocabulary`, et `lang=` choisit celle du rendu. La bibliothèque
+  `card.list_cards()` reste plus permissive et accepte les libellés.
 - `GET /v1/cards/{id}` : détail d'une fiche (info + lien vers le YAML
   source sur GitHub).
 - `GET /v1/stations?dept=07&river=Ardèche&bbox=...` : recherche de
