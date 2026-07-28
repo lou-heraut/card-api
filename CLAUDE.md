@@ -28,8 +28,11 @@ src/card_api/
                 #   JSON), vocabulary (valeurs de facette valides =
                 #   filtres de cards), stations (champ `codes`, même
                 #   service que `ids`), extract,
-                #   trend (format=text = la MÊME tendance dessinée en
-                #   table, verdict en clair ; mk défaut AR1,
+                #   trend + trend/figure (la MÊME tendance dessinée en
+                #   table, verdict en clair ; paramètres déclarés UNE
+                #   fois dans TrendParams, partagés par les deux ; une
+                #   représentation = une URL, jamais un paramètre
+                #   `format` : cf. docs/dev/API.md ; mk défaut AR1,
                 #   sampling=preferred|MM-JJ,
                 #   series=true joint les séries extraites au diagnostic ;
                 #   stations_meta=true joint le référentiel Hub'Eau des

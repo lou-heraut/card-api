@@ -22,7 +22,7 @@ import pathlib
 import re
 import shutil
 import urllib.parse
-from typing import Literal
+from typing import Annotated, Literal
 
 import httpx
 import pandas as pd
@@ -221,7 +221,6 @@ _Purpose = _facet_enum("purpose")
 _Orient = Literal["records", "columns"]
 _Mk = Literal["INDE", "AR1", "LTP"]
 _Endpoint = Literal["extract", "trend"]
-_Format = Literal["json", "text"]
 
 # Descriptions des paramètres communs à /v1/extract, /v1/trend et au corps
 # de POST /v1/jobs. Écrites une fois : les trois points d'entrée décrivent
@@ -262,11 +261,6 @@ _D_SERIES = (
     "a été calculée. Mêmes données garanties, puisque tout vient du même "
     "calcul : de quoi tracer les points et la tendance sans second appel.")
 _D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
-_D_FORMAT = (
-    "Représentation du résultat. `json` : le résultat complet, pour une "
-    "machine. `text` : la MÊME chose en table lisible (sens, ampleur, "
-    "p-value et verdict en clair), pour lire une réponse sans traverser "
-    "le JSON. Même calcul dans les deux cas.")
 
 # ── Exemples : ce qui remplit vraiment le champ ───────────────────────
 #
@@ -1094,26 +1088,88 @@ def extract(
     return out
 
 
+class TrendParams(BaseModel):
+    """Les paramètres de la tendance, déclarés UNE fois.
+
+    Deux endpoints les partagent : `/v1/trend`, qui rend le résultat, et
+    `/v1/trend/figure`, qui le dessine. Les recopier serait la garantie
+    qu'ils divergent au premier ajout, et c'est ce qui rendait un
+    endpoint séparé plus cher qu'un paramètre `format`. FastAPI accepte
+    un modèle comme paramètres de requête (`Annotated[..., Query()]`) et
+    les deux opérations produisent alors des `parameters` identiques dans
+    le contrat, descriptions et exemples compris.
+    """
+
+    stations: str = Field(json_schema_extra=_X_STATIONS,
+                          description=_D_STATIONS)
+    cards: str = Field(json_schema_extra=_X_CARDS, description=_D_CARDS)
+    start: str | None = Field(None, json_schema_extra=_X_START,
+                              description=_D_START)
+    end: str | None = Field(None, json_schema_extra=_X_END,
+                            description=_D_END)
+    sampling: str | None = Field(None, description=_D_SAMPLING)
+    mk: _Mk = Field("AR1", description=_D_MK)
+    level: float = Field(0.1, gt=0, lt=1, description=_D_LEVEL)
+    series: bool = Field(False, description=_D_SERIES)
+    stations_meta: bool = Field(False, description=_D_STATIONS_META)
+    orient: _Orient = Field("records", description=_D_ORIENT)
+
+
+def _trend_result(request: Request, p: TrendParams):
+    """Le calcul, partagé par les deux représentations.
+
+    Rend soit un ticket de job (la demande dépassait les plafonds
+    synchrones), soit le couple (résultat JSON, tendances par fiche).
+    """
+    _check_sampling(p.sampling)
+    prio = usage.priority_of(request)
+    st, cd = _parse_lists(p.stations, p.cards, prio)
+    _check_cards_series(cd)
+    ticket = _maybe_job(request, "trend", st, cd, prio, start=p.start,
+                        end=p.end, sampling=p.sampling, mk=p.mk,
+                        level=p.level, series=p.series or None,
+                        stations_meta=p.stations_meta or None,
+                        orient=p.orient)
+    if ticket is not None:
+        return ticket, None
+
+    res, empreintes = _run_extract(st, cd, p.start, p.end, p.sampling)
+    with jobs.COMPUTE:
+        try:
+            tr = card.trend(res, level=p.level, dependency=p.mk,
+                            seed=LTP_SEED)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
+    usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=p.mk)
+    out = {
+        **versions(),
+        "rights": rights(),
+        "stations": st,
+        "cards": cd,
+        "period": {"start": p.start, "end": p.end},
+        "sampling": p.sampling,
+        "mk": p.mk, "level": p.level,
+        "source": SOURCE,
+        "data_fetched_at": _fetched_at(st),
+        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
+        "orient": p.orient,
+        "meta": serialize(res["meta"]),
+        "data": {cid: serialize(df, p.orient)
+                 for cid, df in tr["data"].items()},
+    }
+    if p.series:
+        out["series"] = {cid: serialize(df, p.orient)
+                         for cid, df in res["data"].items()}
+    if p.stations_meta:
+        out["stations_meta"] = _stations_meta(st)
+    return out, tr
+
+
 @app.get("/v1/trend", tags=["data"],
          summary="Tendance et test de stationnarité",
          dependencies=[Depends(usage.rate_compute)])
-def trend(
-    request: Request,
-    stations: str = Query(json_schema_extra=_X_STATIONS,
-                          description=_D_STATIONS),
-    cards: str = Query(json_schema_extra=_X_CARDS, description=_D_CARDS),
-    start: str | None = Query(None, json_schema_extra=_X_START,
-                              description=_D_START),
-    end: str | None = Query(None, json_schema_extra=_X_END,
-                            description=_D_END),
-    sampling: str | None = Query(None, description=_D_SAMPLING),
-    mk: _Mk = Query("AR1", description=_D_MK),
-    level: float = Query(0.1, gt=0, lt=1, description=_D_LEVEL),
-    series: bool = Query(False, description=_D_SERIES),
-    stations_meta: bool = Query(False, description=_D_STATIONS_META),
-    orient: _Orient = Query("records", description=_D_ORIENT),
-    format: _Format = Query("json", description=_D_FORMAT),
-):
+def trend(request: Request, p: Annotated[TrendParams, Query()]):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (card.trend) sur chaque série.
 
@@ -1121,61 +1177,42 @@ def trend(
     d'un scalaire ou d'une courbe n'ayant pas de sens. Les analyses
     MAKAHO correspondent à `sampling=preferred`.
 
-    `format=text` rend le MÊME résultat en table lisible, avec le sens et
-    la significativité de chaque tendance en clair : de quoi lire une
-    réponse sans traverser le JSON. Même geste que la fiche dessinée de
-    `/v1/cards/{id}/figure`.
+    Pour lire le résultat sans traverser le JSON : `/v1/trend/figure`,
+    mêmes paramètres.
     """
-    _check_sampling(sampling)
-    prio = usage.priority_of(request)
-    st, cd = _parse_lists(stations, cards, prio)
-    _check_cards_series(cd)
-    ticket = _maybe_job(request, "trend", st, cd, prio, start=start,
-                        end=end, sampling=sampling, mk=mk, level=level,
-                        series=series or None,
-                        stations_meta=stations_meta or None, orient=orient)
-    if ticket is not None:
-        return ticket
-
-    res, empreintes = _run_extract(st, cd, start, end, sampling)
-    with jobs.COMPUTE:
-        try:
-            tr = card.trend(res, level=level, dependency=mk,
-                            seed=LTP_SEED)
-        except ValueError as e:
-            raise HTTPException(422, str(e))
-    trends = {cid: serialize(df, orient) for cid, df in tr["data"].items()}
-
-    usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=mk)
-    out = {
-        **versions(),
-        "rights": rights(),
-        "stations": st,
-        "cards": cd,
-        "period": {"start": start, "end": end},
-        "sampling": sampling,
-        "mk": mk, "level": level,
-        "source": SOURCE,
-        "data_fetched_at": _fetched_at(st),
-        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
-        "orient": orient,
-        "meta": serialize(res["meta"]),
-        "data": trends,
-    }
-    if series:
-        out["series"] = {cid: serialize(df, orient)
-                         for cid, df in res["data"].items()}
-    if stations_meta:
-        out["stations_meta"] = _stations_meta(st)
-    if format == "text":
-        # La table se lit sur `records` quel que soit `orient` : elle
-        # parcourt des lignes, pas des colonnes. `orient` ne concerne que
-        # la sortie JSON, il n'a pas à changer un dessin.
-        lisible = dict(out, data={cid: serialize(df, "records")
-                                  for cid, df in tr["data"].items()})
-        meta_par_id = {m.get("variable_en"): m for m in out["meta"]}
-        return PlainTextResponse(_trend_figure(lisible, meta_par_id))
+    out, _ = _trend_result(request, p)
     return out
+
+
+@app.get("/v1/trend/figure", tags=["data"],
+         summary="La tendance dessinée, en texte",
+         response_class=PlainTextResponse,
+         dependencies=[Depends(usage.rate_compute)])
+def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
+    """La tendance **dessinée** : une ligne par variable, avec le sens,
+    l'ampleur, la p-value et le **verdict en clair**.
+
+    Même calcul et mêmes paramètres que `/v1/trend`, autre lecture. Il
+    fallait jusqu'ici savoir que `H: true` signifie « stationnarité
+    rejetée » pour lire une réponse. Ce que la table ne montre pas (les
+    intervalles de pente, la moyenne de période, les métadonnées des
+    fiches) reste dans `/v1/trend`.
+    """
+    out, tr = _trend_result(request, p)
+    if tr is None:                       # la demande est partie en job
+        return PlainTextResponse(
+            f"Demande trop grosse pour une réponse immédiate : elle est "
+            f"partie en file de calcul.\nTicket {out['job']}, suivi sur "
+            f"/v1/jobs/{out['job']}.\nLe résultat d'un job est du JSON ; "
+            f"cette page ne dessine que les réponses immédiates.",
+            status_code=202)
+    # La table se lit sur `records` quel que soit `orient` : elle parcourt
+    # des lignes, pas des colonnes. `orient` ne concerne que la sortie
+    # JSON, il n'a pas à changer un dessin.
+    lisible = dict(out, data={cid: serialize(df, "records")
+                              for cid, df in tr["data"].items()})
+    return PlainTextResponse(
+        _trend_figure(lisible, {m.get("variable_en"): m for m in out["meta"]}))
 
 
 # ── Jobs : demandes massives en file de calcul ──────────────────────────────

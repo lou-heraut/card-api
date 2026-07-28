@@ -273,14 +273,27 @@ def test_l_identifiant_d_une_fiche_est_rendu_par_le_catalogue():
 
 
 def test_la_tendance_se_lit_aussi_dessinee():
-    """Même résultat, autre représentation : le verdict en clair au lieu
-    d'un booléen `H` que personne ne sait lire à la première visite."""
-    r = client.get("/v1/trend", params={"stations": "F700000103",
-                                        "cards": "QA", "format": "text"})
+    """Une représentation, une URL. La figure est un endpoint et non un
+    paramètre `format` : une opération dont le type de média dépendrait
+    d'un paramètre de requête ne peut pas se décrire en OpenAPI, et le
+    contrat annoncerait du JSON en rendant du texte.
+
+    Les deux endpoints partagent UN modèle de paramètres : les recopier
+    serait la garantie qu'ils divergent au premier ajout."""
+    p = {"stations": "F700000103", "cards": "QA"}
+    r = client.get("/v1/trend/figure", params=p)
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/plain")
     assert "TENDANCE" in r.text and "verdict" in r.text
     assert "significative" in r.text
-    # le JSON reste la représentation par défaut
-    assert client.get("/v1/trend", params={"stations": "F700000103",
-                                           "cards": "QA"}).json()["data"]
+    # le JSON reste la représentation par défaut, à l'URL nue
+    assert client.get("/v1/trend", params=p).json()["data"]
+
+    spec = client.get("/openapi.json").json()["paths"]
+    assert set(spec["/v1/trend"]["get"]["responses"]["200"]["content"]) == {
+        "application/json"}
+    assert set(spec["/v1/trend/figure"]["get"]["responses"]["200"]
+               ["content"]) == {"text/plain"}
+    noms = [q["name"] for q in spec["/v1/trend"]["get"]["parameters"]]
+    assert noms == [q["name"] for q in
+                    spec["/v1/trend/figure"]["get"]["parameters"]]

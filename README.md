@@ -51,7 +51,8 @@ les droits qui vont avec.
 | `GET /v1/vocabulary` | valeurs valides des facettes, donc les filtres acceptés |
 | `GET /v1/stations` | recherche de stations ; `codes` rend la sélection prête à coller |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
-| `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen ; `format=text` la **dessine** |
+| `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
+| `GET /v1/trend/figure` | la tendance **dessinée** (texte) : sens, ampleur, verdict |
 | `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
 | `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
 | `GET /v1/health` | santé du service (file de calcul, disque) |
@@ -121,9 +122,10 @@ Deux paramètres méritent un mot :
 - `series=true` sur `/v1/trend` joint à la réponse, sous `series`,
   les séries extraites sur lesquelles la tendance a été calculée :
   points et diagnostic issus du même calcul, sans second appel.
-- `format=text` sur `/v1/trend` rend le même résultat en table
-  lisible : sens, ampleur, p-value et verdict en clair. De quoi lire une
-  réponse sans traverser le JSON, dans un terminal comme dans `/docs`.
+- `/v1/trend/figure` rend le même résultat en table lisible, avec les
+  mêmes paramètres : sens, ampleur, p-value et verdict en clair. De quoi
+  lire une réponse sans traverser le JSON, dans un terminal comme dans
+  `/docs`.
 - `stations_meta=true` joint les fiches du référentiel Hub'Eau des
   stations demandées (libellé, coordonnées, état de service). Un résultat
   devient autoportant : tracer une carte ne demande plus d'aller chercher

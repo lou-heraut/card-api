@@ -117,6 +117,65 @@ Préfixe `/v1` dès le départ.
   via le patron OGC API-EDR (le standard des séries temporelles
   environnementales) : non prioritaire.
 
+## Une représentation, une URL (arbitré 2026-07-28)
+
+Question posée par la tendance dessinée : sous-endpoint ou paramètre
+`format` ? Elle revient à chaque fois qu'un résultat peut se lire de
+plusieurs façons, la règle est donc écrite une fois pour toutes.
+
+> **Le critère : l'information change-t-elle, ou seulement son encodage ?**
+>
+> - Seulement l'encodage → **extension de chemin** (`/v1/trend.csv`).
+> - L'information change (on retire, on ajoute, on interprète) →
+>   **sous-ressource** (`/v1/trend/figure`).
+>
+> Dans les deux cas, une représentation a **son URL**. Jamais un
+> paramètre de requête.
+
+Ce qui interdit le paramètre `format` n'est pas une préférence de style,
+c'est le contrat : **OpenAPI ne sait pas dire « `text/plain` quand
+`format=text` »**. Une opération déclare son type de média, point. Un
+`format=text` fait donc annoncer du JSON à une réponse en texte, et
+aucune précaution ne le rattrape. C'est une limite du format, pas du
+code. Essayé le 2026-07-28, retiré le jour même.
+
+Application :
+
+| Représentation | Forme | Pourquoi |
+|---|---|---|
+| tendance, résultat complet | `/v1/trend` | l'URL nue rend du JSON |
+| tendance, lecture humaine | `/v1/trend/figure` | retire les intervalles et les métadonnées, **ajoute** un verdict déduit de `H` : autre objet |
+| fiche, détail | `/v1/cards/{id}` | |
+| fiche, chaîne de calcul | `/v1/cards/{id}/figure` | même raisonnement |
+| tabulaire (à venir) | `/v1/trend.csv` | mêmes lignes, mêmes colonnes, autre écriture : encodage |
+
+Deux conséquences assumées :
+
+- **`extract` n'a pas de figure.** La règle est « un dessin existe là où
+  il aide », pas « tout endpoint a son dessin » : cinquante ans de série
+  ne se lisent pas en table.
+- **Les paramètres se déclarent une fois.** Deux endpoints qui partagent
+  neuf paramètres les recopieraient et divergeraient au premier ajout.
+  FastAPI accepte un modèle Pydantic comme paramètres de requête
+  (`Annotated[TrendParams, Query()]`) et les deux opérations produisent
+  des `parameters` identiques dans le contrat. Sans cela, le
+  sous-endpoint coûtait plus cher qu'il ne valait, et c'est ce coût
+  supposé qui avait fait choisir `format` en premier lieu.
+
+Précédent dans l'écosystème : l'API écoulement de Hub'Eau sert
+`/observations` en JSON et `/observations.csv` en `text/csv`, avec un
+`Content-Disposition` qui donne son nom au fichier enregistré. Leurs
+autres API (hydrométrie, qualité, piézométrie) refusent `format=csv` :
+c'est l'extension qui est leur convention, pas le paramètre.
+
+**Si un CSV est ajouté**, il devra porter sa provenance, sous peine de
+défaire ce que le service construit : un tableur qui ne sait plus d'où
+viennent ses chiffres. Le moyen retenu sera des lignes de commentaire
+`#` en tête (versions, SWHID, empreinte, source, droits), que
+`pandas.read_csv(comment="#")` et `read.csv(comment.char="#")` sautent
+d'eux-mêmes. Les en-têtes HTTP ne conviennent pas : ils disparaissent
+dès l'enregistrement du fichier.
+
 ## Déploiement : Docker (arbitré 2026-07-16)
 
 `docker compose` à deux services sur la VM :

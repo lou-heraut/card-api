@@ -35,15 +35,25 @@ des deux endroits.
   caractères dans la réponse, mais c'est la corvée qui décidait de
   l'abandon.
 
-- **La tendance se lit aussi dessinée (2026-07-28) :** `format=text` sur
-  `/v1/trend` rend le **même** résultat en table, une ligne par variable,
-  avec le sens, l'ampleur dans l'unité de la variable, la pente relative
-  en %/an, la p-value et le **verdict en clair**. Jusqu'ici il fallait
-  savoir que `H: true` signifie « stationnarité rejetée » pour lire une
-  réponse, ce que personne ne sait à la première visite. Même geste que
-  `/v1/cards/{id}/figure` : une seconde représentation d'un résultat, pas
-  un second calcul, d'où un paramètre sur l'endpoint et non un endpoint
-  jumeau qui redirait ses neuf paramètres.
+- **La tendance se lit aussi dessinée (2026-07-28) :**
+  `GET /v1/trend/figure` rend le **même** résultat en table, une ligne
+  par variable, avec le sens, l'ampleur dans l'unité de la variable, la
+  pente relative en %/an, la p-value et le **verdict en clair**. Jusqu'ici
+  il fallait savoir que `H: true` signifie « stationnarité rejetée » pour
+  lire une réponse, ce que personne ne sait à la première visite.
+
+  Livré le matin en `format=text` sur `/v1/trend`, **refait le jour même
+  en endpoint séparé.** La raison est le contrat : OpenAPI ne sait pas
+  dire « `text/plain` quand `format=text` », si bien que l'opération
+  annonçait du JSON en rendant du texte. Aucune précaution ne rattrape
+  ça, c'est une limite du format. Ce qui rendait le paramètre tentant,
+  la peur de recopier neuf paramètres, n'existait pas : FastAPI accepte
+  un modèle Pydantic comme paramètres de requête, les deux endpoints les
+  déclarent donc **une** fois et le contrat les rend identiques. La règle
+  qui en sort, écrite dans `docs/dev/API.md` : **une représentation, une
+  URL**, extension de chemin quand seul l'encodage change
+  (`/v1/trend.csv`, à venir), sous-ressource quand l'information change
+  (la figure retire les intervalles et ajoute un verdict).
 
 - **HTTPS sur `card-api.riverly.inrae.fr`, et le contrat le dit
   (2026-07-28).** Le nom de domaine et certbot étant en place, ce qui
