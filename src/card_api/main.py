@@ -221,6 +221,7 @@ _Purpose = _facet_enum("purpose")
 _Orient = Literal["records", "columns"]
 _Mk = Literal["INDE", "AR1", "LTP"]
 _Endpoint = Literal["extract", "trend"]
+_Format = Literal["json", "text"]
 
 # Descriptions des paramètres communs à /v1/extract, /v1/trend et au corps
 # de POST /v1/jobs. Écrites une fois : les trois points d'entrée décrivent
@@ -261,6 +262,11 @@ _D_SERIES = (
     "a été calculée. Mêmes données garanties, puisque tout vient du même "
     "calcul : de quoi tracer les points et la tendance sans second appel.")
 _D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
+_D_FORMAT = (
+    "Représentation du résultat. `json` : le résultat complet, pour une "
+    "machine. `text` : la MÊME chose en table lisible (sens, ampleur, "
+    "p-value et verdict en clair), pour lire une réponse sans traverser "
+    "le JSON. Même calcul dans les deux cas.")
 
 # ── Exemples : ce qui remplit vraiment le champ ───────────────────────
 #
@@ -660,10 +666,28 @@ def cards(
                          purpose=purpose, operator=operator,
                          function=function, variable=variable,
                          search=search)
+    rows = clean(df.head(limit).to_dict(orient="records"))
+    # L'identifiant d'une fiche est le NOM DE SON FICHIER, pas sa
+    # variable. Les deux coïncident pour 129 fiches sur 472 et diffèrent
+    # pour les 343 autres : `ETPMA_month.yaml` produit `ETPMA_jan` à
+    # `ETPMA_dec`, et c'est `ETPMA_month` qu'attendent /v1/cards/{id},
+    # /v1/extract et /v1/trend. Cette colonne était annoncée partout
+    # (« colonne `id` de /v1/cards ») sans jamais être rendue : on
+    # cherchait un identifiant absent, et celui qu'on devinait donnait un
+    # 404 une fois sur deux.
+    for r in rows:
+        r["id"] = pathlib.Path(r["script_path"]).stem
     return {
         **versions(),
         "count": int(len(df)),
-        "cards": clean(df.head(limit).to_dict(orient="records")),
+        # Les identifiants ci-dessus, prêts à coller dans le paramètre
+        # `cards` d'/v1/extract ou /v1/trend. Sans lui, filtrer par
+        # facette puis recopier quinze identifiants à la main était le
+        # seul chemin, et personne ne le fait sans se tromper. Dédoublonné
+        # en gardant l'ordre : douze variables d'une même fiche ne font
+        # qu'un identifiant.
+        "ids": ",".join(dict.fromkeys(r["id"] for r in rows)),
+        "cards": rows,
     }
 
 
@@ -780,8 +804,15 @@ def stations(
     if not any((libelle, code, departement)):
         raise HTTPException(422, "donner au moins libelle, code ou departement")
     try:
-        return {"stations": hubeau.search_stations(libelle, code,
-                                                   departement, size)}
+        trouvees = hubeau.search_stations(libelle, code, departement, size)
+        # Même service que `ids` dans /v1/cards : les codes trouvés, prêts
+        # à coller dans le paramètre `stations` d'/v1/extract ou
+        # /v1/trend. Une recherche par département en rend vingt ; les
+        # recopier un par un est le genre de corvée qui décide de
+        # l'abandon.
+        return {"codes": ",".join(s["code_station"] for s in trouvees
+                                  if s.get("code_station")),
+                "stations": trouvees}
     except httpx.HTTPError as e:
         raise HTTPException(
             504, f"Hub'Eau ne répond pas ({type(e).__name__}) : "
@@ -880,6 +911,88 @@ def _stations_meta(st):
             504, f"Hub'Eau ne répond pas ({type(e).__name__}) : "
                  "réessayez dans quelques minutes",
             headers={"Retry-After": "300"})
+
+
+# ── La tendance, DESSINÉE ──────────────────────────────────────────────
+#
+# Même geste que `/v1/cards/{id}/figure` : la représentation lisible d'un
+# résultat que le JSON porte déjà. Il ne s'agit pas d'un second calcul,
+# mais d'un second AFFICHAGE du même, ce qui est la définition d'une
+# représentation en HTTP. D'où un paramètre `format` sur l'endpoint, et
+# non un endpoint jumeau qui redirait ses neuf paramètres.
+#
+# Ce que la table montre, et pourquoi : la pente de Sen dans l'unité de
+# la variable dit l'ampleur, la pente relative en %/an la rend comparable
+# entre variables, la p-value dit la confiance, et le verdict traduit le
+# `H` booléen en français. Sans cette dernière colonne, il faut savoir
+# que `H=true` veut dire « stationnarité rejetée » pour lire le tableau,
+# ce que personne ne sait à la première visite.
+_FLECHES = {True: "▲", False: "▼"}
+
+
+def _fmt_nombre(x, chiffres=2):
+    if x is None or (isinstance(x, float) and x != x):
+        return "-"
+    return f"{x:+,.{chiffres}f}".replace(",", " ")
+
+
+def _trend_figure(out, meta_par_id):
+    """Le résultat d'une tendance, en table lisible."""
+    lignes = []
+    seuil = out["level"]
+    lignes.append(f"TENDANCE  Mann-Kendall ({out['mk']}) et pente de Sen, "
+                  f"seuil {seuil:.0%}")
+    p = out["period"]
+    if p["start"] or p["end"]:
+        lignes.append(f"          période demandée : {p['start'] or '…'} "
+                      f"→ {p['end'] or '…'}")
+    lignes.append("")
+
+    cols = ("variable", "période", "pente", "relative", "p", "verdict")
+    largeurs = [len(c) for c in cols]
+    par_station = {}
+    for cid, rows in out["data"].items():
+        unite = (meta_par_id.get(cid) or {}).get("unit_fr") or ""
+        unite = unite.replace("m^{3}.s^{-1}", "m³/s")
+        for r in rows:
+            significatif = bool(r.get("H"))
+            sens = _FLECHES[(r.get("a") or 0) >= 0]
+            ligne = (
+                cid,
+                f"{str(r.get('period_start'))[:7]} → "
+                f"{str(r.get('period_end'))[:7]}",
+                f"{_fmt_nombre(r.get('a'))} {unite}/an".strip(),
+                f"{_fmt_nombre(r.get('a_relative'))} %/an",
+                f"{r.get('p'):.3f}" if r.get("p") is not None else "-",
+                (f"{sens} significative" if significatif
+                 else "— non significative"),
+            )
+            par_station.setdefault(r.get("id"), []).append(ligne)
+            largeurs = [max(w, len(c)) for w, c in zip(largeurs, ligne)]
+
+    def rangee(cellules, remplissage=" "):
+        return "  │ " + " │ ".join(
+            c.ljust(w, remplissage) for c, w in zip(cellules, largeurs)
+        ) + " │"
+
+    filet = "  ├─" + "─┼─".join("─" * w for w in largeurs) + "─┤"
+    haut = "  ┌─" + "─┬─".join("─" * w for w in largeurs) + "─┐"
+    bas = "  └─" + "─┴─".join("─" * w for w in largeurs) + "─┘"
+
+    for station, lignes_st in par_station.items():
+        lignes += [f"  {station}", haut, rangee(cols), filet]
+        lignes += [rangee(cellules) for cellules in lignes_st]
+        lignes += [bas, ""]
+
+    lignes.append(f"  source : {out['source']}")
+    lignes.append(f"  données lues le {out['data_fetched_at'][:10]} "
+                  f"· empreinte {out['data_fingerprint'][:12]}")
+    lignes.append(f"  card {out.get('card_version')} · stase "
+                  f"{out.get('stase_version')} · api {out.get('api_version')}")
+    lignes.append("")
+    lignes.append("  Le JSON complet (intervalles, moyenne de période, "
+                  "métadonnées) : format=json.")
+    return "\n".join(lignes)
 
 
 def _check_sampling(sampling):
@@ -999,6 +1112,7 @@ def trend(
     series: bool = Query(False, description=_D_SERIES),
     stations_meta: bool = Query(False, description=_D_STATIONS_META),
     orient: _Orient = Query("records", description=_D_ORIENT),
+    format: _Format = Query("json", description=_D_FORMAT),
 ):
     """Diagnostic de stationnarité : extraction CARD puis test de
     Mann-Kendall et pente de Sen (card.trend) sur chaque série.
@@ -1006,6 +1120,11 @@ def trend(
     Fiches acceptées : sorties de forme `series` uniquement, la tendance
     d'un scalaire ou d'une courbe n'ayant pas de sens. Les analyses
     MAKAHO correspondent à `sampling=preferred`.
+
+    `format=text` rend le MÊME résultat en table lisible, avec le sens et
+    la significativité de chaque tendance en clair : de quoi lire une
+    réponse sans traverser le JSON. Même geste que la fiche dessinée de
+    `/v1/cards/{id}/figure`.
     """
     _check_sampling(sampling)
     prio = usage.priority_of(request)
@@ -1048,6 +1167,14 @@ def trend(
                          for cid, df in res["data"].items()}
     if stations_meta:
         out["stations_meta"] = _stations_meta(st)
+    if format == "text":
+        # La table se lit sur `records` quel que soit `orient` : elle
+        # parcourt des lignes, pas des colonnes. `orient` ne concerne que
+        # la sortie JSON, il n'a pas à changer un dessin.
+        lisible = dict(out, data={cid: serialize(df, "records")
+                                  for cid, df in tr["data"].items()})
+        meta_par_id = {m.get("variable_en"): m for m in out["meta"]}
+        return PlainTextResponse(_trend_figure(lisible, meta_par_id))
     return out
 
 

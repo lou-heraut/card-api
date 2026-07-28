@@ -241,3 +241,46 @@ def test_l_ordre_des_sections_suit_le_parcours():
     avant d'extraire : `stations` passe donc avant `data`."""
     noms = [t["name"] for t in client.get("/openapi.json").json()["tags"]]
     assert noms.index("stations") < noms.index("data")
+
+
+def test_les_listes_sont_rendues_pretes_a_coller():
+    """Filtrer puis recopier quinze identifiants à la main est la corvée
+    qui décide de l'abandon. Les deux endpoints de découverte rendent
+    donc la liste déjà jointe, à coller telle quelle dans le paramètre
+    de l'endpoint suivant."""
+    j = client.get("/v1/cards", params={"phenomenon": "low-flows",
+                                        "output": "series",
+                                        "limit": 5}).json()
+    ids = j["ids"].split(",")
+    assert len(ids) == len(set(ids)), "identifiants répétés"
+    assert ids == [c["id"] for c in j["cards"]][:len(ids)]
+    # collée telle quelle, la liste doit être acceptée
+    assert client.get("/v1/cards/" + ids[0]).status_code == 200
+
+
+def test_l_identifiant_d_une_fiche_est_rendu_par_le_catalogue():
+    """L'identifiant est le NOM DU FICHIER, pas la variable : les deux
+    diffèrent pour la majorité des fiches (`ETPMA_month.yaml` produit
+    `ETPMA_jan`...`ETPMA_dec`). La colonne était annoncée partout sans
+    être rendue, si bien qu'on devinait `variable_en` et qu'on obtenait
+    un 404."""
+    j = client.get("/v1/cards", params={"search": "ETPMA", "limit": 3}).json()
+    if not j["cards"]:
+        return
+    fiche = j["cards"][0]
+    assert "id" in fiche
+    assert client.get("/v1/cards/" + fiche["id"]).status_code == 200
+
+
+def test_la_tendance_se_lit_aussi_dessinee():
+    """Même résultat, autre représentation : le verdict en clair au lieu
+    d'un booléen `H` que personne ne sait lire à la première visite."""
+    r = client.get("/v1/trend", params={"stations": "F700000103",
+                                        "cards": "QA", "format": "text"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/plain")
+    assert "TENDANCE" in r.text and "verdict" in r.text
+    assert "significative" in r.text
+    # le JSON reste la représentation par défaut
+    assert client.get("/v1/trend", params={"stations": "F700000103",
+                                           "cards": "QA"}).json()["data"]

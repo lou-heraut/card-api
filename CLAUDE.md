@@ -20,11 +20,17 @@ src/card_api/
                 #   service-doc, latest-version ; le détail reste dans
                 #   /v1, pas maintenu à deux endroits), puis /v1
                 #   (écosystème, réutilisation,
-                #   droits), cards, cards/{id}, cards/{id}/figure (la fiche
-                #   DESSINÉE en text/plain ; le détail reste du JSON),
-                #   vocabulary (valeurs de facette valides = filtres de
-                #   cards), stations, extract,
-                #   trend (mk défaut AR1, sampling=preferred|MM-JJ,
+                #   droits), cards (champ `ids` = la sélection prête à
+                #   COLLER dans le paramètre cards ; colonne `id` = le nom
+                #   du FICHIER, pas variable_en, les deux diffèrent pour
+                #   343 fiches sur 472), cards/{id}, cards/{id}/figure (la
+                #   fiche DESSINÉE en text/plain ; le détail reste du
+                #   JSON), vocabulary (valeurs de facette valides =
+                #   filtres de cards), stations (champ `codes`, même
+                #   service que `ids`), extract,
+                #   trend (format=text = la MÊME tendance dessinée en
+                #   table, verdict en clair ; mk défaut AR1,
+                #   sampling=preferred|MM-JJ,
                 #   series=true joint les séries extraites au diagnostic ;
                 #   stations_meta=true joint le référentiel Hub'Eau des
                 #   stations : résultat autoportant), jobs (POST + statut

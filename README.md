@@ -45,13 +45,13 @@ les droits qui vont avec.
 |---|---|
 | `GET /` | racine : liens typés vers le contrat, la doc et la version courante |
 | `GET /v1` | point d'entrée : ce qu'est le service, ce qu'il relie, droits |
-| `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes |
+| `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes ; `ids` rend la sélection prête à coller |
 | `GET /v1/cards/{id}` | détail d'une fiche (fr/en) et liens vers sa définition |
 | `GET /v1/cards/{id}/figure` | la fiche **dessinée** (texte) : sa chaîne de calcul |
 | `GET /v1/vocabulary` | valeurs valides des facettes, donc les filtres acceptés |
-| `GET /v1/stations` | recherche de stations hydrométriques |
+| `GET /v1/stations` | recherche de stations ; `codes` rend la sélection prête à coller |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
-| `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
+| `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen ; `format=text` la **dessine** |
 | `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
 | `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
 | `GET /v1/health` | santé du service (file de calcul, disque) |
@@ -80,6 +80,11 @@ curl "https://card-api.riverly.inrae.fr/v1/stations?libelle=Austerlitz"
 curl "https://card-api.riverly.inrae.fr/v1/stations?departement=07&size=100"
 ```
 
+La réponse porte un champ `codes` : tous les codes trouvés, déjà
+séparés par des virgules, à coller tel quel dans le paramètre
+`stations` d'`/v1/extract` ou d'`/v1/trend`. Vingt stations ne se
+recopient pas une par une.
+
 ### Les fiches
 
 Chaque fiche définit une variable calculable sur la chronique de
@@ -92,6 +97,12 @@ curl "https://card-api.riverly.inrae.fr/v1/cards?phenomenon=basses%20eaux&output
 curl "https://card-api.riverly.inrae.fr/v1/cards?operator=delta&search=VCN"
 curl "https://card-api.riverly.inrae.fr/v1/cards/VCN10?lang=fr"      # détail d'une fiche
 ```
+
+Même chose côté fiches : le champ `ids` rend la sélection filtrée
+prête à coller dans le paramètre `cards`. Attention, l'identifiant
+d'une fiche est le nom de son fichier (colonne `id`), pas sa variable :
+`ETPMA_month` produit `ETPMA_jan` à `ETPMA_dec`, et c'est le premier
+qu'attendent les endpoints.
 
 ## Cas d'usage
 
@@ -110,6 +121,9 @@ Deux paramètres méritent un mot :
 - `series=true` sur `/v1/trend` joint à la réponse, sous `series`,
   les séries extraites sur lesquelles la tendance a été calculée :
   points et diagnostic issus du même calcul, sans second appel.
+- `format=text` sur `/v1/trend` rend le même résultat en table
+  lisible : sens, ampleur, p-value et verdict en clair. De quoi lire une
+  réponse sans traverser le JSON, dans un terminal comme dans `/docs`.
 - `stations_meta=true` joint les fiches du référentiel Hub'Eau des
   stations demandées (libellé, coordonnées, état de service). Un résultat
   devient autoportant : tracer une carte ne demande plus d'aller chercher

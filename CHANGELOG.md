@@ -24,6 +24,27 @@ des deux endroits.
 
 ### Ajouté
 
+- **Les listes se collent au lieu de se recopier (2026-07-28).**
+  Enchaîner deux endpoints demandait de relever les identifiants un par
+  un dans une réponse JSON puis de les rejoindre par des virgules à la
+  main : quinze copier-coller pour une sélection de stations, autant
+  pour les variables, et une faute de frappe donnait un 404 sans dire
+  laquelle. `/v1/stations` rend désormais `codes` et `/v1/cards` rend
+  `ids` : la sélection déjà jointe, à coller telle quelle dans le
+  paramètre de l'endpoint suivant. Rien de plus qu'une chaîne de
+  caractères dans la réponse, mais c'est la corvée qui décidait de
+  l'abandon.
+
+- **La tendance se lit aussi dessinée (2026-07-28) :** `format=text` sur
+  `/v1/trend` rend le **même** résultat en table, une ligne par variable,
+  avec le sens, l'ampleur dans l'unité de la variable, la pente relative
+  en %/an, la p-value et le **verdict en clair**. Jusqu'ici il fallait
+  savoir que `H: true` signifie « stationnarité rejetée » pour lire une
+  réponse, ce que personne ne sait à la première visite. Même geste que
+  `/v1/cards/{id}/figure` : une seconde représentation d'un résultat, pas
+  un second calcul, d'où un paramètre sur l'endpoint et non un endpoint
+  jumeau qui redirait ses neuf paramètres.
+
 - **HTTPS sur `card-api.riverly.inrae.fr`, et le contrat le dit
   (2026-07-28).** Le nom de domaine et certbot étant en place, ce qui
   bloquait la diffusion des clés est levé : un jeton ne transite plus en
@@ -217,6 +238,17 @@ des deux endroits.
   seconde fois ne l'a pas changé.
 
 ### Corrigé
+
+- **La colonne `id` du catalogue était annoncée partout sans être rendue
+  (2026-07-28).** La description de `cards`, celle de `/v1/cards/{id}` et
+  le README renvoyaient tous à « la colonne `id` de /v1/cards » ; cette
+  colonne n'existait pas dans la réponse. On devinait donc `variable_en`,
+  qui est le bon identifiant pour 129 fiches sur 472 et le mauvais pour
+  les 343 autres : `ETPMA_month.yaml` produit `ETPMA_jan` à `ETPMA_dec`,
+  et c'est le nom du FICHIER qu'attendent les endpoints. Le catalogue
+  rend maintenant cette colonne. Cherché en ajoutant `ids`, trouvé en
+  se demandant quel identifiant y mettre : la fonctionnalité a révélé le
+  défaut.
 
 - **Les exemples ne pré-remplissaient rien.** L'entrée du 2026-07-24
   annonçait des champs pré-remplis permettant d'exécuter une requête
