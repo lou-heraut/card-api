@@ -171,3 +171,23 @@ def test_l_onglet_porte_son_icone():
     html = client.get("/docs").text
     assert "data:image/svg+xml," in html
     assert "fastapi" not in html.split("shortcut icon")[1][:200].lower()
+
+
+def test_licence_et_contact_restent_dans_le_contrat(identity):
+    """Ils sont MASQUÉS à l'écran, repris en fin de description sous la
+    même forme que les autres liens. Masqué n'est pas supprimé : c'est
+    dans `openapi.json` qu'un moissonneur lit sous quels droits
+    réutiliser, et il ne lit pas la prose de la description."""
+    assert ".info__license{display:none;}" in identity.replace("\n", "")
+    info = client.get("/openapi.json").json()["info"]
+    assert info["license"]["name"] == "GPL-3.0-or-later"
+    assert info["contact"]["url"].endswith("card-api")
+
+
+def test_la_description_tient_en_un_paragraphe_et_deux_lignes_de_liens():
+    """Un en-tête n'est pas un résumé du projet. La prose est d'un seul
+    tenant, les liens dessous : où lire, puis à qui écrire."""
+    desc = client.get("/openapi.json").json()["info"]["description"]
+    prose, ressources, contacts = desc.split("\n\n")
+    assert "](" not in prose, "un lien s'est glissé dans la prose"
+    assert ressources.count("](") == 5 and contacts.count("](") == 3

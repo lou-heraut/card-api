@@ -34,13 +34,34 @@ chaîne de caractères.**
 | logo INRAE | pseudo-élément `::after` du titre, en image de fond | `theme-identity.css`, section 3 |
 | émoji `🎴` de l'onglet | `swagger_favicon_url`, en URL `data:` | `main.py`, `_FAVICON` |
 
-Le logo est un SVG blanc servi par sa propre route (`/static/inrae.svg`)
-et appelé en URL relative depuis la feuille, qui est servie depuis le
-même dossier. Le titre est passé en `flex` : le logo pousse à droite par
+Le logo est un SVG servi par sa propre route (`/static/inrae.svg`) et
+appelé en URL relative depuis la feuille, qui est servie depuis le même
+dossier. Il est posé en **masque**, pas en image de fond : le fichier ne
+sert que de découpe, et la couleur vient de `background`, donc de la
+gamme. En image de fond, le blanc pur du SVG restait du blanc pur, plus
+clair que le titre juste à côté ; en masque il suit `--text` sans qu'on
+touche au fichier, et une retouche de la gamme l'emmène avec elle.
+
+Le titre est passé en `flex` : le logo pousse à droite par
 `margin-left:auto` sur grand écran, et repasse au-dessus du titre sous
 640 px (`order:-1` et `flex-basis:100%`, cf. section 12). Faire basculer
 le conteneur en `column-reverse` aurait été plus court, mais aurait aussi
 retourné les pastilles de version, qui doivent suivre le titre.
+
+## Ce que le calque MASQUE, et ce qu'il ne supprime pas
+
+Swagger rend le contact suivi d'un « - Website » écrit en dur dans son
+code, et la licence en lien nu. Avec les liens de la description, cela
+faisait trois présentations d'une même chose sur quinze centimètres de
+page. Le calque masque ces deux blocs (`.info__contact`,
+`.info__license`) et la description les reprend en fin de bloc, sous la
+même forme que le reste.
+
+**Masqué n'est pas supprimé.** `contact` et `license` restent déclarés
+dans `main.py`, donc dans `openapi.json` : c'est là qu'un moissonneur lit
+sous quels droits réutiliser, et il ne lit pas la prose d'une
+description. Les retirer du contrat pour gagner une ligne d'affichage
+serait un mauvais échange, et `tests/test_docs_theme.py` le refuse.
 
 La favicon est un SVG d'une ligne portant l'émoji, en URL `data:`
 échappée : aucun fichier à servir, aucun appel réseau. Sans elle, la page

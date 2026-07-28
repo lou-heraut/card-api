@@ -53,7 +53,9 @@ des deux endroits.
   aligné à droite du titre, qui repasse au-dessus sous 640 px, et
   l'émoji 🎴 dans l'onglet du navigateur, là où figurait celui de
   FastAPI. Aucun des deux n'est une balise injectée dans la page :
-  le logo est un pseudo-élément du titre en image de fond, la favicon
+  le logo est un pseudo-élément du titre posé en **masque** (le SVG ne
+  sert que de découpe, la couleur vient de la gamme, donc le logo est du
+  même gris que le titre et suivra `--text` si elle change), la favicon
   une URL `data:`. Même règle que le reste du thème, et même conséquence :
   si l'une cesse un jour de s'appliquer, la page rend un titre sans logo,
   elle ne casse pas. Détail dans `docs/dev/THEME_DOCS.md`.
@@ -61,13 +63,24 @@ des deux endroits.
 - **L'en-tête de `/docs` redevient lisible (2026-07-28).** La description
   charriait quatre liens au fil des phrases et une phrase sur la
   provenance des réponses : on ne savait plus si on lisait un texte ou un
-  sommaire. Elle est maintenant de la prose (ce que fait le service, pour
-  qui, par où commencer), les liens sont regroupés en une ligne
-  « Ressources » à la fin, et la mécanique interne (commit, SWHID,
+  sommaire. Elle est maintenant **un paragraphe de prose** (ce que fait
+  le service, pour qui, par où commencer) suivi de **deux lignes de
+  liens de même forme** : où aller lire, puis à qui écrire (bug, demande
+  de clé de priorité, courriel). La mécanique interne (commit, SWHID,
   droits) est retirée : ces champs voyagent dans chaque réponse, où ils
-  servent. `summary` d'OpenAPI 3.1 a été essayé puis retiré le même
-  jour : Swagger le rend juste au-dessus de la description, où il redit
-  sa première phrase.
+  servent.
+
+  Les deux lignes absorbent la **licence** et le **contact**, que Swagger
+  rendait chacun à sa façon, l'un suivi d'un « - Website » écrit en dur
+  dans son code. Trois présentations d'une même chose sur quinze
+  centimètres de page, c'en est une de trop. Les deux champs **restent
+  déclarés** dans `openapi.json`, seul leur affichage est masqué : c'est
+  là qu'un moissonneur lit sous quels droits réutiliser, et il ne lit pas
+  la prose d'une description. Un test le garantit.
+
+  `summary` d'OpenAPI 3.1 a été essayé puis retiré le même jour : Swagger
+  le rend juste au-dessus de la description, où il redit sa première
+  phrase.
 
 - **Le contrat OpenAPI pré-mâche le formulaire (2026-07-27).** Le travail
   a porté sur `openapi.json`, pas sur l'habillage : ce qu'on y écrit sert

@@ -311,26 +311,44 @@ app = FastAPI(
     # l'autre, ce n'est pas un en-tête plus court, c'en est un plus long.
     #
     # La DESCRIPTION reste de la prose : ce que fait le service, pour qui,
-    # par où commencer. Pas de lien au fil des phrases, ils cassent la
-    # lecture et on ne sait plus si on lit un texte ou un sommaire ; ils
-    # sont regroupés en fin de bloc. Rien non plus sur la mécanique
-    # interne (provenance, SWHID, droits) : ces champs voyagent dans
-    # chaque réponse, où ils servent, et le README les explique. Un
-    # en-tête n'est pas un résumé du projet, c'est ce qu'il faut savoir
-    # avant de cliquer sur une opération.
+    # par où commencer. UN paragraphe, pas trois. Pas de lien au fil des
+    # phrases, ils cassent la lecture et on ne sait plus si on lit un
+    # texte ou un sommaire. Rien non plus sur la mécanique interne
+    # (provenance, SWHID, droits) : ces champs voyagent dans chaque
+    # réponse, où ils servent, et le README les explique. Un en-tête
+    # n'est pas un résumé du projet, c'est ce qu'il faut savoir avant de
+    # cliquer sur une opération.
+    #
+    # Dessous, DEUX lignes de liens, de même forme : où aller lire, puis
+    # à qui écrire. Elles absorbent la licence et le contact, que Swagger
+    # sait pourtant rendre lui-même (`license_info`, `contact`) mais
+    # chacun dans sa présentation : trois façons de poser un lien dans
+    # quinze centimètres de page. Les deux champs RESTENT déclarés plus
+    # bas, parce qu'un contrat doit dire sa licence à une machine ; c'est
+    # leur AFFICHAGE que le calque masque (theme-identity.css, section 3).
     description=(
         "Variables hydroclimatiques prêtes à l'emploi, calculées sur les "
         "débits Hub'Eau, avec diagnostic de tendance. Façade du projet "
         "CARD : les fiches définissent les variables, le moteur stase "
-        "les calcule, Hub'Eau fournit les observations.\n\n"
-        "Service public de recherche (INRAE, UR RiverLy). Accès ouvert, "
-        "sans inscription ni clé. Point d'entrée : `GET /v1`.\n\n"
-        "**Ressources** : "
+        "les calcule, Hub'Eau fournit les observations. Service public "
+        "de recherche (INRAE, UR RiverLy), accès ouvert, sans "
+        "inscription ni clé. Point d'entrée : `GET /v1`.\n\n"
         "[fiches card](https://github.com/lou-heraut/card) · "
         "[moteur stase](https://github.com/lou-heraut/stase) · "
         "[Hub'Eau](https://hubeau.eaufrance.fr/) · "
-        "[dépôt du service](https://github.com/lou-heraut/card-api)"
+        "[dépôt du service](https://github.com/lou-heraut/card-api) · "
+        "[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)\n\n"
+        "[signaler un bug]"
+        "(https://github.com/lou-heraut/card-api/issues) · "
+        "[demander une clé de priorité]"
+        "(https://github.com/lou-heraut/card-api/issues/new"
+        "?template=cle-de-priorite.yml) · "
+        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr)"
     ),
+    # Déclarés pour la MACHINE, masqués à l'écran (cf. plus haut). Retirer
+    # `license_info` du contrat pour gagner une ligne d'affichage ferait
+    # perdre à un moissonneur le seul endroit où il lit sous quels droits
+    # réutiliser : le prix est sans commune mesure avec le gain.
     contact={"name": "Louis Héraut (INRAE, UR RiverLy)",
              "url": "https://github.com/lou-heraut/card-api"},
     license_info={"name": "GPL-3.0-or-later",

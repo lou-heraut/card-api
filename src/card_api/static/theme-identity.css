@@ -56,12 +56,19 @@ body{margin:0;}
   display:flex; align-items:center; flex-wrap:wrap;
 }
 
-/* Le SVG est blanc et n'a que sa `viewBox` : la hauteur commande, la
-   largeur suit le rapport d'origine. */
+/* Le logo est pose en MASQUE, pas en image de fond : le SVG ne sert plus
+   que de decoupe, et la couleur vient de `background`, donc de la gamme.
+   En image de fond, le blanc pur du fichier restait du blanc pur, plus
+   clair que le titre juste a cote ; ici il suit `--text` sans qu'on
+   touche au SVG, et une retouche de la gamme l'emmene avec elle.
+   Le SVG n'a que sa `viewBox` : la hauteur commande, la largeur suit le
+   rapport d'origine. */
 .swagger-ui .info .title::after{
   content:""; margin-left:auto;
   width:104px; height:27px; flex:0 0 auto;
-  background:url("inrae.svg") no-repeat right center/contain;
+  background:var(--text);
+  -webkit-mask:url("inrae.svg") no-repeat right center/contain;
+  mask:url("inrae.svg") no-repeat right center/contain;
 }
 
 /* Pastilles de version et OAS : deux etiquettes, pas deux alertes.
@@ -91,6 +98,16 @@ body{margin:0;}
 .swagger-ui .info .description,
 .swagger-ui .info li,
 .swagger-ui .info p{color:var(--muted); font-size:13.5px; max-width:74ch;}
+
+/* Contact et licence : Swagger les rend chacun a sa facon, l'un suivi
+   d'un « - Website » ecrit en dur dans son code, l'autre en lien nu.
+   Avec les liens de la description, cela faisait trois presentations
+   d'une meme chose sur quinze centimetres de page. Ils sont repris en
+   fin de description, sous la meme forme que le reste ; ce qui est
+   masque ici n'est que l'AFFICHAGE, les deux champs restent dans
+   openapi.json ou une machine va lire la licence (cf. main.py). */
+.swagger-ui .info .info__contact,
+.swagger-ui .info .info__license{display:none;}
 
 .swagger-ui .info a,
 .swagger-ui a.nostyle,
@@ -481,7 +498,8 @@ body{margin:0;}
      conteneur en `column-reverse` aurait aussi retourne les pastilles
      de version, qui suivent le titre et doivent y rester. */
   .swagger-ui .info .title::after{
-    order:-1; flex-basis:100%; margin:0 0 14px; background-position:left;
+    order:-1; flex-basis:100%; margin:0 0 14px;
+    -webkit-mask-position:left; mask-position:left;
   }
 }
 
