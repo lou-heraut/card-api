@@ -316,11 +316,14 @@ des deux endroits.
   code. `valeur` était du français isolé au milieu de `date` et
   `variable`, une inattention de la veille.
 
-  **L'empreinte des données passe en `v2`.** Elle hache aussi le NOM des
-  colonnes : une même chronique donne donc une empreinte différente
-  d'avant sans que la donnée ait bougé. Le préfixe existe exactement
-  pour ça, et il évite qu'on conclue à une révision Hub'Eau en comparant
-  une empreinte d'avant à une d'après.
+  **L'empreinte des données change, et son préfixe reste `v1`.** Elle
+  hache aussi le NOM des colonnes : une même chronique donne donc une
+  empreinte différente d'avant sans que la donnée ait bougé. C'est le cas
+  prévu par le préfixe de version, mais il n'a pas été incrémenté, et
+  c'est délibéré : aucune empreinte n'avait encore été publiée à
+  quiconque, il n'y avait donc rien à départager, et brûler un numéro sur
+  un changement que personne ne peut observer aurait affaibli le signal
+  pour le jour où il servira.
 
   **Au déploiement : vider `data/chroniques/` avant `make update`.** Les
   fichiers de cache portent l'ancien en-tête ; ils se retéléchargent

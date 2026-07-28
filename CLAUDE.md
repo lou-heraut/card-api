@@ -66,8 +66,10 @@ src/card_api/
                 #   que la jointure au référentiel se fasse sans
                 #   traduction (règle dans docs/dev/API.md ; tout ce que
                 #   le service CALCULE est en anglais snake_case).
-                #   L'empreinte hache aussi le NOM des colonnes, d'où le
-                #   préfixe de version : renommer une colonne la change.
+                #   L'empreinte hache aussi le NOM des colonnes :
+                #   renommer une colonne la change. Préfixe laissé à v1
+                #   au renommage du 2026-07-28, aucune empreinte n'ayant
+                #   encore été publiée.
                 #   client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
                 #   pagination next, codes post-refonte) + cache 24 h
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After),

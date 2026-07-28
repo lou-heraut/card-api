@@ -29,12 +29,14 @@ import pandas as pd
 
 BASE = "https://hubeau.eaufrance.fr/api/v2/hydrometrie"
 PAGE_SIZE = 20000
-# v2 (2026-07-28) : la colonne de station est passée de `id` à
-# `code_station`, et l'empreinte hache AUSSI le nom des colonnes.
-# Une même chronique donne donc une empreinte différente d'avant,
-# sans que la donnée ait bougé : le préfixe est là pour que
-# personne ne conclue à une révision Hub'Eau en comparant les deux.
-FINGERPRINT_VERSION = "v2"               # cf. fingerprint()
+# L'empreinte hache AUSSI le nom des colonnes : renommer une colonne la
+# change, sur une donnée pourtant identique. C'est le cas prévu par ce
+# préfixe. Il n'a pas été incrémenté au renommage `id` → `code_station`
+# du 2026-07-28, DÉLIBÉRÉMENT : aucune empreinte n'avait encore été
+# publiée à qui que ce soit, donc il n'y avait rien à départager, et
+# brûler un numéro sur un changement que personne ne peut observer aurait
+# affaibli le signal pour le jour où il servira vraiment.
+FINGERPRINT_VERSION = "v1"               # cf. fingerprint()
 CACHE_TTL = 24 * 3600                    # les séries validées bougent peu
 _STATION_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
 
