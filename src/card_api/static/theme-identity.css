@@ -101,6 +101,8 @@ body{margin:0;}
   margin:10px 0; padding:0;
 }
 
+/* Swagger surligne le titre de section au survol. On garde le fond plat
+   et on signale le repli par un simple retrait d'intensite. */
 .swagger-ui .opblock-tag:hover{background:transparent;}
 
 .swagger-ui .opblock-tag small{
@@ -108,11 +110,17 @@ body{margin:0;}
   letter-spacing:0; color:var(--faint); padding-left:14px;
 }
 
+.swagger-ui .opblock-tag:hover small{filter:opacity(.75);}
+
 /* Le libelle du tag est un lien : il ne doit pas prendre la couleur des
    liens, c'est un titre de section. */
 .swagger-ui .opblock-tag a.nostyle,
 .swagger-ui .opblock-tag a.nostyle span,
 .swagger-ui .opblock-tag>a{color:var(--text);}
+
+.swagger-ui .opblock-tag:hover a.nostyle,
+.swagger-ui .opblock-tag:hover a.nostyle span,
+.swagger-ui .opblock-tag:hover>a{filter:opacity(.9);}
 
 .swagger-ui .opblock-tag-section{margin-bottom:6px;}
 
@@ -220,7 +228,7 @@ body{margin:0;}
 .swagger-ui .opblock-body,.swagger-ui .opblock-description-wrapper,
 .swagger-ui .opblock-external-docs-wrapper,.swagger-ui .opblock-title_normal{
   background:var(--ground); color:var(--muted); font-size:13px;
-  margin:0; padding:4px 20px;
+  margin:0; padding:6px 20px;
 }
 
 /* Swagger pose sous « Parameters » un trait de 4 px de haut et 120 % de
@@ -266,8 +274,18 @@ body{margin:0;}
   font-family:var(--mono); font-size:11.5px; color:var(--faint);
 }
 
+.swagger-ui .parameter__in{font-weight:400;}
+
+/* Swagger marque un parametre obligatoire deux fois : une etoile rouge
+   collee au nom, et la mention « required » posee en absolu sous lui.
+   On garde la mention, en pile sous le nom, et on retire l'etoile. */
+.swagger-ui .parameter__name.required{display:flex; flex-direction:column;}
+
+.swagger-ui .parameter__name.required span{display:none;}
+
 .swagger-ui .parameter__name.required:after{
-  color:var(--del); font-size:10.5px;
+  color:var(--del); font-size:10.5px; font-weight:400;
+  position:static; padding:0; text-transform:uppercase;
 }
 
 .swagger-ui table tbody tr td{
@@ -338,10 +356,16 @@ body{margin:0;}
 .swagger-ui .try-out__btn{font-size:12px;}
 
 /* Swagger etire Execute sur toute la largeur et centre son conteneur a
-   droite. On le ramene a la taille de Cancel, a gauche. */
+   droite. On le ramene a la taille de Cancel, a gauche. La gouttiere de
+   `.btn-group` (Clear) est alignee sur celle d'Execute, les deux rangees
+   se suivant. */
 .swagger-ui .execute-wrapper{text-align:left; padding:16px 12px;}
 
-.swagger-ui .execute-wrapper .btn{width:auto; padding:7px 22px;}
+.swagger-ui .btn-group{padding:16px 12px;}
+
+.swagger-ui .execute-wrapper .btn{
+  width:auto; font-size:12px; padding:5px 23px;
+}
 
 
 /* ── 9. blocs de code ───────────────────────────────────────────────── */
@@ -371,20 +395,20 @@ body{margin:0;}
   font-weight:inherit!important;
 }
 
-/* Copier / Telecharger : deux boutons poses SUR un bloc de code. Leur
-   icone est une image de fond sombre, on la retourne au lieu de
-   l'effacer. */
+/* Copier / Telecharger : deux boutons poses SUR un bloc de code, que
+   Swagger laisse se chevaucher. On decale Copier vers la gauche de la
+   largeur de Telecharger. */
 .swagger-ui .copy-to-clipboard,.swagger-ui .download-contents{
   background:#2c2c2c; color:var(--text); border:1px solid var(--line);
   border-radius:3px; font-family:var(--sans); font-size:11.5px;
   font-weight:500;
 }
 
+.swagger-ui .copy-to-clipboard{right:85px;}
+
 .swagger-ui .copy-to-clipboard:active{background:#3a3a3a;}
 
-.swagger-ui .copy-to-clipboard button{
-  background-color:transparent; filter:invert(1) opacity(.72);
-}
+.swagger-ui .copy-to-clipboard button{filter:opacity(.85);}
 
 
 /* ── 10. icones, selection, ascenseur ───────────────────────────────── */
@@ -423,6 +447,16 @@ body{margin:0;}
 
 .swagger-ui .errors-wrapper .errors small,
 .swagger-ui .errors-wrapper .error-wrapper{color:var(--muted);}
+
+
+/* ── 12. petits ecrans ──────────────────────────────────────────────────
+   Seuil en largeur de fenetre, pas en appareil : un navigateur de bureau
+   retreci passe par la aussi, et c'est voulu. La page /docs porte bien
+   son <meta viewport> (engendre par FastAPI), sans quoi un telephone
+   simulerait 980 px et la regle ne se declencherait jamais. */
+@media (max-width:640px){
+  .swagger-ui .opblock .opblock-summary-description{padding-left:0;}
+}
 
 
 /* ── mis de cote ────────────────────────────────────────────────────────

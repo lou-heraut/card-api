@@ -60,6 +60,14 @@ des deux endroits.
   cadre, `Execute` rendu à la taille d'un bouton, barre de couleur sous
   « Parameters » et doubles filets retirés.
 
+  Finitions du 2026-07-28 : un paramètre obligatoire n'est plus signalé
+  deux fois (l'étoile rouge collée au nom disparaît, la mention
+  « required » se range en pile sous lui), le survol d'un titre de
+  section passe de l'aplat à un simple retrait d'intensité, les boutons
+  « Copier » et « Télécharger » d'un bloc de code cessent de se
+  chevaucher, et une première règle de largeur de fenêtre rend la barre
+  repliée d'une opération lisible sous 640 px.
+
   La règle de travail vaut d'être notée : **rien qui ne soit une règle
   CSS ou une chaîne de caractères.** Une règle qui cesse de s'appliquer
   après une montée de Swagger laisse la page reprendre son apparence
