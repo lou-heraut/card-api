@@ -362,3 +362,39 @@ def test_les_csv_ont_un_contrat_exact():
                  ("/v1/trend", "/v1/trend.csv")):
         assert ([q["name"] for q in paths[a]["get"]["parameters"]]
                 == [q["name"] for q in paths[b]["get"]["parameters"]])
+
+
+def test_le_bandeau_csv_ne_contient_aucune_virgule():
+    """Un tableur n'a pas de notion de commentaire : il affiche les
+    lignes `#` comme des données et les DÉCOUPE sur les virgules. Le
+    bandeau se retrouvait éparpillé sur huit colonnes.
+
+    Le quoter le garderait en une cellule, mais il ne commencerait plus
+    par `#` et `read_csv(comment="#")` cesserait de le sauter : le remède
+    serait pire. Reste à ne produire aucune virgule."""
+    r = client.get("/v1/trend.csv", params={"stations": "F700000103",
+                                            "cards": "QA,VCN10"})
+    entete = [ligne for ligne in r.text.splitlines() if ligne.startswith("#")]
+    assert entete
+    for ligne in entete:
+        assert "," not in ligne, ligne
+    # la liste des fiches reste lisible, séparateur changé
+    assert any("QA · VCN10" in ligne for ligne in entete)
+
+
+def test_la_fenetre_par_defaut_demarre_en_1968():
+    """Pas « toute la chronique » : 1968 est la borne d'analyse du projet
+    et le point où le réseau français devient assez fourni pour que des
+    stations se comparent. La période effective est publiée, donc le
+    résultat dit toujours sur quoi il porte."""
+    from card_api.main import START_DEFAUT
+
+    assert START_DEFAUT == "1968-01-01"
+    j = client.get("/v1/trend", params={"stations": "F700000103",
+                                        "cards": "QA"}).json()
+    assert j["period"] == {"start": "1968-01-01", "end": None}
+    # une demande explicite reste souveraine
+    j = client.get("/v1/trend", params={"stations": "F700000103",
+                                        "cards": "QA",
+                                        "start": "1990-01-01"}).json()
+    assert j["period"]["start"] == "1990-01-01"

@@ -487,6 +487,28 @@ body{margin:0;}
   font-weight:500;
 }
 
+/* « Download file » : c'est l'ACTION du bloc, la seule qui emporte
+   quelque chose hors de la page. Elle quitte donc la forme du bouton
+   pour celle d'un lien : pas de cadre, pas de fond, du texte plus grand
+   dans le bleu des GET, et le survol se signale par un simple retrait
+   d'intensite. Un cadre autour d'un mot pose sur un bloc de code ne
+   servait qu'a le detacher d'un fond qu'il ne recouvre plus. */
+.swagger-ui .download-contents{
+  background:transparent; border:0; box-shadow:none;
+  color:var(--get); font-family:var(--sans); font-size:13px;
+  font-weight:700; letter-spacing:.01em;
+  height:auto; padding:2px 4px; text-transform:none;
+}
+
+.swagger-ui .download-contents:hover,
+.swagger-ui .download-contents:active{
+  background:transparent; color:var(--get); filter:opacity(.7);
+}
+
+.swagger-ui .download-contents:focus-visible{
+  outline:2px solid var(--get); outline-offset:2px;
+}
+
 .swagger-ui .copy-to-clipboard{right:85px;}
 
 .swagger-ui .copy-to-clipboard:active{background:#3a3a3a;}

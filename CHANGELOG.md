@@ -35,14 +35,22 @@ des deux endroits.
   caractères dans la réponse, mais c'est la corvée qui décidait de
   l'abandon.
 
-- **Les champs de période pré-remplis enseignaient la mauvaise fenêtre
-  (2026-07-28).** `/docs` proposait `1970-01-01 → 2020-12-31`, si bien
-  qu'un premier essai calculait sur une fenêtre arbitraire, close six ans
-  avant aujourd'hui. Le début devient `1968-09-01`, la convention
-  d'analyse du projet et la borne des validations MAKAHO, et **la fin
-  reste vide** : le comportement voulu est de suivre la chronique jusqu'à
-  son dernier jour disponible, donc de ne pas poser de borne. Un champ
-  pré-rempli n'est pas neutre, il enseigne.
+- **La fenêtre d'analyse démarre en 1968 (2026-07-28).** Sans `start`,
+  le service prenait toute la chronique, et `/docs` pré-remplissait
+  `1970-01-01 → 2020-12-31`, une fenêtre arbitraire close six ans avant
+  aujourd'hui. Le défaut du SERVICE devient **`1968-01-01`** : la borne
+  d'analyse du projet, celle des validations MAKAHO, et le point à partir
+  duquel le réseau hydrométrique français est assez fourni pour que des
+  stations se comparent entre elles. Laisser courir jusqu'aux plus
+  anciennes séries donnait, sans que personne ne l'ait demandé, des
+  périodes de longueurs très différentes d'une station à l'autre.
+
+  **Pas de borne de fin symétrique** : on veut suivre la chronique
+  jusqu'à son dernier jour disponible, donc ne pas en poser. Conséquence
+  assumée : les mesures antérieures à 1968 ne sont plus reprises par
+  défaut ; elles s'obtiennent en donnant `start`, et la période effective
+  est publiée dans chaque réponse, donc un résultat dit toujours sur quoi
+  il porte.
 
 - **Le tableur, sans perdre la provenance (2026-07-28) :**
   `/v1/extract.csv` et `/v1/trend.csv` rendent les mêmes données qu'à
@@ -70,6 +78,19 @@ des deux endroits.
   séparées par une révision Hub'Eau ne s'écrasent pas. Détail et
   arbitrages dans `docs/dev/API.md`.
 
+  **Aucune virgule dans le bandeau `#`.** Un tableur n'a pas de notion de
+  commentaire : il affiche ces lignes comme des données et les découpe
+  sur les virgules, éparpillant la provenance sur huit colonnes. Les
+  quoter la garderait en une cellule, mais la ligne ne commencerait plus
+  par `#` et pandas cesserait de la sauter : le remède serait pire. Le
+  bandeau n'emploie donc que `·`, y compris pour les listes de stations
+  et de fiches. Un test le garantit.
+
+  **« Download file » quitte la forme du bouton** pour celle d'un lien :
+  pas de cadre, texte plus grand en gras dans le bleu des GET, survol par
+  retrait d'intensité. C'est l'action du bloc, la seule qui emporte
+  quelque chose hors de la page.
+
 - **La tendance se lit aussi dessinée (2026-07-28) :**
   `GET /v1/trend/figure` rend le **même** résultat en table, une ligne
   par variable, avec le sens, l'ampleur dans l'unité de la variable, la
@@ -87,7 +108,7 @@ des deux endroits.
   déclarent donc **une** fois et le contrat les rend identiques. La règle
   qui en sort, écrite dans `docs/dev/API.md` : **une représentation, une
   URL**, extension de chemin quand seul l'encodage change
-  (`/v1/trend.csv`, à venir), sous-ressource quand l'information change
+  (`/v1/trend.csv`), sous-ressource quand l'information change
   (la figure retire les intervalles et ajoute un verdict).
 
 - **HTTPS sur `card-api.riverly.inrae.fr`, et le contrat le dit

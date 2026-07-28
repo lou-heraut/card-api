@@ -108,6 +108,24 @@ def _build_refs():
 LTP_SEED = 0
 
 
+# Début de la fenêtre d'analyse quand la demande n'en donne pas. Ce n'est
+# PAS « toute la chronique » : 1968 est la borne d'analyse du projet,
+# celle des validations MAKAHO, et le point à partir duquel le réseau
+# hydrométrique français est assez fourni pour que des stations se
+# comparent entre elles. Laisser courir jusqu'aux plus anciennes séries
+# donnerait, sans que personne ne l'ait demandé, des périodes de
+# longueurs très différentes d'une station à l'autre.
+#
+# Conséquence assumée : les mesures antérieures à 1968 ne sont pas
+# reprises par défaut. Elles restent accessibles en donnant `start`
+# explicitement, et la période effective est publiée dans chaque réponse
+# (bloc `period`) : le résultat dit toujours sur quoi il porte.
+#
+# Pas de borne de fin symétrique : on veut suivre la chronique jusqu'à
+# son dernier jour disponible, donc ne pas en poser.
+START_DEFAUT = "1968-01-01"
+
+
 CARD_COMMIT, STASE_COMMIT = _build_refs()
 
 
@@ -234,10 +252,12 @@ _D_CARDS = ("Identifiants de fiches, séparés par des virgules (colonne "
             "`id` de /v1/cards). Fiches à entrée Q uniquement, puisque "
             "les données sont hydrométriques. Exemple : `QA,VCN10`, le "
             "module annuel et l'étiage.")
-_D_START = ("Début de la période, AAAA-MM-JJ. Par défaut, le début de "
-            "la chronique. `1968-09-01` est la convention d'analyse du "
-            "projet : début d'année hydrologique, et borne de référence "
-            "des validations MAKAHO.")
+_D_START = ("Début de la période, AAAA-MM-JJ. Par défaut **1968-01-01**, "
+            "et non le début de la chronique : c'est la borne d'analyse "
+            "du projet (validations MAKAHO) et le point à partir duquel "
+            "le réseau hydrométrique français est assez fourni pour que "
+            "des stations se comparent. Les mesures antérieures "
+            "s'obtiennent en donnant une date plus ancienne.")
 _D_END = ("Fin de la période, AAAA-MM-JJ. Par défaut, et c'est ce qu'on "
           "veut le plus souvent, le DERNIER JOUR DISPONIBLE : laisser "
           "vide pour suivre la chronique à mesure qu'elle s'allonge.")
@@ -295,7 +315,7 @@ _D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
 # à qui n'en a pas demandé). Leur description dit les valeurs acceptées.
 _X_STATIONS = {"example": "F700000103"}
 _X_CARDS = {"example": "QA,VCN10"}
-_X_START = {"example": "1968-09-01"}
+_X_START = {"example": "1968-01-01"}
 _X_JOB_ID = {"example": "3f2a9c1b7e4d8506"}
 
 # L'ordre des sections EST celui de la page : Swagger les affiche dans
@@ -923,6 +943,26 @@ def _stations_meta(st):
 # fichier. `pandas.read_csv(comment="#")` et `read.csv(comment.char="#")`
 # les sautent d'eux-mêmes, et elles survivent à l'enregistrement du
 # fichier, contrairement à un en-tête HTTP.
+def _csv_sans_virgule(ligne):
+    """AUCUNE virgule dans une ligne de provenance.
+
+    Un tableur n'a pas de notion de commentaire : il affiche les lignes
+    `#` comme des lignes de données et les DÉCOUPE sur les virgules. Le
+    bandeau se retrouvait éparpillé sur huit colonnes, illisible, alors
+    qu'il n'a de valeur que lu d'un trait.
+
+    Entourer la ligne de guillemets la garderait en une cellule, mais
+    elle ne commencerait plus par `#` : `read_csv(comment="#")` et
+    `read.csv(comment.char="#")` cesseraient de la sauter et
+    tenteraient de la lire comme une donnée. Le remède serait pire.
+
+    Reste à ne pas produire de virgule du tout. Le bandeau se lit alors
+    d'un trait en colonne A dans un tableur, et reste sauté par pandas
+    et R.
+    """
+    return ligne.replace(", ", " · ").replace(",", " · ")
+
+
 def _csv_entete(out, endpoint):
     """Les lignes `#` de provenance, avant la ligne de colonnes."""
     lignes = [
@@ -932,8 +972,8 @@ def _csv_entete(out, endpoint):
         + f" · stase {out.get('stase_version')}"
         + (f" ({out['stase_swhid']})" if out.get("stase_swhid") else "")
         + f" · api {out.get('api_version')}",
-        f"stations : {','.join(out['stations'])}",
-        f"fiches : {','.join(out['cards'])}",
+        f"stations : {' · '.join(out['stations'])}",
+        f"fiches : {' · '.join(out['cards'])}",
         f"période demandée : {out['period']['start'] or 'depuis le début'}"
         f" → {out['period']['end'] or 'jusqu’à la fin'}",
         f"échantillonnage : {out['sampling'] or 'fenêtre propre à chaque fiche'}",
@@ -945,9 +985,9 @@ def _csv_entete(out, endpoint):
         f"citer : {out['rights']['cite']}",
     ]
     if out.get("mk"):
-        lignes.insert(4, f"test : Mann-Kendall {out['mk']}, "
+        lignes.insert(4, f"test : Mann-Kendall {out['mk']} · "
                          f"seuil {out['level']}")
-    return "".join(f"# {ligne}\n" for ligne in lignes)
+    return "".join(f"# {_csv_sans_virgule(ligne)}\n" for ligne in lignes)
 
 
 def _abrege(valeurs, mot, maxi=3):
@@ -1176,6 +1216,11 @@ def _extract_result(request: Request, p: ExtractParams):
     Rend (résultat JSON, données par fiche), ou (ticket, None) si la
     demande a basculé en file de calcul.
     """
+    # Résolu ICI et une seule fois : la valeur effective part ensuite
+    # partout, y compris dans les paramètres gelés d'un job. Sans quoi
+    # une demande sans `start` et le job qu'elle engendre ne porteraient
+    # pas la même fenêtre.
+    p = p.model_copy(update={"start": p.start or START_DEFAUT})
     _check_sampling(p.sampling)
     prio = usage.priority_of(request)
     st, cd = _parse_lists(p.stations, p.cards, prio)
@@ -1288,6 +1333,7 @@ def _trend_result(request: Request, p: TrendParams):
     Rend soit un ticket de job (la demande dépassait les plafonds
     synchrones), soit le couple (résultat JSON, tendances par fiche).
     """
+    p = p.model_copy(update={"start": p.start or START_DEFAUT})
     _check_sampling(p.sampling)
     prio = usage.priority_of(request)
     st, cd = _parse_lists(p.stations, p.cards, prio)
