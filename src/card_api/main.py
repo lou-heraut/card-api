@@ -261,12 +261,22 @@ _D_START = ("Début de la période, AAAA-MM-JJ. Par défaut **1968-01-01**, "
 _D_END = ("Fin de la période, AAAA-MM-JJ. Par défaut, et c'est ce qu'on "
           "veut le plus souvent, le DERNIER JOUR DISPONIBLE : laisser "
           "vide pour suivre la chronique à mesure qu'elle s'allonge.")
+# Ce paramètre décide du JOUR OÙ COMMENCE L'ANNÉE de calcul, pas d'une
+# durée. Chaque fiche déclare le sien, et 72 des 226 fiches le calculent
+# sur la donnée plutôt que de le fixer : leur année démarre à une date
+# propre à chaque série, c'est-à-dire à chaque couple station-variable.
+# La formulation doit donc dire QUI varie, sans quoi « la fenêtre de la
+# fiche » laisse croire à une valeur unique par fiche. La fiche dessinée
+# (/v1/cards/{id}/figure) montre le cas de chacune.
 _D_SAMPLING = (
-    "Écrase la fenêtre annuelle des fiches. `preferred` : fenêtre fixe "
-    "déclarée par chaque fiche (reproductible, protocole MAKAHO). "
-    "`MM-JJ` (ex. `09-01`) : année hydrologique imposée. Par défaut, la "
-    "fenêtre de la fiche, adaptative par station pour les fiches "
-    "d'étiage et de crue.")
+    "Jour de départ de l'année de calcul. Par défaut, chaque fiche "
+    "applique le sien : fixe pour la plupart, mais **calculé sur la "
+    "donnée** pour 72 des 226 fiches, dont les étiages et les crues, "
+    "dont l'année démarre alors à une date propre à chaque couple "
+    "station-variable. `preferred` : impose à chaque fiche le départ "
+    "FIXE qu'elle déclare, ce qui rend les stations comparables entre "
+    "elles et reproductibles (protocole MAKAHO). `MM-JJ` (ex. `09-01`) : "
+    "impose le même départ à toutes les fiches.")
 _D_STATIONS_META = (
     "Joint sous `stations_meta` les fiches du référentiel Hub'Eau des "
     "stations demandées (libellé, longitude, latitude...). Le résultat "
@@ -943,6 +953,24 @@ def _stations_meta(st):
 # fichier. `pandas.read_csv(comment="#")` et `read.csv(comment.char="#")`
 # les sautent d'eux-mêmes, et elles survivent à l'enregistrement du
 # fichier, contrairement à un en-tête HTTP.
+def _dit_sampling(sampling):
+    """Le réglage d'échantillonnage, en clair dans un bandeau de CSV.
+
+    Ce réglage décide du JOUR OÙ COMMENCE L'ANNÉE de calcul. La phrase
+    doit dire qui varie : « fenêtre propre à chaque fiche » laissait
+    croire à une valeur unique par fiche, alors que 72 des 226 fiches
+    calculent ce départ sur la donnée, donc à une date différente par
+    couple station-variable.
+    """
+    if sampling == "preferred":
+        return ("départ fixe déclaré par chaque fiche (protocole MAKAHO)")
+    if sampling:
+        return f"année démarrant le {sampling} pour toutes les fiches"
+    return ("départ déclaré par chaque fiche, calculé sur la donnée "
+            "pour celles dont la fenêtre est adaptative "
+            "(une date par couple station-variable)")
+
+
 def _csv_sans_virgule(ligne):
     """AUCUNE virgule dans une ligne de provenance.
 
@@ -976,7 +1004,7 @@ def _csv_entete(out, endpoint):
         f"fiches : {' · '.join(out['cards'])}",
         f"période demandée : {out['period']['start'] or 'depuis le début'}"
         f" → {out['period']['end'] or 'jusqu’à la fin'}",
-        f"échantillonnage : {out['sampling'] or 'fenêtre propre à chaque fiche'}",
+        f"échantillonnage : {_dit_sampling(out['sampling'])}",
         f"source : {out['source']}",
         f"données lues le {out['data_fetched_at']}"
         f" · empreinte {out['data_fingerprint']}",
@@ -1124,7 +1152,7 @@ def _trend_figure(out, meta_par_id):
                 (f"{sens} significative" if significatif
                  else "— non significative"),
             )
-            par_station.setdefault(r.get("id"), []).append(ligne)
+            par_station.setdefault(r.get("code_station"), []).append(ligne)
             largeurs = [max(w, len(c)) for w, c in zip(largeurs, ligne)]
 
     def rangee(cellules, remplissage=" "):
@@ -1280,7 +1308,7 @@ def extract(request: Request, p: Annotated[ExtractParams, Query()]):
 def extract_csv(request: Request, p: Annotated[ExtractParams, Query()]):
     """Les mêmes données qu'`/v1/extract`, en un seul tableau.
 
-    Forme LONGUE (`id, date, variable, valeur`) et non une colonne par
+    Forme LONGUE (`code_station, date, variable, value`) et non une colonne par
     variable : deux fiches n'ont pas le même pas de temps ni les mêmes
     années, les mettre côte à côte fabriquerait des trous qui ne sont pas
     dans la donnée. `pandas.pivot` ou `tidyr::pivot_wider` remettent en
@@ -1291,13 +1319,16 @@ def extract_csv(request: Request, p: Annotated[ExtractParams, Query()]):
         return _csv_job(out)
     longues = []
     for cid, df in extracted.items():
-        colonnes = [c for c in df.columns if c not in ("id", "date")]
+        colonnes = [c for c in df.columns
+                    if c not in ("code_station", "date")]
         for col in colonnes:
-            part = df[["id", "date", col]].rename(columns={col: "valeur"})
+            part = (df[["code_station", "date", col]]
+                    .rename(columns={col: "value"}))
             part.insert(2, "variable", col)
             longues.append(part)
     table = (pd.concat(longues, ignore_index=True) if longues
-             else pd.DataFrame(columns=["id", "date", "variable", "valeur"]))
+             else pd.DataFrame(
+                 columns=["code_station", "date", "variable", "value"]))
     return _csv_response(table, out, "extract")
 
 

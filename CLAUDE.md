@@ -61,7 +61,14 @@ src/card_api/
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
                 #   bascule auto des demandes > plafonds synchrones
-  hubeau.py     # client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
+  hubeau.py     # colonne de station = `code_station`, le nom de Hub'Eau :
+                #   une colonne relayée garde le nom de sa source, pour
+                #   que la jointure au référentiel se fasse sans
+                #   traduction (règle dans docs/dev/API.md ; tout ce que
+                #   le service CALCULE est en anglais snake_case).
+                #   L'empreinte hache aussi le NOM des colonnes, d'où le
+                #   préfixe de version : renommer une colonne la change.
+                #   client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
                 #   pagination next, codes post-refonte) + cache 24 h
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After),
                 #   priority_of (X-API-Key/key=, 401 si inconnue),

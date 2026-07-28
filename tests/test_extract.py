@@ -22,7 +22,7 @@ def fake_hubeau(monkeypatch):
         rng = np.random.default_rng(abs(hash(station)) % 2**32)
         q = 10 + 8 * np.sin(2 * np.pi * (doy - 30) / 365.25) \
             + rng.lognormal(0, 0.3, len(dates))
-        return pd.DataFrame({"id": station, "date": dates, "Q": q})
+        return pd.DataFrame({"code_station": station, "date": dates, "Q": q})
     monkeypatch.setattr(hubeau, "fetch_chronicle", fake_fetch)
 
 
@@ -35,7 +35,7 @@ def test_extract_two_stations_two_cards():
     qa = body["data"]["QA"]
     assert len(qa) == 62                       # 2 stations x 31 années hydro
                                                # (échantillonnage 09-01)
-    assert {row["id"] for row in qa} == {"F700000103", "K0550010"}
+    assert {row["code_station"] for row in qa} == {"F700000103", "K0550010"}
     assert all(row["QA"] > 0 for row in qa if row["QA"] is not None)
     assert any(m["variable_en"] == "VCN10" for m in body["meta"])
 
@@ -70,7 +70,7 @@ def test_extract_orient_columns():
         "stations": "K0550010", "cards": "QA", "orient": "columns"})
     assert r.status_code == 200
     qa = r.json()["data"]["QA"]
-    assert set(qa) == {"id", "date", "QA"}
+    assert set(qa) == {"code_station", "date", "QA"}
     assert len(qa["date"]) == len(qa["QA"]) == 31
     assert client.get("/v1/extract", params={
         "stations": "K0550010", "cards": "QA", "orient": "n_importe"}).status_code == 422

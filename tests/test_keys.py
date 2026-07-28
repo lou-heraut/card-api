@@ -23,7 +23,7 @@ def fake_hubeau(monkeypatch):
         dates = pd.date_range("1990-01-01", "2019-12-31", freq="D")
         rng = np.random.default_rng(abs(hash(station)) % 2**32)
         q = 10 + rng.lognormal(0, 0.3, len(dates))
-        return pd.DataFrame({"id": station, "date": dates, "Q": q})
+        return pd.DataFrame({"code_station": station, "date": dates, "Q": q})
     monkeypatch.setattr(hubeau, "fetch_chronicle", fake_fetch)
 
 

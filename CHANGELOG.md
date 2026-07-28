@@ -300,6 +300,32 @@ des deux endroits.
 
 ### Modifié
 
+- **La colonne de station devient `code_station` (2026-07-28),** et la
+  colonne de valeurs d'`extract.csv` devient `value`. Avec la règle qui
+  les décide, écrite dans `docs/dev/API.md` : une colonne porte un nom
+  **anglais snake_case**, sauf lorsqu'elle **relaie telle quelle** une
+  donnée d'une source extérieure, auquel cas elle garde le nom de la
+  source pour qu'une jointure se fasse sans traduction.
+
+  Le code station n'est pas une valeur que le service calcule, c'est une
+  valeur que Hub'Eau donne et qu'il transporte : joindre un `trend.csv`
+  au référentiel obtenu par `stations_meta=true` s'écrit désormais
+  `pd.merge(trend, meta)`, sans `left_on`/`right_on`. `id` ne disait pas
+  l'identifiant de quoi, et `station` aurait été une métonymie : une
+  station a un libellé et des coordonnées, la colonne n'en porte que le
+  code. `valeur` était du français isolé au milieu de `date` et
+  `variable`, une inattention de la veille.
+
+  **L'empreinte des données passe en `v2`.** Elle hache aussi le NOM des
+  colonnes : une même chronique donne donc une empreinte différente
+  d'avant sans que la donnée ait bougé. Le préfixe existe exactement
+  pour ça, et il évite qu'on conclue à une révision Hub'Eau en comparant
+  une empreinte d'avant à une d'après.
+
+  **Au déploiement : vider `data/chroniques/` avant `make update`.** Les
+  fichiers de cache portent l'ancien en-tête ; ils se retéléchargent
+  seuls, rien n'est perdu.
+
 - **La colonne `H` de la tendance devient `h` (2026-07-28),** en suivant
   stase où le renommage a eu lieu. C'était le dernier reste du portage R
   au milieu de `level`, `p`, `a`, `b`, `period_start` : dans le même
@@ -313,6 +339,17 @@ des deux endroits.
   preuve que le renommage n'a rien changé au calcul.
 
 ### Corrigé
+
+- **« fenêtre propre à chaque fiche » ne voulait rien dire
+  (2026-07-28).** La phrase apparaissait dans le bandeau des CSV et,
+  sous une autre forme, dans la description du paramètre `sampling`.
+  Elle laissait croire à une valeur unique par fiche, sans dire ce qui
+  variait. Ce réglage décide en réalité du **jour où commence l'année de
+  calcul**, et **72 des 226 fiches** le calculent sur la donnée : leur
+  année démarre à une date propre à **chaque couple station-variable**.
+  La description disait en outre « pour les fiches d'étiage et de crue »,
+  alors que les pluies extrêmes et la sensibilité climatique sont aussi
+  concernées.
 
 - **La colonne `id` du catalogue était annoncée partout sans être rendue
   (2026-07-28).** La description de `cards`, celle de `/v1/cards/{id}` et

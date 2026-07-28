@@ -135,7 +135,7 @@ def test_empreinte_des_donnees_identifie_la_source():
     n = 4000
     df = pd.DataFrame({
         "date": pd.date_range("1990-01-01", periods=n, freq="D"),
-        "id": "K0550010",
+        "code_station": "K0550010",
         "Q": np.random.default_rng(0).gamma(2, 5, n)})
 
     assert hubeau.fingerprint(df) == hubeau.fingerprint(df.copy())
@@ -323,7 +323,7 @@ def test_le_csv_porte_sa_provenance():
 
     # et le fichier reste un CSV ordinaire une fois les commentaires sautés
     d = pd.read_csv(io.StringIO(r.text), comment="#")
-    assert list(d.columns) == ["id", "date", "variable", "valeur"]
+    assert list(d.columns) == ["code_station", "date", "variable", "value"]
     assert set(d["variable"]) == {"QA", "VCN10"}
 
 

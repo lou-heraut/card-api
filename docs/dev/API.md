@@ -230,13 +230,37 @@ Quatre décisions valent d'être notées :
 comme chez Hub'Eau : le navigateur enregistre un fichier nommé au lieu
 d'afficher du texte.
 
+### Le nom des colonnes (arbitré 2026-07-28)
+
+> Une colonne porte un nom **anglais snake_case**, sauf lorsqu'elle
+> **relaie telle quelle** une donnée d'une source extérieure : elle garde
+> alors le nom de la source, pour qu'une jointure se fasse sans
+> traduction.
+
+D'où `code_station` et non `station` ni `station_code` : ce code n'est
+pas une valeur que le service calcule, c'est une valeur que Hub'Eau
+donne et que le service transporte. Quelqu'un qui joint son `trend.csv`
+au référentiel obtenu par `stations_meta=true` ou par `/v1/stations`
+écrit alors `pd.merge(trend, meta)`, sans `left_on`/`right_on`. C'est le
+geste le plus fréquent, et il vaut le seul nom français du schéma.
+
+`station` seul aurait été une métonymie : une station a un libellé, des
+coordonnées, une date d'ouverture ; la colonne n'en porte que
+l'identifiant.
+
+La règle explique aussi pourquoi tout le reste est anglais
+(`period_start`, `mean_period`, `a_relative`, `value`) : ce sont des
+grandeurs que le service produit, elles n'existent nulle part ailleurs.
+Et pourquoi `ids` et `codes`, les listes prêtes à coller, restent en
+anglais : ce sont des chaînes que le service fabrique, pas des relais.
+
 ### La forme du tableau
 
 `trend.csv` est direct, une ligne par station et par variable, toutes les
 colonnes du test. **Rien n'est retiré**, contrairement à la figure : le
 CSV est le même résultat autrement écrit, intervalles de pente compris.
 
-`extract.csv` est en forme **longue** (`id, date, variable, valeur`) et
+`extract.csv` est en forme **longue** (`code_station, date, variable, value`) et
 non une colonne par variable : deux fiches n'ont ni le même pas de temps
 ni les mêmes années, les mettre côte à côte fabriquerait des trous qui ne
 sont pas dans la donnée. `pandas.pivot` et `tidyr::pivot_wider` remettent

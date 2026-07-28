@@ -29,7 +29,12 @@ import pandas as pd
 
 BASE = "https://hubeau.eaufrance.fr/api/v2/hydrometrie"
 PAGE_SIZE = 20000
-FINGERPRINT_VERSION = "v1"               # cf. fingerprint()
+# v2 (2026-07-28) : la colonne de station est passée de `id` à
+# `code_station`, et l'empreinte hache AUSSI le nom des colonnes.
+# Une même chronique donne donc une empreinte différente d'avant,
+# sans que la donnée ait bougé : le préfixe est là pour que
+# personne ne conclue à une révision Hub'Eau en comparant les deux.
+FINGERPRINT_VERSION = "v2"               # cf. fingerprint()
 CACHE_TTL = 24 * 3600                    # les séries validées bougent peu
 _STATION_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
 
@@ -157,7 +162,8 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
             and time.time() - cache.stat().st_mtime < CACHE_TTL:
         # dtype id : un code tout-numérique relu en int64 ne serait plus
         # détecté comme identifiant de série (détection par type)
-        return pd.read_csv(cache, parse_dates=["date"], dtype={"id": str})
+        return pd.read_csv(cache, parse_dates=["date"],
+                           dtype={"code_station": str})
 
     rows = _fetch_all(f"{BASE}/obs_elab", {
         "code_entite": station,
@@ -173,7 +179,7 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
             "/v1/stations"
         )
     df = pd.DataFrame({
-        "id": station,
+        "code_station": station,
         "date": pd.to_datetime([r["date_obs_elab"] for r in rows]),
         "Q": [r["resultat_obs_elab"] / 1000.0        # L/s -> m3/s
               if r["resultat_obs_elab"] is not None else float("nan")
