@@ -185,6 +185,17 @@ ouvert dans `docs/dev/CHANTIERS.md`. Ces deux fichiers font foi : ne pas
 les paraphraser ici, cette section ne doit pas regonfler à chaque
 chantier.
 
+**Passe de vérification du 2026-07-28, avant diffusion** : les trois
+dépôts sont verts (stase 131, card 126, card-api 71 tests ; trois lints
+propres, ruff épinglé partout). Les deux gestes à faire au prochain
+`make update` : ajouter `CARD_API_PUBLIC_URL` au `.env` de la VM, et
+vider `data/chroniques/` (les caches portent l'ancien en-tête `id`).
+
+À partir de la diffusion des premières clés, les numéros de version
+redeviennent des engagements : `FINGERPRINT_VERSION` s'incrémente à tout
+changement du calcul d'empreinte, et un renommage de colonne devient une
+rupture d'API.
+
 Deux points à ne pas reperdre :
 - le durcissement des clés du 2026-07-18 n'est **pas rétroactif** : au
   prochain déploiement, recréer les clés (`make key`), et les jobs

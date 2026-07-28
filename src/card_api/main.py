@@ -262,21 +262,25 @@ _D_END = ("Fin de la période, AAAA-MM-JJ. Par défaut, et c'est ce qu'on "
           "veut le plus souvent, le DERNIER JOUR DISPONIBLE : laisser "
           "vide pour suivre la chronique à mesure qu'elle s'allonge.")
 # Ce paramètre décide du JOUR OÙ COMMENCE L'ANNÉE de calcul, pas d'une
-# durée. Chaque fiche déclare le sien, et 72 des 226 fiches le calculent
-# sur la donnée plutôt que de le fixer : leur année démarre à une date
-# propre à chaque série, c'est-à-dire à chaque couple station-variable.
-# La formulation doit donc dire QUI varie, sans quoi « la fenêtre de la
-# fiche » laisse croire à une valeur unique par fiche. La fiche dessinée
-# (/v1/cards/{id}/figure) montre le cas de chacune.
+# durée. Chaque fiche déclare le sien, et près d'un tiers du corpus le
+# calcule sur la donnée plutôt que de le fixer : l'année démarre alors à
+# une date propre à chaque série, c'est-à-dire à chaque couple
+# station-variable. La formulation doit dire QUI varie, sans quoi « la
+# fenêtre de la fiche » laisse croire à une valeur unique par fiche.
+#
+# Aucun DÉCOMPTE dans la description : le corpus grandit, la phrase
+# resterait. C'est la fiche dessinée (/v1/cards/{id}/figure) qui dit le
+# cas de chacune, et elle, elle est calculée.
 _D_SAMPLING = (
     "Jour de départ de l'année de calcul. Par défaut, chaque fiche "
     "applique le sien : fixe pour la plupart, mais **calculé sur la "
-    "donnée** pour 72 des 226 fiches, dont les étiages et les crues, "
-    "dont l'année démarre alors à une date propre à chaque couple "
-    "station-variable. `preferred` : impose à chaque fiche le départ "
-    "FIXE qu'elle déclare, ce qui rend les stations comparables entre "
-    "elles et reproductibles (protocole MAKAHO). `MM-JJ` (ex. `09-01`) : "
-    "impose le même départ à toutes les fiches.")
+    "donnée** pour d'autres, dont les étiages et les crues, dont "
+    "l'année démarre alors à une date propre à chaque couple "
+    "station-variable ; la fiche dessinée le dit pour chacune. "
+    "`preferred` : impose à chaque fiche le départ FIXE qu'elle "
+    "déclare, ce qui rend les stations comparables entre elles et "
+    "reproductibles (protocole MAKAHO). `MM-JJ` (ex. `09-01`) : impose "
+    "le même départ à toutes les fiches.")
 _D_STATIONS_META = (
     "Joint sous `stations_meta` les fiches du référentiel Hub'Eau des "
     "stations demandées (libellé, longitude, latitude...). Le résultat "
@@ -570,6 +574,36 @@ app.add_middleware(
 
 
 
+def _endpoints():
+    """La liste des endpoints de /v1, DÉRIVÉE des routes déclarées.
+
+    Elle était recopiée à la main, et elle avait menti : trois endpoints
+    ajoutés le 2026-07-28 (`extract.csv`, `trend.csv`, `trend/figure`)
+    n'y figuraient pas, si bien que la porte d'entrée du service en
+    cachait une partie. Même leçon que `versions()` : un point de sortie
+    recopié à la main finit toujours par mentir, le seul remède est de ne
+    pas le recopier.
+
+    La clé est le nom de la fonction qui sert la route : il est déjà
+    parlant (`card_figure`, `trend_csv`) et il ne peut pas diverger du
+    chemin puisque les deux viennent du même objet.
+    """
+    routes = {}
+    for r in app.routes:
+        chemin = getattr(r, "path", "")
+        if chemin.startswith("/v1") and "GET" in getattr(r, "methods", ()):
+            routes[r.name] = chemin
+    for r in app.routes:                       # le POST de dépôt de job
+        if getattr(r, "path", "") == "/v1/jobs" and \
+                "POST" in getattr(r, "methods", ()):
+            routes["job_submit"] = "/v1/jobs"
+    # Hors /v1 : le contrat et sa page. Ils n'ont pas de version parce
+    # qu'ils décrivent TOUTES les versions.
+    routes["openapi"] = str(app.openapi_url)
+    routes["docs"] = "/docs"
+    return routes
+
+
 # ── La racine : un panneau indicateur, pas une page d'accueil ─────────
 #
 # `/` rendait 404, ce qui est correct mais désobligeant : quelqu'un qui
@@ -628,14 +662,7 @@ def root():
             "hubeau": {"role": "fournit les débits observés",
                        "url": "https://hubeau.eaufrance.fr/"},
         },
-        "endpoints": {
-            "cards": "/v1/cards", "card_detail": "/v1/cards/{id}",
-            "card_figure": "/v1/cards/{id}/figure",
-            "vocabulary": "/v1/vocabulary",
-            "stations": "/v1/stations", "extract": "/v1/extract",
-            "trend": "/v1/trend", "jobs": "/v1/jobs", "health": "/v1/health",
-            "openapi": "/openapi.json", "docs": "/docs",
-        },
+        "endpoints": _endpoints(),
         "reuse": "API pour l'usage ponctuel ; la bibliothèque Python card "
                  "pour le gros volume et l'intégration ; citer une fiche par "
                  "son swhid (présent dans les métadonnées) pour reproduire.",
@@ -696,8 +723,8 @@ def cards(
                          search=search)
     rows = clean(df.head(limit).to_dict(orient="records"))
     # L'identifiant d'une fiche est le NOM DE SON FICHIER, pas sa
-    # variable. Les deux coïncident pour 129 fiches sur 472 et diffèrent
-    # pour les 343 autres : `ETPMA_month.yaml` produit `ETPMA_jan` à
+    # variable. Les deux coïncident pour une minorité de fiches et
+    # diffèrent pour la majorité : `ETPMA_month.yaml` produit `ETPMA_jan` à
     # `ETPMA_dec`, et c'est `ETPMA_month` qu'attendent /v1/cards/{id},
     # /v1/extract et /v1/trend. Cette colonne était annoncée partout
     # (« colonne `id` de /v1/cards ») sans jamais être rendue : on
@@ -958,9 +985,9 @@ def _dit_sampling(sampling):
 
     Ce réglage décide du JOUR OÙ COMMENCE L'ANNÉE de calcul. La phrase
     doit dire qui varie : « fenêtre propre à chaque fiche » laissait
-    croire à une valeur unique par fiche, alors que 72 des 226 fiches
-    calculent ce départ sur la donnée, donc à une date différente par
-    couple station-variable.
+    croire à une valeur unique par fiche, alors qu'une bonne part du
+    corpus calcule ce départ sur la donnée, donc à une date différente
+    par couple station-variable.
     """
     if sampling == "preferred":
         return ("départ fixe déclaré par chaque fiche (protocole MAKAHO)")

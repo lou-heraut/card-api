@@ -398,3 +398,30 @@ def test_la_fenetre_par_defaut_demarre_en_1968():
                                         "cards": "QA",
                                         "start": "1990-01-01"}).json()
     assert j["period"]["start"] == "1990-01-01"
+
+
+def test_la_racine_v1_ne_cache_aucun_endpoint():
+    """Elle était recopiée à la main et avait menti : trois endpoints
+    ajoutés le 2026-07-28 n'y figuraient pas, si bien que la porte
+    d'entrée du service en cachait une partie. Elle est maintenant
+    dérivée des routes, et ce test tient la promesse."""
+    from card_api.main import app
+
+    annonces = set(client.get("/v1").json()["endpoints"].values())
+    reels = {p for p in app.openapi()["paths"] if p.startswith("/v1")}
+    assert reels <= annonces, sorted(reels - annonces)
+
+
+def test_les_descriptions_ne_figent_pas_la_taille_du_corpus():
+    """Un nombre de fiches écrit dans une description périme sans bruit :
+    le corpus grandit, la phrase reste. Les descriptions disent donc la
+    règle, pas le décompte."""
+    import re
+
+    spec = client.get("/openapi.json").json()
+    textes = [q.get("description", "")
+              for op in spec["paths"].values()
+              for m in op.values()
+              for q in m.get("parameters", [])]
+    for t in textes:
+        assert not re.search(r"\b\d{2,4} (des|sur) \d{2,4}\b", t), t

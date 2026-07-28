@@ -4,64 +4,61 @@
 > en sort et devient une entrée de `CHANGELOG.md`, à la racine du dépôt,
 > qui renvoie au document expliquant le détail.
 
-# CHANTIERS : pistes ouvertes du service (mise à jour 2026-07-24)
+# CHANTIERS : pistes ouvertes du service (mise à jour 2026-07-28)
 
-## Thème de `/docs` : reprendre composant par composant
+## Thème de `/docs` : quasiment refermé
 
 **Où on en est.** Un premier thème écrit à la main a échoué (recouvrement
 partiel du CSS de Swagger). Le second, livré le 2026-07-24, est généré
-depuis le CSS réel de Swagger : il tient la **gamme et la typographie**,
-vérifiées à la capture d'écran, relevé de pixels à l'appui. Fabrication
-et façon de vérifier : `THEME_DOCS.md`.
+depuis le CSS réel de Swagger et tient la gamme et la typographie. Le
+passage **composant par composant**, qui était le vrai reste à faire, a
+été mené les 2026-07-27 et 2026-07-28 : en-tête, badges, corps déplié,
+tableaux, boutons, petits écrans, logo et favicon. Fabrication et façon
+de vérifier : `THEME_DOCS.md`.
 
-**Ce qui n'est pas fait**, et c'est le vrai reste à faire : le passage
-**composant par composant** contre la maquette. Le thème actuel s'est
-arrêté à la peau (couleurs, fontes, gouttière) sans reprendre la forme
-de chaque élément. D'où la liste de ratés ci-dessous.
+Ce chantier n'est donc plus une reprise de fond mais une **liste courte
+de finitions**, ci-dessous.
 
 Maquette de référence, à garder ouverte à côté de la page :
 https://claude.ai/code/artifact/05776a99-5691-442b-87a3-b3a46582fea1
 
-**Retours de l'utilisateur, 2026-07-24, à traiter un par un :**
+**Retours de l'utilisateur du 2026-07-24 : les quatre sont traités**
+(2026-07-27 et 2026-07-28, détail dans `CHANGELOG.md`). Pastilles de
+version ramenées à un seul cadre ; en-tête réduit à un paragraphe de
+prose suivi de deux lignes de liens, licence et contact compris ; badges
+de méthode réduits, chevrons supprimés, remplacés par le `summary` de
+l'opération aligné à droite ; corps déplié repris (Execute à la taille
+d'un bouton, tableau de paramètres, filet d'onglet retiré sous
+« Parameters », blocs de code et boutons de copie).
 
-1. **Pastilles de version** à côté du titre : contour et fonte à revoir.
-2. **En-tête.** La description doit être *simple et sans lien*, comme
-   dans la maquette, et les liens passent **dessous**, en ligne. Ajouter
-   par rapport à la maquette un lien vers le paquet `card`. Attention :
-   ces liens viennent aujourd'hui du champ `description` de l'OpenAPI
-   (donc du code, pas du CSS) : c'est `main.py` qu'il faut reprendre,
-   pas seulement la feuille de style.
-3. **Boîtes d'opération.** Le badge de méthode doit être **plus petit et
-   mieux dessiné**, comme dans la maquette. Surtout : **pas de chevron**,
-   mais **un texte qui dit ce que contient la boîte** (dans la maquette,
-   la description courte alignée à droite) : jugé nettement meilleur.
-   L'état sélectionné/actif de la boîte ressort en blanc, ce qui est
-   perturbant.
-4. **Corps déplié : rien n'est repris.** Bouton Execute, tableau de
-   paramètres, rendu de la sortie. Et un artefact à supprimer : une ligne
-   horizontale d'onglet qui traîne sous le mot « Parameters ».
+**Ce qui reste sur le thème**, et c'est peu :
 
-**La question posée, et la réponse honnête.** Non, ce n'est pas un
-exercice exotique : tout ce qui est listé ci-dessus est atteignable en
-CSS sur Swagger, sauf le point 2 qui est du contenu OpenAPI. Le badge,
-le chevron remplacé par du texte, l'onglet « Parameters », le bouton
-Execute, le tableau : ce sont des composants identifiables, leurs classes
-se lisent dans le CSS de Swagger (`swagger-ui.css`) et dans le DOM rendu
-(`chromium --dump-dom`). Rien n'est caché. Ce qui manque, c'est le
-travail élément par élément, chacun avec sa règle et sa capture d'écran
-de contrôle. Le générateur a réglé la couverture des couleurs, il ne
-remplace pas ce passage-là.
+- **Le bouton « Download file »** : l'utilisateur le reprend lui-même
+  (2026-07-28). Ne pas y toucher sans lui.
+- **La fenêtre d'autorisation** (clic sur « Authorize ») n'a **jamais été
+  regardée**. Le calque engendré couvre `.dialog-ux`, donc elle doit être
+  sombre, mais c'est une déduction et non une observation : la capture
+  headless ne clique pas. À vérifier d'un coup d'œil.
+- **Les deux boutons posés sur un bloc de code** se calent par un
+  `right:85px` en dur sur « Copier », valeur choisie pour la largeur de
+  « Télécharger ». Toute retouche de l'un demande de revérifier l'autre.
 
-Deux voies, à trancher au début de la reprise :
+**La question « Swagger ou page maison » est tranchée par les faits.**
+Elle restait ouverte en juillet ; le passage composant par composant a
+été fait sur Swagger, en CSS seul, et il a suffi. On garde donc
+l'exécution des requêtes, la génération depuis l'OpenAPI et le
+deep-linking, en acceptant de ne pas être au pixel près sur une mise en
+page qui appartient à Swagger. Une page maison demanderait de
+réimplémenter le « try it out » entier pour ce seul gain : à ne rouvrir
+que si une contrainte nouvelle l'impose.
 
-1. **Continuer sur Swagger**, composant par composant. On garde
-   l'exécution des requêtes, la génération depuis l'OpenAPI, le
-   deep-linking. On accepte de ne jamais être au pixel près sur la mise
-   en page, qui appartient à Swagger.
-2. **Page de doc maison**, rendue depuis `/openapi.json`. Rendu exactement
-   conforme à la maquette, mais il faut réimplémenter le « try it out »
-   (formulaire, appel, affichage de la réponse, curl) que Swagger donne
-   gratuitement.
+**La règle qui a tenu tout du long**, et qu'il faut garder : *rien qui ne
+soit une règle CSS ou une chaîne de caractères.* Aucune balise injectée
+dans le HTML de Swagger, aucun greffon accroché à ses composants
+internes. Le logo et la favicon eux-mêmes passent par un pseudo-élément
+et une URL `data:`. Une règle qui cesse de s'appliquer après une montée
+de version laisse la page reprendre son apparence d'origine ; un greffon
+casse.
 
 **Outillage déjà en place pour reprendre vite** (détail dans
 `THEME_DOCS.md`) : `python scripts/build_theme.py` reconstruit le calque ;
@@ -70,6 +67,21 @@ sans rien reconstruire ; la boucle de
 vérification est une capture `chromium --headless --screenshot`, à faire
 **page dépliée et requête exécutée**, sans quoi on ne voit rien des
 défauts réels.
+
+## À surveiller : deux nombres figés
+
+Petits, sans urgence, mais ils périment en silence.
+
+- **`CARD_API_PRIORITY_CARDS=226`** (`.env.example`, `compose.yaml`,
+  `jobs.py`) vaut la taille du corpus au jour où il a été écrit. L'intention
+  est « pas de plafond pour un porteur de clé » ; le jour où card passe à
+  240 fiches, ce plafond redevient un plafond, sans que personne ne l'ait
+  décidé. Le faire dériver du corpus, ou documenter que 0 vaut « sans
+  limite ».
+- **Les décomptes de fiches dans les textes.** Retirés des descriptions
+  d'API le 2026-07-28 (un test le garantit désormais), mais il en reste
+  dans les entrées de `CHANGELOG.md`. Là c'est justifié : une entrée
+  datée décrit un état à une date, elle n'a pas à suivre le corpus.
 
 ## Rendre le catalogue lisible, pas seulement exact
 
@@ -95,10 +107,18 @@ qu'en isolé, puisque la matière vient des fiches.
 
 ## Intégration continue, et faut-il déployer depuis le CI
 
-Ouvert le 2026-07-22. Le dépôt n'a aucun workflow : ses 41 tests ne
+Ouvert le 2026-07-22, **toujours ouvert et devenu le principal écart
+entre les trois dépôts**. card-api n'a aucun workflow : ses 71 tests ne
 tournent que sur la machine de l'utilisateur, alors que card et stase
 lancent pytest et ruff à chaque push. Un test qui ne tourne que chez soi
 finit par ne plus tourner du tout.
+
+Le 2026-07-28 a montré que le sujet n'est pas théorique : le lint de
+stase était **rouge depuis une sortie de ruff**, sans qu'une ligne de
+code ait bougé, parce que le workflow installait `ruff` sans version. Les
+trois dépôts épinglent désormais la version et déclarent leur jeu de
+règles dans `pyproject.toml` ; un workflow pour card-api reprendrait
+celui de card presque tel quel, en installant `.[dev]`.
 
 Deux niveaux à ne pas confondre, et l'utilisateur ne veut pas du second :
 

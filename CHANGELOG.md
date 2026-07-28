@@ -343,6 +343,29 @@ des deux endroits.
 
 ### Corrigé
 
+- **`/v1` cachait une partie du service (2026-07-28).** Sa liste
+  `endpoints` était recopiée à la main : les trois endpoints ajoutés le
+  jour même (`extract.csv`, `trend.csv`, `trend/figure`) n'y figuraient
+  pas, ni la racine `/`. La porte d'entrée annonçait donc moins que ce
+  que le service offre. Elle est désormais **dérivée des routes
+  déclarées**, comme `versions()` l'est des métadonnées, et un test
+  vérifie qu'aucune route `/v1` n'en est absente. Même leçon que partout
+  ailleurs : un point de sortie recopié à la main finit par mentir.
+
+- **Le service annonçait `0.1.0` pour les trois paquets (2026-07-28)**
+  alors que les dépôts étaient en 0.5.0 et 0.2.0. `versions()` lit les
+  métadonnées de l'**installation**, et une installation éditable faite
+  avant un changement de version garde l'ancien numéro : chaque réponse,
+  chaque bandeau de CSV et la pastille de `/docs` répétaient le mauvais.
+  Le cas est local (l'image Docker est reconstruite), mais un résultat
+  qui se cite avec un mauvais numéro est exactement ce que la discipline
+  de versions doit empêcher : un test le refuse désormais.
+
+- **Des décomptes de fiches figés dans les descriptions d'API
+  (2026-07-28) :** « 72 des 226 fiches ». Le corpus grandit, la phrase
+  serait restée. Les descriptions disent la règle, pas le décompte, et un
+  test refuse le motif.
+
 - **« fenêtre propre à chaque fiche » ne voulait rien dire
   (2026-07-28).** La phrase apparaissait dans le bandeau des CSV et,
   sous une autre forme, dans la description du paramètre `sampling`.
