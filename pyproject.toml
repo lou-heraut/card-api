@@ -18,8 +18,15 @@ dependencies = [
     # (cf. Dockerfile) tant qu'ils ne sont pas sur PyPI.
 ]
 
+# La version de ruff est ÉPINGLÉE ICI, et nulle part ailleurs. Un lint
+# n'est utile que s'il rend le même verdict partout : `ruff check` sans
+# version fixée applique les défauts de la version installée, qui
+# s'élargissent au fil des sorties, d'où le classique « ça passe chez moi
+# et ça casse ailleurs ». Poser le numéro dans un fichier de CI en plus
+# du pyproject recrée le même écart d'un cran plus loin : un seul endroit
+# le porte, et tout le monde installe `.[dev]`.
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "ruff==0.15.22"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -27,4 +34,18 @@ where = ["src"]
 # Le thème de /docs est servi depuis le paquet : sans ceci, l'image
 # Docker part sans sa feuille de style et la route rend un 500.
 [tool.setuptools.package-data]
-card_api = ["static/*.css"]
+card_api = ["static/*.css", "static/*.svg"]
+
+# Jeu de règles DÉCLARÉ, pas hérité. Épingler la version ne suffit pas :
+# sans cette section, `ruff check` applique les défauts de la version
+# installée, donc une montée de version changerait le verdict sans que
+# rien n'ait bougé dans le code. Les deux ensemble (version épinglée
+# ci-dessus, règles déclarées ici) rendent le lint reproductible.
+# Élargir ce jeu (imports triés, etc.) est une décision à part.
+# Même jeu que card et stase : un contributeur qui passe d'un dépôt à
+# l'autre ne change pas d'habitudes.
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

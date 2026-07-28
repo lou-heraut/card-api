@@ -17,7 +17,17 @@ Puis :
 .python_env/bin/uvicorn card_api.main:app --reload   # http://127.0.0.1:8000/docs
 .python_env/bin/python -m pytest                     # suite hors-ligne (Hub'Eau simulé)
 CARD_API_LIVE=1 .python_env/bin/python -m pytest tests/test_live_hubeau.py
+make lint                                            # ruff, cf. ci-dessous
 ```
+
+`make lint` passe par le ruff du venv, installé par `.[dev]` à une
+version épinglée dans `pyproject.toml`, avec un jeu de règles déclaré
+dans le même fichier. Les deux comptent : sans la version fixée, une
+sortie de ruff élargit les défauts et le lint casse sans qu'une ligne de
+code ait bougé ; sans les règles déclarées, épingler ne fige que la
+moitié du comportement. Un `ruff` attrapé ailleurs sur la machine ne
+rend donc pas forcément le même verdict, d'où le chemin explicite dans
+la cible.
 
 ## Déploiement (VM)
 

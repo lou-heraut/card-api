@@ -22,6 +22,34 @@ Trois fichiers, un seul rôle chacun :
 Les deux feuilles sont servies dans cet ordre, l'identité en dernier,
 donc c'est elle qui tranche.
 
+## Deux marques, et pourquoi elles ne sont pas des balises
+
+Le logo INRAE et l'émoji d'onglet auraient pu s'obtenir en injectant du
+HTML dans la page de FastAPI. Ils ne le sont pas, et c'est la même règle
+que pour le reste du thème : **rien qui ne soit une règle CSS ou une
+chaîne de caractères.**
+
+| Marque | Comment | Où |
+|---|---|---|
+| logo INRAE | pseudo-élément `::after` du titre, en image de fond | `theme-identity.css`, section 3 |
+| émoji `🎴` de l'onglet | `swagger_favicon_url`, en URL `data:` | `main.py`, `_FAVICON` |
+
+Le logo est un SVG blanc servi par sa propre route (`/static/inrae.svg`)
+et appelé en URL relative depuis la feuille, qui est servie depuis le
+même dossier. Le titre est passé en `flex` : le logo pousse à droite par
+`margin-left:auto` sur grand écran, et repasse au-dessus du titre sous
+640 px (`order:-1` et `flex-basis:100%`, cf. section 12). Faire basculer
+le conteneur en `column-reverse` aurait été plus court, mais aurait aussi
+retourné les pastilles de version, qui doivent suivre le titre.
+
+La favicon est un SVG d'une ligne portant l'émoji, en URL `data:`
+échappée : aucun fichier à servir, aucun appel réseau. Sans elle, la page
+arbore celle de FastAPI.
+
+Si l'une ou l'autre cesse un jour de s'appliquer, la page rend un titre
+sans logo et un onglet sans icône. Elle ne casse pas : c'est toute la
+différence avec un greffon accroché aux noms de composants internes.
+
 ## Retoucher l'apparence
 
 **Éditer `src/card_api/static/theme-identity.css`, puis recharger la

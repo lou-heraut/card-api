@@ -154,6 +154,19 @@ def test_empreinte_des_donnees_identifie_la_source():
             == hubeau.combine_fingerprints({"S2": b, "S1": a}))
 
 
+def test_la_racine_renvoie_par_relation_de_lien():
+    """`/` est un panneau indicateur, dans la forme des « landing pages »
+    d'OGC API : ce qui compte n'est pas l'ordre des entrées mais leur
+    RELATION, qu'un client générique sait suivre sans connaître le
+    service. Elle ne redit pas ce que /v1 dit déjà."""
+    r = client.get("/")
+    assert r.status_code == 200
+    liens = {lien["rel"]: lien["href"] for lien in r.json()["links"]}
+    assert liens["service-desc"].endswith("/openapi.json")
+    assert liens["service-doc"].endswith("/docs")
+    assert liens["latest-version"].endswith("/v1")
+
+
 def test_racine_situe_le_service_et_ses_droits():
     """Point d'entrée : un client doit trouver ce qu'est le service, ce
     qu'il relie, et sous quels droits réutiliser le résultat."""

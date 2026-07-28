@@ -24,6 +24,51 @@ des deux endroits.
 
 ### Ajouté
 
+- **`GET /` cesse de rendre 404 (2026-07-28).** Taper le nom de domaine
+  dans une barre d'adresse renvoyait `{"detail": "Not Found"}` : correct,
+  mais désobligeant pour quelqu'un qui n'a rien fait de mal. La racine
+  rend désormais un **panneau indicateur** dans la forme des « landing
+  pages » d'OGC API : un titre, une phrase, et un tableau `links` où
+  chaque entrée porte sa **relation** (`service-desc` pour le contrat,
+  `service-doc` pour la documentation, `latest-version` pour `/v1`). Un
+  client générique sait suivre ces relations sans rien connaître du
+  service, ce qu'une redirection vers `/docs` ne permettrait pas. Le
+  détail reste dans `/v1` : la racine renvoie, elle ne redit pas. Le
+  dessin n'est pas choisi au hasard, la file de calcul suit déjà OGC API
+  Processes.
+
+- **Le lint est reproductible, ou il ne sert à rien (2026-07-28).** Le
+  service n'avait ni ruff dans ses dépendances de développement, ni jeu
+  de règles déclaré : `ruff check` appliquait les défauts de la version
+  attrapée sur la machine, qui s'élargissent au fil des sorties. C'est
+  le mécanisme exact des échecs de CI à répétition rencontrés sur card.
+  Deux verrous, tous deux nécessaires : la **version est épinglée** dans
+  `pyproject.toml` (`[dev]`), le **jeu de règles est déclaré** dans le
+  même fichier (`E4`, `E7`, `E9`, `F`, comme card et stase). Un seul
+  endroit les porte : recopier le numéro dans un fichier de CI, comme le
+  fait card, recrée l'écart d'un cran plus loin. `make lint` passe par
+  le ruff du venv, jamais par celui du PATH.
+
+- **Une identité visuelle sur `/docs` (2026-07-28) :** le logo INRAE
+  aligné à droite du titre, qui repasse au-dessus sous 640 px, et
+  l'émoji 🎴 dans l'onglet du navigateur, là où figurait celui de
+  FastAPI. Aucun des deux n'est une balise injectée dans la page :
+  le logo est un pseudo-élément du titre en image de fond, la favicon
+  une URL `data:`. Même règle que le reste du thème, et même conséquence :
+  si l'une cesse un jour de s'appliquer, la page rend un titre sans logo,
+  elle ne casse pas. Détail dans `docs/dev/THEME_DOCS.md`.
+
+- **L'en-tête de `/docs` redevient lisible (2026-07-28).** La description
+  charriait quatre liens au fil des phrases et une phrase sur la
+  provenance des réponses : on ne savait plus si on lisait un texte ou un
+  sommaire. Elle est maintenant de la prose (ce que fait le service, pour
+  qui, par où commencer), les liens sont regroupés en une ligne
+  « Ressources » à la fin, et la mécanique interne (commit, SWHID,
+  droits) est retirée : ces champs voyagent dans chaque réponse, où ils
+  servent. `summary` d'OpenAPI 3.1 a été essayé puis retiré le même
+  jour : Swagger le rend juste au-dessus de la description, où il redit
+  sa première phrase.
+
 - **Le contrat OpenAPI pré-mâche le formulaire (2026-07-27).** Le travail
   a porté sur `openapi.json`, pas sur l'habillage : ce qu'on y écrit sert
   à la fois la personne qui remplit un champ dans `/docs` et la machine

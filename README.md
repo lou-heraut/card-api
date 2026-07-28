@@ -43,6 +43,7 @@ les droits qui vont avec.
 
 | Endpoint | Rôle |
 |---|---|
+| `GET /` | racine : liens typés vers le contrat, la doc et la version courante |
 | `GET /v1` | point d'entrée : ce qu'est le service, ce qu'il relie, droits |
 | `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes |
 | `GET /v1/cards/{id}` | détail d'une fiche (fr/en) et liens vers sa définition |

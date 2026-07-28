@@ -21,6 +21,7 @@ import os
 import pathlib
 import re
 import shutil
+import urllib.parse
 from typing import Literal
 
 import httpx
@@ -302,19 +303,35 @@ _TAGS = [
 app = FastAPI(
     title="card-api",
     version=API_VERSION,
+    # Ce que porte l'en-tête de /docs, et dans quel ordre Swagger le
+    # rend : titre, `summary`, `description`, `termsOfService`, puis
+    # contact et licence. `summary` (une phrase, OpenAPI 3.1) est laissé
+    # VIDE : essayé, il s'affiche juste au-dessus de la description et
+    # redit la première phrase de celle-ci. Deux résumés l'un sur
+    # l'autre, ce n'est pas un en-tête plus court, c'en est un plus long.
+    #
+    # La DESCRIPTION reste de la prose : ce que fait le service, pour qui,
+    # par où commencer. Pas de lien au fil des phrases, ils cassent la
+    # lecture et on ne sait plus si on lit un texte ou un sommaire ; ils
+    # sont regroupés en fin de bloc. Rien non plus sur la mécanique
+    # interne (provenance, SWHID, droits) : ces champs voyagent dans
+    # chaque réponse, où ils servent, et le README les explique. Un
+    # en-tête n'est pas un résumé du projet, c'est ce qu'il faut savoir
+    # avant de cliquer sur une opération.
     description=(
         "Variables hydroclimatiques prêtes à l'emploi, calculées sur les "
         "débits Hub'Eau, avec diagnostic de tendance. Façade du projet "
-        "CARD : les fiches [card](https://github.com/lou-heraut/card) "
-        "définissent les variables, le moteur "
-        "[stase](https://github.com/lou-heraut/stase) les calcule, "
-        "[Hub'Eau](https://hubeau.eaufrance.fr/) fournit les observations. "
-        "Service public de recherche (INRAE, UR RiverLy), accès ouvert. "
-        "Chaque réponse porte sa provenance (commit et SWHID de card et "
-        "stase, version de chaque fiche) et ses droits. Point d'entrée : "
-        "`GET /v1`."
+        "CARD : les fiches définissent les variables, le moteur stase "
+        "les calcule, Hub'Eau fournit les observations.\n\n"
+        "Service public de recherche (INRAE, UR RiverLy). Accès ouvert, "
+        "sans inscription ni clé. Point d'entrée : `GET /v1`.\n\n"
+        "**Ressources** : "
+        "[fiches card](https://github.com/lou-heraut/card) · "
+        "[moteur stase](https://github.com/lou-heraut/stase) · "
+        "[Hub'Eau](https://hubeau.eaufrance.fr/) · "
+        "[dépôt du service](https://github.com/lou-heraut/card-api)"
     ),
-    contact={"name": "Louis Héraut (INRAE, UR RiverLy) : dépôt GitHub du service",
+    contact={"name": "Louis Héraut (INRAE, UR RiverLy)",
              "url": "https://github.com/lou-heraut/card-api"},
     license_info={"name": "GPL-3.0-or-later",
                   "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
@@ -391,11 +408,34 @@ def theme_css(sheet: str) -> _RawResponse:
                         headers={"Cache-Control": "public, max-age=3600"})
 
 
+# Logo INRAE, appelé par le calque d'identité en image de fond (donc pas
+# de balise injectée dans le HTML de Swagger : cf. la règle du thème,
+# rien qui ne soit une règle CSS ou une chaîne de caractères). Route
+# nommée en dur plutôt que paramétrée : un seul fichier, pas de chemin à
+# valider.
+@app.get("/static/inrae.svg", include_in_schema=False)
+def theme_logo() -> _RawResponse:
+    return _RawResponse((_STATIC / "inrae.svg").read_bytes(),
+                        media_type="image/svg+xml",
+                        headers={"Cache-Control": "public, max-age=3600"})
+
+
+# Favicon : un SVG d'une ligne portant l'émoji, en URL `data:`. Aucun
+# fichier à servir, aucun appel réseau, et l'onglet cesse d'afficher
+# celui de FastAPI, qui n'est pas le nôtre. `quote` est indispensable :
+# une URL `data:` non échappée casse sur le `#` d'une couleur comme sur
+# certains caractères non ASCII.
+_FAVICON = "data:image/svg+xml," + urllib.parse.quote(
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+    "<text y='26' font-size='28'>\N{FLOWER PLAYING CARDS}</text></svg>")
+
+
 @app.get("/docs", include_in_schema=False)
 def swagger_docs(request: Request) -> HTMLResponse:
     page = get_swagger_ui_html(
         openapi_url=str(request.scope.get("root_path", "")) + app.openapi_url,
         title=f"{app.title} : documentation interactive",
+        swagger_favicon_url=_FAVICON,
         swagger_ui_parameters=app.swagger_ui_parameters,
     ).body.decode()
     links = "\n".join(
@@ -411,6 +451,47 @@ app.add_middleware(
 )
 
 
+
+
+# ── La racine : un panneau indicateur, pas une page d'accueil ─────────
+#
+# `/` rendait 404, ce qui est correct mais désobligeant : quelqu'un qui
+# tape le nom de domaine dans une barre d'adresse n'a rien fait de mal.
+#
+# La forme est celle de la « landing page » d'OGC API (Common, et donc
+# Processes, dont la file de calcul suit déjà le dessin) : un titre, une
+# phrase, et un tableau `links` où chaque entrée porte sa RELATION.
+# `service-desc` désigne le contrat lisible par une machine,
+# `service-doc` la page lisible par un humain, `latest-version` la
+# version courante de l'API. Un client générique sait suivre ces
+# relations sans rien connaître de card-api ; c'est tout l'intérêt, et
+# c'est ce qu'une redirection vers /docs ne donnerait pas.
+#
+# Ce qui n'est PAS ici : le détail du service, qui vit dans /v1 et n'a
+# pas à être maintenu à deux endroits. La racine ne fait que renvoyer.
+@app.get("/", tags=["service"], summary="Racine : où aller ensuite")
+def landing(request: Request):
+    """Panneau indicateur : où trouver le contrat, la documentation et la
+    version courante de l'API. Le détail du service est sous `/v1`."""
+    base = str(request.scope.get("root_path", ""))
+    return {
+        "title": "card-api",
+        "description": ("Variables hydroclimatiques (fiches CARD) sur les "
+                        "débits Hub'Eau, avec diagnostic de tendance."),
+        "links": [
+            {"rel": "self", "type": "application/json",
+             "href": f"{base}/", "title": "cette page"},
+            {"rel": "service-desc",
+             "type": "application/vnd.oai.openapi+json;version=3.1",
+             "href": f"{base}/openapi.json", "title": "contrat OpenAPI"},
+            {"rel": "service-doc", "type": "text/html",
+             "href": f"{base}/docs",
+             "title": "documentation interactive"},
+            {"rel": "latest-version", "type": "application/json",
+             "href": f"{base}/v1",
+             "title": "point d'entrée de la version courante"},
+        ],
+    }
 
 
 @app.get("/v1", tags=["service"],

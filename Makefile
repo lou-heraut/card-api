@@ -1,7 +1,7 @@
 # Interface de déploiement. Usage : make <cible>
 # Prérequis : docker + docker compose, fichier .env (cf. .env.example).
 
-.PHONY: help env up apache update logs status stats watch key keys key-revoke down test
+.PHONY: help env up apache update logs status stats watch key keys key-revoke down test lint
 .ONESHELL:
 
 help:            ## liste des cibles
@@ -78,3 +78,10 @@ down:            ## arrête le service
 
 test:            ## suite de tests (dev, hors Docker)
 	.python_env/bin/python -m pytest -q
+
+# Passe par le ruff de .python_env, jamais par celui du PATH : la version
+# est épinglée dans pyproject.toml ([dev]) et le jeu de règles y est
+# déclaré, donc ce verdict est celui de tout le monde. Un `ruff` attrapé
+# ailleurs sur la machine ne le serait pas.
+lint:            ## lint (ruff, version épinglée dans pyproject [dev])
+	.python_env/bin/ruff check src tests scripts

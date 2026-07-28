@@ -15,7 +15,11 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
 
 ```
 src/card_api/
-  main.py       # endpoints /v1 : racine /v1 (écosystème, réutilisation,
+  main.py       # endpoints : racine / (panneau indicateur, forme des
+                #   « landing pages » OGC API : liens typés service-desc,
+                #   service-doc, latest-version ; le détail reste dans
+                #   /v1, pas maintenu à deux endroits), puis /v1
+                #   (écosystème, réutilisation,
                 #   droits), cards, cards/{id}, cards/{id}/figure (la fiche
                 #   DESSINÉE en text/plain ; le détail reste du JSON),
                 #   vocabulary (valeurs de facette valides = filtres de
@@ -34,12 +38,14 @@ src/card_api/
                 #   GÉNÉRÉ depuis le CSS réel de Swagger, jamais écrit à
                 #   la main, et se juge à la CAPTURE D'ÉCRAN, pas à
                 #   l'injection : docs/dev/THEME_DOCS.md
-  static/       # deux feuilles servies dans cet ordre :
+  static/       # deux feuilles servies dans cet ordre, plus le logo :
                 #   swagger-colors.css   GÉNÉRÉ (scripts/build_theme.py),
                 #     à refaire seulement quand Swagger monte de version
                 #   theme-identity.css   ÉCRIT À LA MAIN : c'est CE
                 #     fichier qu'on retouche, puis on recharge la page,
                 #     rien à reconstruire (cf. docs/dev/THEME_DOCS.md)
+                #   inrae.svg            logo, posé en image de fond par
+                #     le calque : pas de balise injectée dans Swagger
   jobs.py       # file de calcul asynchrone (forme OGC API Processes) :
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
@@ -71,6 +77,10 @@ docs/dev/       # API.md : conception et arbitrages du service ;
 CITATION.cff    # citabilité ; codemeta.json = canal Software
                 #   Heritage / HAL (pas de Zenodo, choix utilisateur)
 Makefile        # ops : make env/up/apache/update/logs/status/stats/watch
+                #   + make test / make lint (ruff du venv, JAMAIS celui
+                #   du PATH : version épinglée et règles déclarées dans
+                #   pyproject.toml, sinon le verdict change avec la
+                #   version installée)
 compose.yaml    # api sur 127.0.0.1:8000 ; frontal = Apache de la VM
                 #   (make apache, vhost généré depuis DOMAIN) ou profil
                 #   caddy (COMPOSE_PROFILES=caddy, VM nue) ; .env
@@ -78,7 +88,7 @@ compose.yaml    # api sur 127.0.0.1:8000 ; frontal = Apache de la VM
 
 Dev : `pip install -e ../../EXstat_project/stase -e ../card -e .[dev]`
 dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
---reload` et `pytest`.
+--reload`, `pytest` et `make lint`.
 
 > ## À NE JAMAIS FAIRE
 >

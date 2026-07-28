@@ -150,3 +150,24 @@ def test_le_calque_ne_retourne_pas_ce_qui_est_deja_sombre():
     # mais une surface claire, elle, est bien transposée
     sombre = build_theme.transpose(".y{background:#fff;color:#000}")
     assert re.search(r"background:#1[0-9a-f]{5}", sombre)
+
+
+def test_le_logo_est_servi_et_appele_par_le_calque(identity):
+    """Le logo est posé en image de fond par le calque, pas en balise
+    injectée dans le HTML de Swagger. Les deux moitiés doivent tenir
+    ensemble : une URL relative dans la feuille, et une route qui répond
+    à cette URL. Si l'une part sans l'autre, la page rend un titre sans
+    logo, en silence."""
+    assert 'url("inrae.svg")' in identity
+    r = client.get("/static/inrae.svg")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("image/svg+xml")
+
+
+def test_l_onglet_porte_son_icone():
+    """Sans favicon déclarée, la page arbore celle de FastAPI, qui n'est
+    pas la nôtre. Elle est en URL `data:` échappée : non échappée, elle
+    casserait sur le premier caractère non ASCII, ici l'émoji lui-même."""
+    html = client.get("/docs").text
+    assert "data:image/svg+xml," in html
+    assert "fastapi" not in html.split("shortcut icon")[1][:200].lower()

@@ -267,10 +267,16 @@ def check(css):
     assert code.count("{") == code.count("}"), "accolades déséquilibrées"
     for quote in ("\"", "'"):
         assert code.count(quote) % 2 == 0, f"guillemet {quote} non fermé"
+    # Deux niveaux : une règle ordinaire, et une règle dans un `@media`.
+    # La borne valait 1 tant que le calque était plat ; elle refusait donc
+    # une règle de petit écran écrite sur plusieurs lignes, ce qui n'est
+    # pas une erreur de syntaxe mais du CSS courant. Ce qu'elle attrape
+    # reste la même chose : une accolade jamais refermée, qui fait enfler
+    # la profondeur ligne après ligne.
     depth = 0
     for line in code.splitlines():
         depth += line.count("{") - line.count("}")
-        assert 0 <= depth <= 1, f"imbrication inattendue : {line[:70]}"
+        assert 0 <= depth <= 2, f"imbrication inattendue : {line[:70]}"
 
 
 def main():
