@@ -41,7 +41,7 @@ body{margin:0;}
 
 .swagger-ui .wrapper{max-width:950px; padding:0 28px;}
 
-.swagger-ui .info{margin:38px 0 30px;}
+.swagger-ui .info{margin:38px 0 0;}
 
 
 /* ── 3. en-tete ─────────────────────────────────────────────────────── */
@@ -133,6 +133,34 @@ body{margin:0;}
 .swagger-ui .scheme-container{
   background:transparent; box-shadow:none; padding:0; margin:0;
 }
+
+/* Adresse du service et cle de priorite, sur une meme rangee. Swagger
+   les empile a gauche et pose « Authorize » a droite : on garde la
+   rangee, on l'aere. */
+.swagger-ui .scheme-container .schemes{align-items:center; gap:16px;}
+
+.swagger-ui .scheme-container .schemes-server-url .servers-title,
+.swagger-ui .scheme-container .servers-title{
+  font-family:var(--sans); font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
+  margin-bottom:6px;
+}
+
+/* « Authorize » est peint en vert par Swagger, cadenas compris, avec une
+   specificite superieure a celle de `.btn` : sans ce selecteur a deux
+   classes, la regle generale des boutons ne le rattrape pas. La cle est
+   FACULTATIVE, ce bouton n'est donc pas l'action principale de la page
+   et n'a pas a etre le seul objet colore de l'ecran. */
+.swagger-ui .btn.authorize{
+  background:transparent; border-color:var(--line); color:var(--text);
+  box-shadow:none;
+}
+
+.swagger-ui .btn.authorize:hover{border-color:var(--get); color:var(--get);}
+
+.swagger-ui .btn.authorize svg{fill:var(--faint);}
+
+.swagger-ui .btn.authorize:hover svg{fill:var(--get);}
 
 
 /* ── 4. sections de tag ─────────────────────────────────────────────── */
@@ -250,6 +278,14 @@ body{margin:0;}
   font-family:var(--sans); font-size:12.5px; color:var(--faint);
   text-align:right; padding-left:24px;
 }
+
+/* Cadenas de fin de ligne : retire. Swagger en pose un sur CHAQUE
+   operation des qu'un schema de securite est declare, et la cle de
+   priorite en est un, facultatif, valable partout. Quinze cadenas
+   identiques ne distinguent donc rien, et leur presence suggere le
+   contraire de la verite : que ces operations seraient fermees. Le
+   bouton « Authorize » de l'en-tete suffit a dire qu'une cle existe. */
+.swagger-ui .opblock-summary .authorization__btn{display:none;}
 
 /* Chevrons et bouton « copier le lien » : retires. Le chevron d'une
    operation porte deja `tabindex="-1"` et double `.opblock-summary-

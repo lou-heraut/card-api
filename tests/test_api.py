@@ -217,3 +217,27 @@ def test_droits_dans_un_resultat_de_donnees(monkeypatch):
     b = client.get("/v1/cards").json()
     assert "card_swhid" in b or "card_version" in b   # provenance déjà là
     assert m.rights()["cite"].endswith("CITATION.cff")
+
+
+def test_la_cle_de_priorite_existe_dans_le_contrat():
+    """Elle existait dans le service (usage.priority_of lit l'en-tête)
+    sans exister dans le contrat : personne ne pouvait la découvrir, et
+    depuis /docs personne ne pouvait la PRÉSENTER, donc `GET /v1/jobs` y
+    rendait 401 sans recours. Elle reste facultative : c'est ce qui garde
+    le service public."""
+    spec = client.get("/openapi.json").json()
+    schemes = spec["components"]["securitySchemes"]
+    (scheme,) = schemes.values()
+    assert scheme["type"] == "apiKey" and scheme["in"] == "header"
+    assert scheme["name"] == "X-API-Key"
+    # déclarée sur les opérations, donc « Authorize » s'affiche
+    assert spec["paths"]["/v1/trend"]["get"]["security"]
+    # ... et le service répond toujours sans clé
+    assert client.get("/v1/cards?limit=1").status_code == 200
+
+
+def test_l_ordre_des_sections_suit_le_parcours():
+    """L'ordre des tags EST celui de la page. On choisit une station
+    avant d'extraire : `stations` passe donc avant `data`."""
+    noms = [t["name"] for t in client.get("/openapi.json").json()["tags"]]
+    assert noms.index("stations") < noms.index("data")

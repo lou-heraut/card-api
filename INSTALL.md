@@ -74,6 +74,12 @@ make up         # construit et lance l'API sur 127.0.0.1:8000
 attendant d'en avoir un (dans ce cas HTTP seulement : aucun
 certificat ne peut être émis pour une IP nue).
 
+`CARD_API_PUBLIC_URL` = la même adresse, **schéma compris**, publiée
+dans le contrat OpenAPI (`servers`). Deux variables et non une, parce
+que le schéma ne se déduit pas de `DOMAIN` : une IP nue reste en HTTP.
+La laisser vide en développement, sinon le « Try it out » d'une
+instance locale enverra ses requêtes sur la production.
+
 À ce stade l'API tourne mais n'écoute que la boucle locale
 (`curl http://127.0.0.1:8000/v1/health` pour vérifier). C'est le
 frontal web qui l'expose au monde ; deux cas :

@@ -26,8 +26,10 @@ from typing import Literal
 
 import httpx
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import (Depends, FastAPI, HTTPException, Query, Request,
+                     Response, Security)
 from fastapi import Path as PathParam   # pathlib.Path est pris ailleurs
+from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -292,17 +294,37 @@ _X_START = {"example": "1970-01-01"}
 _X_END = {"example": "2020-12-31"}
 _X_JOB_ID = {"example": "3f2a9c1b7e4d8506"}
 
+# L'ordre des sections EST celui de la page : Swagger les affiche dans
+# l'ordre de cette liste, pas dans l'ordre alphabétique ni dans celui des
+# routes. Il suit donc le parcours réel d'une première demande : ce
+# qu'est le service, quelles variables existent, sur quelle station, puis
+# le calcul, et la file d'attente pour ce qui est trop gros. `stations`
+# passe ainsi AVANT `data` : on choisit une station avant d'extraire, et
+# c'est le code trouvé là qui remplit le champ `stations` d'`extract`.
 _TAGS = [
     {"name": "service", "description": "Identité, versions et santé du service."},
     {"name": "cards", "description": "Catalogue et détail des fiches CARD."},
-    {"name": "data", "description": "Extraction et tendance sur les débits Hub'Eau."},
     {"name": "stations", "description": "Référentiel des stations hydrométriques."},
+    {"name": "data", "description": "Extraction et tendance sur les débits Hub'Eau."},
     {"name": "jobs", "description": "File de calcul asynchrone (grosses demandes)."},
 ]
+
+# Adresse publique, déclarée dans le contrat quand elle est connue. Sans
+# elle, pas de bloc `servers` : un client déduit alors l'adresse de
+# l'endroit d'où il a chargé `openapi.json`, ce qui est exactement ce
+# qu'il faut en développement. Une URL de production écrite en dur dans
+# le code enverrait le « Try it out » d'une instance locale sur la VRAIE
+# production, et c'est le genre de bêtise qu'on ne remarque qu'après.
+# Le schéma fait partie de la variable : il ne se déduit pas de `DOMAIN`,
+# qui peut être une IP nue (donc HTTP, aucun certificat possible).
+_PUBLIC_URL = os.environ.get("CARD_API_PUBLIC_URL", "").rstrip("/")
+_SERVERS = ([{"url": _PUBLIC_URL, "description": "production"}]
+            if _PUBLIC_URL else None)
 
 app = FastAPI(
     title="card-api",
     version=API_VERSION,
+    servers=_SERVERS,
     # Ce que porte l'en-tête de /docs, et dans quel ordre Swagger le
     # rend : titre, `summary`, `description`, `termsOfService`, puis
     # contact et licence.
@@ -371,6 +393,27 @@ app = FastAPI(
     license_info={"name": "GPL-3.0-or-later",
                   "url": "https://www.gnu.org/licenses/gpl-3.0.html"},
     openapi_tags=_TAGS,
+    # La clé de priorité EXISTE dans le service depuis le début, mais
+    # n'existait nulle part dans le contrat : `usage.priority_of` lit
+    # l'en-tête à la main, sans que rien ne le déclare. Deux conséquences,
+    # toutes deux invisibles depuis le code : un client ne pouvait pas
+    # savoir que le service accepte une clé, et un porteur de clé n'avait
+    # AUCUN moyen de la présenter depuis /docs, donc `GET /v1/jobs` y
+    # rendait 401 sans recours. La déclarer ajoute le bouton « Authorize »
+    # et met la clé dans toutes les requêtes de la page.
+    #
+    # `auto_error=False` est ce qui garde le service public : sans clé, la
+    # dépendance rend None et laisse passer. Rien ne change côté serveur,
+    # `priority_of` continue de lire l'en-tête lui-même.
+    dependencies=[Security(APIKeyHeader(
+        name="X-API-Key", auto_error=False, scheme_name="Clé de priorité",
+        description="Facultative. Sans elle, l'accès est public et "
+                    "soumis aux quotas par IP. Avec elle, les quotas "
+                    "sont levés, les plafonds relevés, les jobs passent "
+                    "en tête de file et `GET /v1/jobs` liste les vôtres. "
+                    "Elle se demande par une issue du dépôt, elle ne "
+                    "s'achète pas. Coller le jeton tel quel, sans "
+                    "préfixe."))],
     # Réglages d'AFFICHAGE de Swagger. Ils ne touchent pas au contrat :
     # `openapi.json` reste complet, c'est la page qui décide de ce
     # qu'elle montre d'emblée.
@@ -388,6 +431,11 @@ app = FastAPI(
         # de machine, et il est de toute façon dans openapi.json.
         "showCommonExtensions": False,
         "showExtensions": False,
+        # Durée de la requête à côté du code de statut. Sur une API où
+        # une extraction prend quelques secondes et une tendance
+        # davantage, c'est l'information qui dit s'il faut passer par un
+        # job : elle se lit, au lieu de se deviner.
+        "displayRequestDuration": True,
     },
     docs_url=None,          # servi plus bas, avec le thème
 )

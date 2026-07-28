@@ -11,6 +11,10 @@ services:
     restart: unless-stopped
     environment:
       CARD_API_SALT: ${CARD_API_SALT:?définir CARD_API_SALT dans .env}
+      # Vide = pas de bloc `servers` dans le contrat, adresse déduite par
+      # le client. C'est le bon défaut : mieux vaut pas d'adresse qu'une
+      # mauvaise.
+      CARD_API_PUBLIC_URL: ${CARD_API_PUBLIC_URL:-}
       CARD_API_RATE_COMPUTE: ${CARD_API_RATE_COMPUTE:-10}
       CARD_API_RATE_LIGHT: ${CARD_API_RATE_LIGHT:-60}
       CARD_API_SYNC_STATIONS: ${CARD_API_SYNC_STATIONS:-10}

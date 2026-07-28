@@ -24,6 +24,44 @@ des deux endroits.
 
 ### Ajouté
 
+- **HTTPS sur `card-api.riverly.inrae.fr`, et le contrat le dit
+  (2026-07-28).** Le nom de domaine et certbot étant en place, ce qui
+  bloquait la diffusion des clés est levé : un jeton ne transite plus en
+  clair. L'adresse est publiée dans le bloc `servers` d'`openapi.json`,
+  d'où deux effets : `/docs` affiche l'adresse réelle du service, et un
+  client à qui l'on envoie le seul fichier de contrat sait où taper,
+  alors qu'il devait jusqu'ici la déduire de l'endroit d'où il l'avait
+  chargé. Elle vient de `CARD_API_PUBLIC_URL` et **pas** d'une constante
+  du code : vide en développement, sinon le « Try it out » d'une
+  instance locale part sur la production. Deux variables et non une
+  (`DOMAIN` sert au frontal) parce que le schéma ne se déduit pas d'un
+  nom : une IP nue reste en HTTP.
+
+- **La clé de priorité existe enfin dans le contrat (2026-07-28).** Elle
+  fonctionnait depuis le début, mais `usage.priority_of` lisait
+  l'en-tête à la main, sans qu'aucun schéma de sécurité ne la déclare.
+  Deux conséquences invisibles depuis le code : un client ne pouvait pas
+  découvrir que le service accepte une clé, et un porteur de clé n'avait
+  **aucun moyen de la présenter depuis `/docs`**, où `GET /v1/jobs`
+  rendait donc 401 sans recours. Déclarée en `apiKey`/`header`, elle
+  fait apparaître le bouton « Authorize » et part dans toutes les
+  requêtes de la page. Elle reste **facultative** (`auto_error=False`) :
+  c'est ce qui garde le service public, et rien ne change côté serveur.
+  Le cadenas que Swagger ajoute alors sur chacune des quinze opérations
+  est masqué : identique partout, il ne distingue rien et suggère le
+  contraire de la vérité.
+
+- **L'ordre des sections de `/docs` suit le parcours (2026-07-28) :**
+  `stations` passe avant `data`. On choisit une station avant
+  d'extraire, et c'est le code trouvé là qui remplit le champ `stations`
+  d'`extract`. L'ordre de la page est celui de la liste `_TAGS`, ni
+  alphabétique ni celui des routes.
+
+- **La durée de chaque requête s'affiche (2026-07-28).** Sur une API où
+  une extraction prend quelques secondes et une tendance davantage,
+  c'est ce qui dit s'il faut passer par un job. Elle se lisait
+  jusqu'ici en devinant.
+
 - **`GET /` cesse de rendre 404 (2026-07-28).** Taper le nom de domaine
   dans une barre d'adresse renvoyait `{"detail": "Not Found"}` : correct,
   mais désobligeant pour quelqu'un qui n'a rien fait de mal. La racine

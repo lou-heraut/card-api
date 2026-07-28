@@ -147,21 +147,23 @@ Doctrine complète : « Versions, en quatre phrases », en tête de
   utiles à card et stase, qui se citent.
 
 
-## État (2026-07-22)
+## État (2026-07-28)
 
 Le service est **déployé** depuis le 2026-07-17 sur la VM de
 l'utilisateur, derrière l'Apache qui y sert déjà d'autres services
 (`make apache`, port local 8001 via `CARD_API_PORT`, 8000 étant pris).
-`DOMAIN` vaut l'IP en attendant un nom de domaine, donc HTTP.
+
+**En HTTPS sur `card-api.riverly.inrae.fr` depuis le 2026-07-28**
+(certbot). Ce qui bloquait la diffusion des clés est donc levé : un
+jeton ne transite plus en clair. L'adresse est publiée dans le contrat
+(`CARD_API_PUBLIC_URL` du .env, bloc `servers` d'openapi.json) ; la
+laisser VIDE en développement, sinon le « Try it out » d'une instance
+locale part sur la production.
 
 Ce qui a été livré et quand se lit dans `CHANGELOG.md`, ce qui reste
 ouvert dans `docs/dev/CHANTIERS.md`. Ces deux fichiers font foi : ne pas
 les paraphraser ici, cette section ne doit pas regonfler à chaque
 chantier.
-
-**Reste, et c'est bloquant pour la diffusion des clés** : nom de domaine
-puis certbot, dont l'utilisateur se charge. Tant qu'on est en HTTP, un
-jeton transite en clair.
 
 Deux points à ne pas reperdre :
 - le durcissement des clés du 2026-07-18 n'est **pas rétroactif** : au
