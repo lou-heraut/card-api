@@ -50,18 +50,27 @@ retourné les pastilles de version, qui doivent suivre le titre.
 
 ## Ce que le calque MASQUE, et ce qu'il ne supprime pas
 
-Swagger rend le contact suivi d'un « - Website » écrit en dur dans son
-code, et la licence en lien nu. Avec les liens de la description, cela
-faisait trois présentations d'une même chose sur quinze centimètres de
-page. Le calque masque ces deux blocs (`.info__contact`,
-`.info__license`) et la description les reprend en fin de bloc, sous la
-même forme que le reste.
+Règle de partage entre le contrat et la page : **`openapi.json` porte
+tout, `/docs` ne montre que ce qui aide à lire.** Un champ de plus dans
+le contrat ne coûte rien à personne et sert une machine ; une ligne de
+plus à l'écran coûte à chaque visiteur.
 
-**Masqué n'est pas supprimé.** `contact` et `license` restent déclarés
-dans `main.py`, donc dans `openapi.json` : c'est là qu'un moissonneur lit
-sous quels droits réutiliser, et il ne lit pas la prose d'une
-description. Les retirer du contrat pour gagner une ligne d'affichage
-serait un mauvais échange, et `tests/test_docs_theme.py` le refuse.
+| Champ de `info` | Pourquoi il est déclaré | Pourquoi il ne s'affiche pas |
+|---|---|---|
+| `summary` | un catalogue d'API l'affiche **seul**, sans la description | Swagger le pose juste au-dessus de la description, dont il redit la première phrase |
+| `termsOfService` | champ prévu pour les conditions d'usage (quotas, `429`, clé) | pointe une section du README, dont le dépôt est déjà dans la ligne de ressources |
+| `contact` | qui tient le service | rendu suivi d'un « - Website » écrit en dur dans le code de Swagger, qu'aucun sélecteur n'atteint |
+| `license` | **c'est là qu'un moissonneur lit sous quels droits réutiliser** | rendu en lien nu, une troisième présentation |
+
+Les deux derniers sont repris en fin de description, sous la même forme
+que les autres liens. Sans ce regroupement, la page offrait trois
+présentations d'une même chose sur quinze centimètres.
+
+**Masqué n'est pas supprimé.** Retirer un de ces champs du contrat pour
+gagner une ligne d'affichage serait un mauvais échange : la machine ne
+lit pas la prose d'une description. `tests/test_docs_theme.py` tient les
+deux bouts, la déclaration dans `openapi.json` et le masquage dans le
+calque.
 
 La favicon est un SVG d'une ligne portant l'émoji, en URL `data:`
 échappée : aucun fichier à servir, aucun appel réseau. Sans elle, la page

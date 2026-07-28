@@ -173,15 +173,26 @@ def test_l_onglet_porte_son_icone():
     assert "fastapi" not in html.split("shortcut icon")[1][:200].lower()
 
 
-def test_licence_et_contact_restent_dans_le_contrat(identity):
-    """Ils sont MASQUÉS à l'écran, repris en fin de description sous la
-    même forme que les autres liens. Masqué n'est pas supprimé : c'est
-    dans `openapi.json` qu'un moissonneur lit sous quels droits
-    réutiliser, et il ne lit pas la prose de la description."""
-    assert ".info__license{display:none;}" in identity.replace("\n", "")
+def test_le_contrat_porte_ce_que_la_page_ne_montre_pas(identity):
+    """Quatre champs sont MASQUÉS à l'écran : le résumé, qui redit la
+    première phrase de la description, les conditions d'usage, qui
+    pointent une section du README, et le contact et la licence, repris
+    en fin de description sous la même forme que les autres liens.
+
+    Masqué n'est pas supprimé, et c'est tout l'objet de ce test : un
+    catalogue d'API affiche `summary` seul, un moissonneur lit la licence
+    dans `openapi.json`, et ni l'un ni l'autre ne lit une description en
+    prose. Ce qui coûte une ligne à l'écran ne coûte rien dans le
+    contrat."""
+    plat = identity.replace("\n", "")
+    for bloc in ("info__summary", "info__tos", "info__contact",
+                 "info__license"):
+        assert bloc in plat, bloc
     info = client.get("/openapi.json").json()["info"]
+    assert info["summary"].startswith("Variables hydroclimatiques")
     assert info["license"]["name"] == "GPL-3.0-or-later"
     assert info["contact"]["url"].endswith("card-api")
+    assert "quotas" in info["termsOfService"]
 
 
 def test_la_description_tient_en_un_paragraphe_et_deux_lignes_de_liens():

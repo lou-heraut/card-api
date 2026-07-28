@@ -99,13 +99,24 @@ body{margin:0;}
 .swagger-ui .info li,
 .swagger-ui .info p{color:var(--muted); font-size:13.5px; max-width:74ch;}
 
-/* Contact et licence : Swagger les rend chacun a sa facon, l'un suivi
-   d'un « - Website » ecrit en dur dans son code, l'autre en lien nu.
-   Avec les liens de la description, cela faisait trois presentations
-   d'une meme chose sur quinze centimetres de page. Ils sont repris en
-   fin de description, sous la meme forme que le reste ; ce qui est
-   masque ici n'est que l'AFFICHAGE, les deux champs restent dans
-   openapi.json ou une machine va lire la licence (cf. main.py). */
+/* CE QUE LE CONTRAT PORTE ET QUE LA PAGE NE MONTRE PAS.
+   Rien n'est retire d'`openapi.json` : ces champs y servent une machine,
+   qui ne lit pas la prose d'une description. C'est leur AFFICHAGE qui
+   encombrait la page, chacun dans une presentation differente.
+
+   info__summary   redit la premiere phrase de la description, juste
+                   au-dessus d'elle. Un catalogue d'API, lui, l'affiche
+                   SEUL : il doit donc exister.
+   info__tos       conditions d'usage : une section du README, dont le
+                   depot figure deja dans la ligne de ressources.
+   info__contact   rendu suivi d'un « - Website » ecrit en dur dans le
+                   code de Swagger, qu'aucun selecteur n'atteint.
+   info__license   rendu en lien nu.
+
+   Les deux derniers sont repris en fin de description, sous la meme
+   forme que les autres liens (cf. main.py). */
+.swagger-ui .info .info__summary,
+.swagger-ui .info .info__tos,
 .swagger-ui .info .info__contact,
 .swagger-ui .info .info__license{display:none;}
 

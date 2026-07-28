@@ -305,10 +305,18 @@ app = FastAPI(
     version=API_VERSION,
     # Ce que porte l'en-tête de /docs, et dans quel ordre Swagger le
     # rend : titre, `summary`, `description`, `termsOfService`, puis
-    # contact et licence. `summary` (une phrase, OpenAPI 3.1) est laissé
-    # VIDE : essayé, il s'affiche juste au-dessus de la description et
-    # redit la première phrase de celle-ci. Deux résumés l'un sur
-    # l'autre, ce n'est pas un en-tête plus court, c'en est un plus long.
+    # contact et licence.
+    #
+    # La règle est la même pour tous ces champs : le CONTRAT les porte
+    # tous, la PAGE n'en montre que ce qui aide à lire. Ce qui se règle
+    # dans openapi.json ne coûte rien à personne et sert une machine ;
+    # ce qui s'affiche coûte une ligne à chaque visiteur.
+    #
+    # `summary` (une phrase, OpenAPI 3.1) en est l'exemple : un moteur de
+    # recherche d'API ou un catalogue l'affiche seul, sans la
+    # description, donc il doit exister. Mais Swagger le rend JUSTE
+    # au-dessus de la description, où il en redit la première phrase :
+    # son affichage est masqué par le calque (section 3).
     #
     # La DESCRIPTION reste de la prose : ce que fait le service, pour qui,
     # par où commencer. UN paragraphe, pas trois. Pas de lien au fil des
@@ -326,6 +334,8 @@ app = FastAPI(
     # quinze centimètres de page. Les deux champs RESTENT déclarés plus
     # bas, parce qu'un contrat doit dire sa licence à une machine ; c'est
     # leur AFFICHAGE que le calque masque (theme-identity.css, section 3).
+    summary=("Variables hydroclimatiques (fiches CARD) sur les débits "
+             "Hub'Eau, avec diagnostic de tendance."),
     description=(
         "Variables hydroclimatiques prêtes à l'emploi, calculées sur les "
         "débits Hub'Eau, avec diagnostic de tendance. Façade du projet "
@@ -349,6 +359,13 @@ app = FastAPI(
     # `license_info` du contrat pour gagner une ligne d'affichage ferait
     # perdre à un moissonneur le seul endroit où il lit sous quels droits
     # réutiliser : le prix est sans commune mesure avec le gain.
+    #
+    # `terms_of_service` est le champ prévu pour les conditions d'usage :
+    # ici les quotas par IP, le 429 et sa clé de priorité, déjà écrits
+    # dans le README. Il ne s'affiche pas non plus, le dépôt étant déjà
+    # dans la ligne de ressources.
+    terms_of_service=("https://github.com/lou-heraut/card-api"
+                      "#quotas-et-clés-de-priorité"),
     contact={"name": "Louis Héraut (INRAE, UR RiverLy)",
              "url": "https://github.com/lou-heraut/card-api"},
     license_info={"name": "GPL-3.0-or-later",

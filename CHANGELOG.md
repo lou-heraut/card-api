@@ -73,14 +73,19 @@ des deux endroits.
   Les deux lignes absorbent la **licence** et le **contact**, que Swagger
   rendait chacun à sa façon, l'un suivi d'un « - Website » écrit en dur
   dans son code. Trois présentations d'une même chose sur quinze
-  centimètres de page, c'en est une de trop. Les deux champs **restent
-  déclarés** dans `openapi.json`, seul leur affichage est masqué : c'est
-  là qu'un moissonneur lit sous quels droits réutiliser, et il ne lit pas
-  la prose d'une description. Un test le garantit.
+  centimètres de page, c'en est une de trop.
 
-  `summary` d'OpenAPI 3.1 a été essayé puis retiré le même jour : Swagger
-  le rend juste au-dessus de la description, où il redit sa première
-  phrase.
+  D'où la règle qui s'est dégagée, et qui vaut au-delà de ces deux
+  champs : **`openapi.json` porte tout, `/docs` ne montre que ce qui aide
+  à lire.** Un champ de plus dans le contrat ne coûte rien à personne et
+  sert une machine ; une ligne de plus à l'écran coûte à chaque
+  visiteur. Le bloc `info` est donc désormais **complet** (`summary`,
+  `termsOfService` renvoyant aux quotas, `contact`, `license`), et
+  quatre de ces champs sont **masqués par le calque**, pas retirés :
+  `summary` redit la première phrase de la description, mais un
+  catalogue d'API l'affiche seul ; `license` est le seul endroit où un
+  moissonneur lit sous quels droits réutiliser, et il ne lit pas de la
+  prose. Un test tient les deux bouts.
 
 - **Le contrat OpenAPI pré-mâche le formulaire (2026-07-27).** Le travail
   a porté sur `openapi.json`, pas sur l'habillage : ce qu'on y écrit sert
