@@ -86,11 +86,6 @@ des deux endroits.
   bandeau n'emploie donc que `·`, y compris pour les listes de stations
   et de fiches. Un test le garantit.
 
-  **« Download file » quitte la forme du bouton** pour celle d'un lien :
-  pas de cadre, texte plus grand en gras dans le bleu des GET, survol par
-  retrait d'intensité. C'est l'action du bloc, la seule qui emporte
-  quelque chose hors de la page.
-
 - **La tendance se lit aussi dessinée (2026-07-28) :**
   `GET /v1/trend/figure` rend le **même** résultat en table, une ligne
   par variable, avec le sens, l'ampleur dans l'unité de la variable, la
