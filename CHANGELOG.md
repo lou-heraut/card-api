@@ -122,11 +122,21 @@ des deux endroits.
   « sans rien chercher » : à l'écran, `stations` et `cards` affichaient
   un placeholder gris. En cause, `examples=` de FastAPI, qui range la
   valeur dans le **schéma** du paramètre, là où Swagger ne la lit pas.
-  La forme qu'il honore est `openapi_examples=`, qui produit les
-  `examples` **au niveau du paramètre** : le champ contient la valeur et
-  un menu d'exemples nommés le surmonte (« La Seine à Paris
-  (Austerlitz) »). Même leçon que le thème raté de juillet : constater
-  qu'une chose est déclarée ne dit rien de ce qui rend, ça se regarde.
+  `openapi_examples=` remplit bien, mais produit des `examples`
+  **nommés au niveau du paramètre**, que Swagger surmonte d'un **menu
+  déroulant**. Avec un seul exemple, ce menu n'affichait que le libellé
+  de la valeur déjà présente dans la case juste en dessous (« Étiage
+  VCN10 » au-dessus de `VCN10`) : une ligne de plus à lire pour rien.
+  La forme retenue est `json_schema_extra={"example": ...}`, soit
+  `example` **au singulier** dans le schéma, la seule des trois que
+  Swagger recopie dans le champ **sans rien poser au-dessus**. Le mot
+  n'existe pas dans JSON Schema 2020-12, qui n'a qu'`examples` : un
+  validateur strict l'ignore comme annotation inconnue, c'est le prix
+  du pré-remplissage sans menu. La glose de chaque valeur, qui vivait
+  dans le libellé du menu, est passée dans la `description` du
+  paramètre, où elle se lit à côté du champ. Même leçon que le thème
+  raté de juillet : constater qu'une chose est déclarée ne dit rien de
+  ce qui rend, ça se regarde.
 
 ### Modifié
 

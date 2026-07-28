@@ -21,7 +21,7 @@
 :root{
   --ground:#131313; --surface:#1d1d1d; --well:#0e0e0e;
   --line:#383838; --line-soft:#2a2a2a;
-  --text:#ececec; --muted:#a3a3a3; --faint:#7a7a7a;
+  --text:#ececec; --muted:#a5a5a5; --faint:#7a7a7a;
   --get:#8ab4dc; --post:#72b3a2; --del:#e09b78; --put:#d9c07f;
   --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -296,6 +296,11 @@ body{margin:0;}
   font-family:var(--mono); font-weight:600; color:var(--post);
 }
 
+/* Colonne « Links » : Swagger l'affiche toujours, et elle dit « No links »
+   sur toutes nos reponses. On la range au fond de la gamme plutot que de
+   la masquer, la table gardant ainsi ses trois colonnes. */
+.swagger-ui .response-col_links{color:var(--faint);}
+
 .swagger-ui .responses-inner{padding:16px 12px;}
 
 /* `border-color:green` est ecrit en toutes lettres dans le CSS de
@@ -475,4 +480,4 @@ body{margin:0;}
 .swagger-ui .opblock.opblock-post{--m:var(--post);}
 .swagger-ui .opblock.opblock-delete{--m:var(--del);}
 .swagger-ui .opblock.opblock-put{--m:var(--put);}
-*/
+*/   

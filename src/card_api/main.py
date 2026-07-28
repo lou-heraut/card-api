@@ -225,10 +225,12 @@ _Endpoint = Literal["extract", "trend"]
 _D_STATIONS = ("Codes de stations Hub'Eau, séparés par des virgules. "
                "Les retrouver par nom avec /v1/stations : depuis la "
                "refonte Hydro, les anciens codes Banque Hydro ne valent "
-               "plus.")
+               "plus. Exemple : `F700000103`, la Seine à Paris "
+               "(Austerlitz).")
 _D_CARDS = ("Identifiants de fiches, séparés par des virgules (colonne "
             "`id` de /v1/cards). Fiches à entrée Q uniquement, puisque "
-            "les données sont hydrométriques.")
+            "les données sont hydrométriques. Exemple : `QA,VCN10`, le "
+            "module annuel et l'étiage.")
 _D_START = "Début de la période, AAAA-MM-JJ. Par défaut, tout l'historique."
 _D_END = "Fin de la période, AAAA-MM-JJ. Par défaut, tout l'historique."
 _D_SAMPLING = (
@@ -259,25 +261,35 @@ _D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
 
 # ── Exemples : ce qui remplit vraiment le champ ───────────────────────
 #
-# Forme `openapi_examples` et non `examples`. La seconde range l'exemple
-# dans le SCHÉMA du paramètre, et Swagger ne s'en sert PAS pour remplir
-# la case : vérifié à l'écran, le champ restait vide avec son placeholder
-# gris, alors que le service annonçait des exemples pré-remplis. La
-# première produit les `examples` AU NIVEAU DU PARAMÈTRE, que Swagger
-# rend en menu d'exemples nommés et recopie dans le champ. On déplie une
-# opération, on clique Execute, on a un résultat, sans rien saisir.
+# Un exemple par paramètre, et RIEN AUTOUR. Les trois formes que FastAPI
+# accepte ne produisent pas le même contrat, et une seule remplit la case
+# sans rien ajouter au-dessus :
+#
+#   examples=["F700..."]                  -> schema.examples (tableau) :
+#       Swagger ne lit pas ce mot-clé pour un paramètre, le champ reste
+#       vide avec son placeholder gris.
+#   openapi_examples={"seine": {...}}     -> parameter.examples nommés :
+#       remplit, mais pose un MENU DÉROULANT d'exemples au-dessus du
+#       champ. Avec un seul exemple, ce menu n'affiche que le libellé
+#       de la valeur qui est déjà dans la case juste en dessous.
+#   json_schema_extra={"example": "..."}  -> schema.example (singulier) :
+#       remplit, sans menu. C'est ce qu'on veut.
+#
+# `example` au singulier n'existe pas dans JSON Schema 2020-12, qui n'a
+# que `examples` : un validateur strict l'ignore comme une annotation
+# inconnue, rien ne casse. C'est le prix du pré-remplissage sans menu.
+#
+# La glose de la valeur va donc dans la `description` du paramètre, où
+# elle se lit à côté du champ, et non dans le libellé d'un menu.
 #
 # Les paramètres optionnels qui changent le CALCUL ne sont pas
 # pré-remplis (`sampling` : le pré-remplir ferait exécuter un protocole
 # à qui n'en a pas demandé). Leur description dit les valeurs acceptées.
-_X_STATIONS = {"seine": {"summary": "La Seine à Paris (Austerlitz)",
-                         "value": "F700000103"}}
-_X_CARDS = {"module_etiage": {"summary": "Module et étiage (QA, VCN10)",
-                              "value": "QA,VCN10"}}
-_X_START = {"1970": {"summary": "À partir de 1970", "value": "1970-01-01"}}
-_X_END = {"2020": {"summary": "Jusqu'à fin 2020", "value": "2020-12-31"}}
-_X_JOB_ID = {"ticket": {"summary": "Ticket rendu au dépôt du job",
-                        "value": "3f2a9c1b7e4d8506"}}
+_X_STATIONS = {"example": "F700000103"}
+_X_CARDS = {"example": "QA,VCN10"}
+_X_START = {"example": "1970-01-01"}
+_X_END = {"example": "2020-12-31"}
+_X_JOB_ID = {"example": "3f2a9c1b7e4d8506"}
 
 _TAGS = [
     {"name": "service", "description": "Identité, versions et santé du service."},
@@ -496,10 +508,10 @@ def cards(
          dependencies=[Depends(usage.rate_light)])
 def card_detail(
     card_id: str = PathParam(
-        openapi_examples={"vcn10": {"summary": "Étiage VCN10",
-                                     "value": "VCN10"}},
+        json_schema_extra={"example": "VCN10"},
         description="Identifiant de la fiche, tel que rendu par "
-                    "/v1/cards (colonne `id`)."),
+                    "/v1/cards (colonne `id`). Exemple : `VCN10`, "
+                    "l'étiage."),
     lang: Literal["fr", "en"] = Query(
         "fr", description="Langue des libellés et des descriptions."),
 ):
@@ -543,10 +555,10 @@ def card_detail(
          dependencies=[Depends(usage.rate_light)])
 def card_figure(
     card_id: str = PathParam(
-        openapi_examples={"qa": {"summary": "Module annuel QA",
-                                     "value": "QA"}},
+        json_schema_extra={"example": "QA"},
         description="Identifiant de la fiche, tel que rendu par "
-                    "/v1/cards (colonne `id`)."),
+                    "/v1/cards (colonne `id`). Exemple : `QA`, le "
+                    "module annuel."),
     lang: Literal["fr", "en"] = Query(
         "fr", description="Langue des libellés et des descriptions."),
 ):
@@ -583,9 +595,9 @@ def vocabulary():
          dependencies=[Depends(usage.rate_light)])
 def stations(
     libelle: str | None = Query(
-        None, openapi_examples={"austerlitz": {"summary": "La Seine à Paris",
-                                               "value": "Austerlitz"}},
-        description="Fragment du nom de la station ou de son cours d'eau."),
+        None, json_schema_extra={"example": "Austerlitz"},
+        description="Fragment du nom de la station ou de son cours "
+                    "d'eau. Exemple : `Austerlitz`, la Seine à Paris."),
     code: str | None = Query(
         None,
         description="Code station Hub'Eau, si vous le connaissez déjà "
@@ -754,12 +766,12 @@ def _run_extract(st, cd, start, end, sampling=None):
          dependencies=[Depends(usage.rate_compute)])
 def extract(
     request: Request,
-    stations: str = Query(openapi_examples=_X_STATIONS,
+    stations: str = Query(json_schema_extra=_X_STATIONS,
                           description=_D_STATIONS),
-    cards: str = Query(openapi_examples=_X_CARDS, description=_D_CARDS),
-    start: str | None = Query(None, openapi_examples=_X_START,
+    cards: str = Query(json_schema_extra=_X_CARDS, description=_D_CARDS),
+    start: str | None = Query(None, json_schema_extra=_X_START,
                               description=_D_START),
-    end: str | None = Query(None, openapi_examples=_X_END,
+    end: str | None = Query(None, json_schema_extra=_X_END,
                             description=_D_END),
     sampling: str | None = Query(None, description=_D_SAMPLING),
     stations_meta: bool = Query(False, description=_D_STATIONS_META),
@@ -810,12 +822,12 @@ def extract(
          dependencies=[Depends(usage.rate_compute)])
 def trend(
     request: Request,
-    stations: str = Query(openapi_examples=_X_STATIONS,
+    stations: str = Query(json_schema_extra=_X_STATIONS,
                           description=_D_STATIONS),
-    cards: str = Query(openapi_examples=_X_CARDS, description=_D_CARDS),
-    start: str | None = Query(None, openapi_examples=_X_START,
+    cards: str = Query(json_schema_extra=_X_CARDS, description=_D_CARDS),
+    start: str | None = Query(None, json_schema_extra=_X_START,
                               description=_D_START),
-    end: str | None = Query(None, openapi_examples=_X_END,
+    end: str | None = Query(None, json_schema_extra=_X_END,
                             description=_D_END),
     sampling: str | None = Query(None, description=_D_SAMPLING),
     mk: _Mk = Query("AR1", description=_D_MK),
@@ -980,7 +992,7 @@ def job_list(request: Request):
          dependencies=[Depends(usage.rate_light)])
 def job_status(
     response: Response,
-    job_id: str = PathParam(openapi_examples=_X_JOB_ID,
+    job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
                             description=_D_JOB_ID),
 ):
     """Statut et progression d'un job (queued, running, done, failed)."""
@@ -1004,7 +1016,7 @@ def job_status(
 @app.get("/v1/jobs/{job_id}/result", tags=["jobs"],
          summary="Résultat d'un job terminé",
          dependencies=[Depends(usage.rate_light)])
-def job_result(job_id: str = PathParam(openapi_examples=_X_JOB_ID,
+def job_result(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
                                        description=_D_JOB_ID)):
     """Résultat d'un job terminé (même format que l'endpoint synchrone,
     plus un bloc de provenance : paramètres, versions, date des
@@ -1040,7 +1052,7 @@ def _tree_mb(path) -> float:
             summary="Abandonner un job par son ticket",
             dependencies=[Depends(usage.rate_light)])
 def job_delete(request: Request,
-               job_id: str = PathParam(openapi_examples=_X_JOB_ID,
+               job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
                                        description=_D_JOB_ID)):
     """Supprime un job et son résultat sans attendre le TTL (le
     « dismiss » d'OGC API Processes). Le ticket vaut capacité, comme
