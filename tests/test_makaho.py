@@ -53,7 +53,12 @@ CASES = [
 @pytest.mark.parametrize("var,relative,period", CASES)
 def test_trend_reproduces_makaho(var, relative, period):
     data = pd.read_csv(MAKAHO / var / "dataEX.csv", parse_dates=["date"])
-    ref = pd.read_csv(MAKAHO / var / "trendEX.csv").set_index("code")
+    # Le golden R garde la casse d'origine : `H` y était le seul nom en
+    # majuscule, P/STAT/TREND ayant déjà été mis en minuscules côté
+    # Python. On traduit à la lecture plutôt que de réécrire un fichier
+    # de référence, dont l'intérêt est justement de ne pas bouger.
+    ref = (pd.read_csv(MAKAHO / var / "trendEX.csv")
+           .rename(columns={"H": "h"}).set_index("code"))
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -63,7 +68,7 @@ def test_trend_reproduces_makaho(var, relative, period):
     j = t.join(ref, rsuffix="_mk").dropna(subset=["p_mk"])
 
     assert len(j) == 228                       # tout le RRSE
-    assert (j["H"].astype(bool) == j["H_mk"].astype(bool)).all()
+    assert (j["h"].astype(bool) == j["h_mk"].astype(bool)).all()
     assert (j["p"] - j["p_mk"]).abs().max() < 1e-12
     assert (j["a"] - j["a_mk"]).abs().max() < 1e-12
 
@@ -89,7 +94,8 @@ def test_api_pipeline_agrees_with_makaho_subset():
     from card_api.main import app
 
     client = TestClient(app)
-    ref = pd.read_csv(MAKAHO / "QA" / "trendEX.csv").set_index("code")
+    ref = (pd.read_csv(MAKAHO / "QA" / "trendEX.csv")
+           .rename(columns={"H": "h"}).set_index("code"))
     stations = sorted(ref.index)[:10]
 
     r = client.get("/v1/trend", params=dict(
@@ -100,5 +106,5 @@ def test_api_pipeline_agrees_with_makaho_subset():
            .rename(columns={"id": "code"}).set_index("code"))
     j = api.join(ref, rsuffix="_mk").dropna(subset=["p_mk"])
     assert len(j) >= 8                          # tolère quelques codes disparus
-    agree = (j["H"].astype(bool) == j["H_mk"].astype(bool)).mean()
+    agree = (j["h"].astype(bool) == j["h_mk"].astype(bool)).mean()
     assert agree >= 0.8

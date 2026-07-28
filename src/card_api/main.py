@@ -1081,8 +1081,8 @@ def _csv_job(out):
 # Ce que la table montre, et pourquoi : la pente de Sen dans l'unité de
 # la variable dit l'ampleur, la pente relative en %/an la rend comparable
 # entre variables, la p-value dit la confiance, et le verdict traduit le
-# `H` booléen en français. Sans cette dernière colonne, il faut savoir
-# que `H=true` veut dire « stationnarité rejetée » pour lire le tableau,
+# `h` booléen en français. Sans cette dernière colonne, il faut savoir
+# que `h=true` veut dire « stationnarité rejetée » pour lire le tableau,
 # ce que personne ne sait à la première visite.
 _FLECHES = {True: "▲", False: "▼"}
 
@@ -1112,7 +1112,7 @@ def _trend_figure(out, meta_par_id):
         unite = (meta_par_id.get(cid) or {}).get("unit_fr") or ""
         unite = unite.replace("m^{3}.s^{-1}", "m³/s")
         for r in rows:
-            significatif = bool(r.get("H"))
+            significatif = bool(r.get("h"))
             sens = _FLECHES[(r.get("a") or 0) >= 0]
             ligne = (
                 cid,
@@ -1425,7 +1425,7 @@ def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
     l'ampleur, la p-value et le **verdict en clair**.
 
     Même calcul et mêmes paramètres que `/v1/trend`, autre lecture. Il
-    fallait jusqu'ici savoir que `H: true` signifie « stationnarité
+    fallait jusqu'ici savoir que `h: true` signifie « stationnarité
     rejetée » pour lire une réponse. Ce que la table ne montre pas (les
     intervalles de pente, la moyenne de période, les métadonnées des
     fiches) reste dans `/v1/trend`.

@@ -90,7 +90,7 @@ des deux endroits.
   `GET /v1/trend/figure` rend le **même** résultat en table, une ligne
   par variable, avec le sens, l'ampleur dans l'unité de la variable, la
   pente relative en %/an, la p-value et le **verdict en clair**. Jusqu'ici
-  il fallait savoir que `H: true` signifie « stationnarité rejetée » pour
+  il fallait savoir que `h: true` signifie « stationnarité rejetée » pour
   lire une réponse, ce que personne ne sait à la première visite.
 
   Livré le matin en `format=text` sur `/v1/trend`, **refait le jour même
@@ -297,6 +297,20 @@ des deux endroits.
   la couleur et la configuration sont bon marché, la **forme** ne l'est
   pas : c'est le constat d'entrée de la session, et l'avoir éprouvé une
   seconde fois ne l'a pas changé.
+
+### Modifié
+
+- **La colonne `H` de la tendance devient `h` (2026-07-28),** en suivant
+  stase où le renommage a eu lieu. C'était le dernier reste du portage R
+  au milieu de `level`, `p`, `a`, `b`, `period_start` : dans le même
+  dictionnaire de sortie, `P`, `STAT` et `TREND` avaient déjà été mis en
+  minuscules, `H` avait été oublié. Rupture assumée, faite maintenant
+  parce que les trois dépôts n'ont pas encore d'utilisateur extérieur.
+
+  Les CSV de référence MAKAHO engendrés par R **ne sont pas touchés** :
+  la traduction se fait à la lecture, dans `tests/test_makaho.py`. La
+  validation contre ces goldens passe donc à l'identique, ce qui est la
+  preuve que le renommage n'a rien changé au calcul.
 
 ### Corrigé
 

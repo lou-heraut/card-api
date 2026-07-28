@@ -145,7 +145,7 @@ Application :
 | Représentation | Forme | Pourquoi |
 |---|---|---|
 | tendance, résultat complet | `/v1/trend` | l'URL nue rend du JSON |
-| tendance, lecture humaine | `/v1/trend/figure` | retire les intervalles et les métadonnées, **ajoute** un verdict déduit de `H` : autre objet |
+| tendance, lecture humaine | `/v1/trend/figure` | retire les intervalles et les métadonnées, **ajoute** un verdict déduit de `h` : autre objet |
 | fiche, détail | `/v1/cards/{id}` | |
 | fiche, chaîne de calcul | `/v1/cards/{id}/figure` | même raisonnement |
 | tabulaire | `/v1/trend.csv`, `/v1/extract.csv` | mêmes lignes, mêmes colonnes, autre écriture : encodage |

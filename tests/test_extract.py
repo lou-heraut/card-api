@@ -84,7 +84,7 @@ def test_trend_endpoint():
     body = r.json()
     assert set(body["data"]) == {"QA", "VCN10"}
     row = body["data"]["QA"][0]
-    assert "H" in row and "level" in str(body)
+    assert "h" in row and "level" in str(body)
     # fiche scalaire refusée pour la tendance
     r2 = client.get("/v1/trend", params={
         "stations": "K0550010", "cards": "median-dtLF"})
