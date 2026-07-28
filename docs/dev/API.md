@@ -75,7 +75,8 @@ Préfixe `/v1` dès le départ.
 - `GET /v1/extract?stations=H5920010,K0550010&cards=QA,VCN10&start=1970-09-01&end=2020-08-31`
   : télécharge les chroniques journalières Hub'Eau
   (`hydrometrie/obs_elab`, QmnJ), exécute card, renvoie
-  `{data, meta}` ; `&format=csv` possible. `stations` est
+  `{data, meta}`. Le CSV était prévu ici en `&format=csv` ; il est servi
+  par `/v1/extract.csv`, cf. « Une représentation, une URL ». `stations` est
   une liste (plafonnée en public, déplafonnée avec clé de priorité) ;
   `start`/`end` optionnels (défaut : chronique complète).
 - `GET /v1/trend?stations=...&cards=QA,VCN10&mk=INDE` : enchaîne
@@ -147,7 +148,7 @@ Application :
 | tendance, lecture humaine | `/v1/trend/figure` | retire les intervalles et les métadonnées, **ajoute** un verdict déduit de `H` : autre objet |
 | fiche, détail | `/v1/cards/{id}` | |
 | fiche, chaîne de calcul | `/v1/cards/{id}/figure` | même raisonnement |
-| tabulaire (à venir) | `/v1/trend.csv` | mêmes lignes, mêmes colonnes, autre écriture : encodage |
+| tabulaire | `/v1/trend.csv`, `/v1/extract.csv` | mêmes lignes, mêmes colonnes, autre écriture : encodage |
 
 Deux conséquences assumées :
 
@@ -168,13 +169,78 @@ Précédent dans l'écosystème : l'API écoulement de Hub'Eau sert
 autres API (hydrométrie, qualité, piézométrie) refusent `format=csv` :
 c'est l'extension qui est leur convention, pas le paramètre.
 
-**Si un CSV est ajouté**, il devra porter sa provenance, sous peine de
-défaire ce que le service construit : un tableur qui ne sait plus d'où
-viennent ses chiffres. Le moyen retenu sera des lignes de commentaire
-`#` en tête (versions, SWHID, empreinte, source, droits), que
-`pandas.read_csv(comment="#")` et `read.csv(comment.char="#")` sautent
-d'eux-mêmes. Les en-têtes HTTP ne conviennent pas : ils disparaissent
-dès l'enregistrement du fichier.
+## Le CSV : provenance et nom de fichier (arbitré 2026-07-28)
+
+Un CSV ne sait pas porter de bloc `versions`, de SWHID, d'empreinte ni
+de droits. Livré nu, il devient en trois copies un tableau de chiffres
+dont plus personne ne sait d'où il vient, c'est-à-dire exactement ce que
+ce service existe pour éviter. Hub'Eau ne résout pas ce point, son CSV
+n'a qu'une ligne d'en-tête.
+
+**La provenance part en lignes de commentaire `#`**, avant la ligne de
+colonnes : versions et SWHID de card et de stase, stations, fiches,
+période demandée, échantillonnage, test et seuil pour la tendance,
+source, date de lecture, empreinte des données, droits, référence de
+citation. `pandas.read_csv(comment="#")` et `read.csv(comment.char="#")`
+les sautent d'eux-mêmes, et elles survivent à l'enregistrement du
+fichier, contrairement à un en-tête HTTP.
+
+**Virgule et point décimal**, pas le point-virgule de Hub'Eau : les deux
+clients documentés dans le README sont pandas et R, où la virgule est la
+norme. Le `;` sert Excel français, au prix d'un fichier que `read_csv` ne
+lit pas sans réglage.
+
+### Le nom du fichier
+
+```
+card-api_trend_F700000103_QA-VCN10_AR1_2005-2026_ac9c7eed.csv
+└ producteur
+        └ analyse
+                └ stations
+                            └ variables
+                                       └ test (tendance seulement)
+                                           └ période  └ empreinte
+```
+
+Les champs sont séparés par `_`, les valeurs d'un même champ par `-`.
+
+L'ordre va **du plus général au plus particulier**, pour que deux
+analyses voisines se rangent côte à côte dans un dossier trié par nom.
+C'est le principe des conventions de nommage climatiques (CMIP et
+consorts), et il vaut ici pour la même raison.
+
+Quatre décisions valent d'être notées :
+
+- **La période vient de la DONNÉE, pas de la demande.** Demander
+  « depuis 1970 » sur une station ouverte en 2005 donnerait un nom qui
+  ment sur son contenu.
+- **L'empreinte termine le nom, et non une date de génération.** Deux
+  fichiers de même nom ont la même source ; deux extractions du même jour
+  séparées par une révision Hub'Eau ne s'écrasent pas l'une l'autre. Une
+  date, elle, changerait sans que rien ne change.
+- **Au-delà de trois valeurs, une liste est comptée** (`12stations`,
+  `8variables`). Sans ce garde-fou, douze stations donnent un nom de
+  150 caractères que personne ne lit et que certains systèmes de fichiers
+  refusent.
+- **Ce nom se lit, il ne se parse pas.** Un identifiant de fiche peut
+  contenir `_` (`QMNA_summer`), ce qui casse la séparation des champs. Ce
+  qui se parse est l'en-tête `#`, exhaustif et sans ambiguïté.
+
+`Content-Disposition: attachment; filename=...` accompagne la réponse,
+comme chez Hub'Eau : le navigateur enregistre un fichier nommé au lieu
+d'afficher du texte.
+
+### La forme du tableau
+
+`trend.csv` est direct, une ligne par station et par variable, toutes les
+colonnes du test. **Rien n'est retiré**, contrairement à la figure : le
+CSV est le même résultat autrement écrit, intervalles de pente compris.
+
+`extract.csv` est en forme **longue** (`id, date, variable, valeur`) et
+non une colonne par variable : deux fiches n'ont ni le même pas de temps
+ni les mêmes années, les mettre côte à côte fabriquerait des trous qui ne
+sont pas dans la donnée. `pandas.pivot` et `tidyr::pivot_wider` remettent
+en large quand c'est voulu.
 
 ## Déploiement : Docker (arbitré 2026-07-16)
 

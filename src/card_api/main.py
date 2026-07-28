@@ -234,8 +234,13 @@ _D_CARDS = ("Identifiants de fiches, séparés par des virgules (colonne "
             "`id` de /v1/cards). Fiches à entrée Q uniquement, puisque "
             "les données sont hydrométriques. Exemple : `QA,VCN10`, le "
             "module annuel et l'étiage.")
-_D_START = "Début de la période, AAAA-MM-JJ. Par défaut, tout l'historique."
-_D_END = "Fin de la période, AAAA-MM-JJ. Par défaut, tout l'historique."
+_D_START = ("Début de la période, AAAA-MM-JJ. Par défaut, le début de "
+            "la chronique. `1968-09-01` est la convention d'analyse du "
+            "projet : début d'année hydrologique, et borne de référence "
+            "des validations MAKAHO.")
+_D_END = ("Fin de la période, AAAA-MM-JJ. Par défaut, et c'est ce qu'on "
+          "veut le plus souvent, le DERNIER JOUR DISPONIBLE : laisser "
+          "vide pour suivre la chronique à mesure qu'elle s'allonge.")
 _D_SAMPLING = (
     "Écrase la fenêtre annuelle des fiches. `preferred` : fenêtre fixe "
     "déclarée par chaque fiche (reproductible, protocole MAKAHO). "
@@ -290,8 +295,7 @@ _D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
 # à qui n'en a pas demandé). Leur description dit les valeurs acceptées.
 _X_STATIONS = {"example": "F700000103"}
 _X_CARDS = {"example": "QA,VCN10"}
-_X_START = {"example": "1970-01-01"}
-_X_END = {"example": "2020-12-31"}
+_X_START = {"example": "1968-09-01"}
 _X_JOB_ID = {"example": "3f2a9c1b7e4d8506"}
 
 # L'ordre des sections EST celui de la page : Swagger les affiche dans
@@ -907,6 +911,125 @@ def _stations_meta(st):
             headers={"Retry-After": "300"})
 
 
+# ── CSV : le tableur, sans perdre la provenance ────────────────────────
+#
+# Un CSV ne sait pas porter de bloc `versions`, de SWHID, d'empreinte ni
+# de droits. Livré nu, il devient en trois copies un tableau de chiffres
+# dont plus personne ne sait d'où il vient, c'est-à-dire exactement ce
+# que ce service existe pour éviter. Hub'Eau ne résout pas ce point : son
+# CSV n'a qu'une ligne d'en-tête.
+#
+# La provenance part donc en LIGNES DE COMMENTAIRE `#` en tête de
+# fichier. `pandas.read_csv(comment="#")` et `read.csv(comment.char="#")`
+# les sautent d'eux-mêmes, et elles survivent à l'enregistrement du
+# fichier, contrairement à un en-tête HTTP.
+def _csv_entete(out, endpoint):
+    """Les lignes `#` de provenance, avant la ligne de colonnes."""
+    lignes = [
+        f"card-api · {endpoint}",
+        f"card {out.get('card_version')}"
+        + (f" ({out['card_swhid']})" if out.get("card_swhid") else "")
+        + f" · stase {out.get('stase_version')}"
+        + (f" ({out['stase_swhid']})" if out.get("stase_swhid") else "")
+        + f" · api {out.get('api_version')}",
+        f"stations : {','.join(out['stations'])}",
+        f"fiches : {','.join(out['cards'])}",
+        f"période demandée : {out['period']['start'] or 'depuis le début'}"
+        f" → {out['period']['end'] or 'jusqu’à la fin'}",
+        f"échantillonnage : {out['sampling'] or 'fenêtre propre à chaque fiche'}",
+        f"source : {out['source']}",
+        f"données lues le {out['data_fetched_at']}"
+        f" · empreinte {out['data_fingerprint']}",
+        f"droits : {out['rights']['data']['license']} (données)"
+        f" · {out['rights']['definitions']['license']} (définitions)",
+        f"citer : {out['rights']['cite']}",
+    ]
+    if out.get("mk"):
+        lignes.insert(4, f"test : Mann-Kendall {out['mk']}, "
+                         f"seuil {out['level']}")
+    return "".join(f"# {ligne}\n" for ligne in lignes)
+
+
+def _abrege(valeurs, mot, maxi=3):
+    """Une liste dans un nom de fichier : en clair si elle est courte,
+    comptée sinon. Sans ce garde-fou, douze stations donneraient un nom
+    de 150 caractères que personne ne lit et que certains systèmes de
+    fichiers refusent."""
+    valeurs = list(dict.fromkeys(valeurs))
+    if len(valeurs) <= maxi:
+        return "-".join(valeurs)
+    return f"{len(valeurs)}{mot}"
+
+
+def _annees(table):
+    """Les années réellement couvertes par le tableau rendu.
+
+    Prises sur la DONNÉE et non sur les bornes demandées : une demande
+    « depuis 1970 » sur une station ouverte en 2005 donnerait un nom de
+    fichier qui ment sur son contenu."""
+    for col in ("date", "period_start"):
+        if col in table.columns and len(table):
+            dates = table[col].astype(str)
+            fin = table["period_end"] if "period_end" in table else dates
+            return f"{dates.min()[:4]}-{str(fin.max())[:4]}"
+    return "sans-date"
+
+
+def _csv_nom(table, out, endpoint):
+    """Nom de fichier : du plus général au plus particulier, pour que
+    deux analyses voisines se rangent côte à côte dans un dossier.
+
+        card-api_trend_F700000103_QA-VCN10_AR1_2005-2026_ac9c7eed.csv
+        └ producteur                            └ période  └ empreinte
+
+    Les champs sont séparés par `_`, les valeurs d'un même champ par `-`.
+    Un identifiant de fiche peut contenir `_` (QMNA_summer) : ce nom se
+    lit, il ne se parse pas. Ce qui se parse est l'en-tête `#`.
+
+    L'empreinte des données termine le nom : deux fichiers de même nom
+    ont la même source, et deux extractions du même jour séparées par une
+    révision Hub'Eau ne s'écrasent pas l'une l'autre. Elle sert mieux
+    qu'une date de génération, qui changerait sans que rien ne change.
+    """
+    morceaux = ["card-api", endpoint,
+                _abrege(out["stations"], "stations"),
+                _abrege(out["cards"], "variables")]
+    if out.get("mk"):
+        morceaux.append(str(out["mk"]))
+    morceaux.append(_annees(table))
+    empreinte = str(out.get("data_fingerprint", "")).split(":")[-1][:8]
+    if empreinte:
+        morceaux.append(empreinte)
+    nom = "_".join(m for m in morceaux if m)
+    return re.sub(r"[^A-Za-z0-9._-]", "", nom) + ".csv"
+
+
+def _csv_response(table, out, endpoint):
+    """Le fichier complet : provenance en `#`, puis le tableau.
+
+    Virgule et point décimal : ce sont pandas et R qui lisent ces
+    fichiers, les deux clients documentés dans le README. Hub'Eau écrit
+    en `;` pour Excel français, au prix d'un fichier que `read_csv` ne
+    lit pas sans réglage.
+    """
+    corps = _csv_entete(out, endpoint) + table.to_csv(index=False)
+    return _RawResponse(
+        corps.encode("utf-8"), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{_csv_nom(table, out, endpoint)}"'})
+
+
+def _csv_job(out):
+    """Une demande passée en file de calcul n'a pas de fichier à rendre :
+    on le dit en texte plutôt que de servir un CSV vide."""
+    return _RawResponse(
+        (f"# demande trop grosse pour une réponse immédiate\n"
+         f"# elle est partie en file de calcul, ticket {out['job']}\n"
+         f"# suivi : /v1/jobs/{out['job']} · résultat en JSON\n"
+         ).encode("utf-8"),
+        media_type="text/csv; charset=utf-8", status_code=202)
+
+
 # ── La tendance, DESSINÉE ──────────────────────────────────────────────
 #
 # Même geste que `/v1/cards/{id}/figure` : la représentation lisible d'un
@@ -1032,60 +1155,105 @@ def _run_extract(st, cd, start, end, sampling=None):
     return res, empreintes
 
 
-@app.get("/v1/extract", tags=["data"],
-         summary="Chroniques Hub'Eau vers variables CARD",
-         dependencies=[Depends(usage.rate_compute)])
-def extract(
-    request: Request,
-    stations: str = Query(json_schema_extra=_X_STATIONS,
-                          description=_D_STATIONS),
-    cards: str = Query(json_schema_extra=_X_CARDS, description=_D_CARDS),
-    start: str | None = Query(None, json_schema_extra=_X_START,
-                              description=_D_START),
-    end: str | None = Query(None, json_schema_extra=_X_END,
-                            description=_D_END),
-    sampling: str | None = Query(None, description=_D_SAMPLING),
-    stations_meta: bool = Query(False, description=_D_STATIONS_META),
-    orient: _Orient = Query("records", description=_D_ORIENT),
-):
-    """Extrait des variables CARD sur des chroniques Hub'Eau.
+class ExtractParams(BaseModel):
+    """Les paramètres de l'extraction, déclarés UNE fois. Partagés par
+    `/v1/extract` et `/v1/extract.csv` (cf. TrendParams)."""
 
-    Au-dessus des plafonds synchrones (défaut 10 stations, 20 fiches),
-    la demande devient un job : réponse 202 avec un ticket à suivre
-    (cf. /v1/jobs/{id}).
+    stations: str = Field(json_schema_extra=_X_STATIONS,
+                          description=_D_STATIONS)
+    cards: str = Field(json_schema_extra=_X_CARDS, description=_D_CARDS)
+    start: str | None = Field(None, json_schema_extra=_X_START,
+                              description=_D_START)
+    end: str | None = Field(None, description=_D_END)
+    sampling: str | None = Field(None, description=_D_SAMPLING)
+    stations_meta: bool = Field(False, description=_D_STATIONS_META)
+    orient: _Orient = Field("records", description=_D_ORIENT)
+
+
+def _extract_result(request: Request, p: ExtractParams):
+    """Le calcul, partagé par les deux représentations d'extract.
+
+    Rend (résultat JSON, données par fiche), ou (ticket, None) si la
+    demande a basculé en file de calcul.
     """
-    _check_sampling(sampling)
+    _check_sampling(p.sampling)
     prio = usage.priority_of(request)
-    st, cd = _parse_lists(stations, cards, prio)
-    ticket = _maybe_job(request, "extract", st, cd, prio, start=start,
-                        end=end, sampling=sampling,
-                        stations_meta=stations_meta or None, orient=orient)
+    st, cd = _parse_lists(p.stations, p.cards, prio)
+    ticket = _maybe_job(request, "extract", st, cd, prio, start=p.start,
+                        end=p.end, sampling=p.sampling,
+                        stations_meta=p.stations_meta or None,
+                        orient=p.orient)
     if ticket is not None:
-        return ticket
-    res, empreintes = _run_extract(st, cd, start, end, sampling)
+        return ticket, None
+    res, empreintes = _run_extract(st, cd, p.start, p.end, p.sampling)
 
     extracted = res["data"]
     if not isinstance(extracted, dict):
         extracted = {cd[0]: extracted}
-    data_out = {k: serialize(v, orient) for k, v in extracted.items()}
     usage.log_usage(request, "extract", stations=len(st), cards=cd)
     out = {
         **versions(),
         "rights": rights(),
         "stations": st,
         "cards": cd,
-        "period": {"start": start, "end": end},
-        "sampling": sampling,
+        "period": {"start": p.start, "end": p.end},
+        "sampling": p.sampling,
         "source": SOURCE,
         "data_fetched_at": _fetched_at(st),
         "data_fingerprint": hubeau.combine_fingerprints(empreintes),
-        "orient": orient,
+        "orient": p.orient,
         "meta": serialize(res["meta"]),
-        "data": data_out,
+        "data": {k: serialize(v, p.orient) for k, v in extracted.items()},
     }
-    if stations_meta:
+    if p.stations_meta:
         out["stations_meta"] = _stations_meta(st)
+    return out, extracted
+
+
+@app.get("/v1/extract", tags=["data"],
+         summary="Chroniques Hub'Eau vers variables CARD",
+         dependencies=[Depends(usage.rate_compute)])
+def extract(request: Request, p: Annotated[ExtractParams, Query()]):
+    """Extrait des variables CARD sur des chroniques Hub'Eau.
+
+    Au-dessus des plafonds synchrones (défaut 10 stations, 20 fiches),
+    la demande devient un job : réponse 202 avec un ticket à suivre
+    (cf. /v1/jobs/{id}).
+
+    Pour un fichier ouvrable au tableur : `/v1/extract.csv`, mêmes
+    paramètres.
+    """
+    out, _ = _extract_result(request, p)
     return out
+
+
+@app.get("/v1/extract.csv", tags=["data"],
+         summary="Les mêmes séries, en CSV pour le tableur",
+         response_class=_RawResponse,
+         responses={200: {"content": {"text/csv": {}}}},
+         dependencies=[Depends(usage.rate_compute)])
+def extract_csv(request: Request, p: Annotated[ExtractParams, Query()]):
+    """Les mêmes données qu'`/v1/extract`, en un seul tableau.
+
+    Forme LONGUE (`id, date, variable, valeur`) et non une colonne par
+    variable : deux fiches n'ont pas le même pas de temps ni les mêmes
+    années, les mettre côte à côte fabriquerait des trous qui ne sont pas
+    dans la donnée. `pandas.pivot` ou `tidyr::pivot_wider` remettent en
+    large si besoin.
+    """
+    out, extracted = _extract_result(request, p)
+    if extracted is None:
+        return _csv_job(out)
+    longues = []
+    for cid, df in extracted.items():
+        colonnes = [c for c in df.columns if c not in ("id", "date")]
+        for col in colonnes:
+            part = df[["id", "date", col]].rename(columns={col: "valeur"})
+            part.insert(2, "variable", col)
+            longues.append(part)
+    table = (pd.concat(longues, ignore_index=True) if longues
+             else pd.DataFrame(columns=["id", "date", "variable", "valeur"]))
+    return _csv_response(table, out, "extract")
 
 
 class TrendParams(BaseModel):
@@ -1105,8 +1273,7 @@ class TrendParams(BaseModel):
     cards: str = Field(json_schema_extra=_X_CARDS, description=_D_CARDS)
     start: str | None = Field(None, json_schema_extra=_X_START,
                               description=_D_START)
-    end: str | None = Field(None, json_schema_extra=_X_END,
-                            description=_D_END)
+    end: str | None = Field(None, description=_D_END)
     sampling: str | None = Field(None, description=_D_SAMPLING)
     mk: _Mk = Field("AR1", description=_D_MK)
     level: float = Field(0.1, gt=0, lt=1, description=_D_LEVEL)
@@ -1184,8 +1351,27 @@ def trend(request: Request, p: Annotated[TrendParams, Query()]):
     return out
 
 
+@app.get("/v1/trend.csv", tags=["data"],
+         summary="Les mêmes diagnostics, en CSV pour le tableur",
+         response_class=_RawResponse,
+         responses={200: {"content": {"text/csv": {}}}},
+         dependencies=[Depends(usage.rate_compute)])
+def trend_csv(request: Request, p: Annotated[TrendParams, Query()]):
+    """Les mêmes diagnostics qu'`/v1/trend`, en un seul tableau : une
+    ligne par station et par variable, toutes les colonnes du test.
+
+    Contrairement à la figure, rien n'est retiré : le CSV est le même
+    résultat autrement écrit, intervalles de pente compris.
+    """
+    out, tr = _trend_result(request, p)
+    if tr is None:
+        return _csv_job(out)
+    table = pd.concat(list(tr["data"].values()), ignore_index=True)
+    return _csv_response(table, out, "trend")
+
+
 @app.get("/v1/trend/figure", tags=["data"],
-         summary="La tendance dessinée, en texte",
+         summary="Le diagnostic de stationnarité, dessiné",
          response_class=PlainTextResponse,
          dependencies=[Depends(usage.rate_compute)])
 def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):

@@ -51,8 +51,10 @@ les droits qui vont avec.
 | `GET /v1/vocabulary` | valeurs valides des facettes, donc les filtres acceptés |
 | `GET /v1/stations` | recherche de stations ; `codes` rend la sélection prête à coller |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
+| `GET /v1/extract.csv` | les mêmes séries, en CSV pour le tableur |
 | `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
-| `GET /v1/trend/figure` | la tendance **dessinée** (texte) : sens, ampleur, verdict |
+| `GET /v1/trend.csv` | les mêmes diagnostics, en CSV pour le tableur |
+| `GET /v1/trend/figure` | le diagnostic **dessiné** (texte) : sens, ampleur, verdict |
 | `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
 | `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
 | `GET /v1/health` | santé du service (file de calcul, disque) |
@@ -126,6 +128,13 @@ Deux paramètres méritent un mot :
   mêmes paramètres : sens, ampleur, p-value et verdict en clair. De quoi
   lire une réponse sans traverser le JSON, dans un terminal comme dans
   `/docs`.
+- `/v1/extract.csv` et `/v1/trend.csv` rendent les mêmes données en
+  fichier ouvrable au tableur, virgule et point décimal. La provenance
+  (versions, SWHID, source, empreinte, droits) voyage en lignes `#` en
+  tête, que `read_csv(comment="#")` et `read.csv(comment.char="#")`
+  sautent d'eux-mêmes : un fichier enregistré sait toujours dire d'où il
+  vient. Le nom proposé au téléchargement porte l'analyse,
+  `card-api_trend_F700000103_QA-VCN10_AR1_2005-2026_ac9c7eed.csv`.
 - `stations_meta=true` joint les fiches du référentiel Hub'Eau des
   stations demandées (libellé, coordonnées, état de service). Un résultat
   devient autoportant : tracer une carte ne demande plus d'aller chercher

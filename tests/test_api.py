@@ -297,3 +297,68 @@ def test_la_tendance_se_lit_aussi_dessinee():
     noms = [q["name"] for q in spec["/v1/trend"]["get"]["parameters"]]
     assert noms == [q["name"] for q in
                     spec["/v1/trend/figure"]["get"]["parameters"]]
+
+
+def test_le_csv_porte_sa_provenance():
+    """Un CSV ne sait pas porter de bloc `versions` : livré nu, il devient
+    en trois copies un tableau de chiffres dont plus personne ne sait d'où
+    il vient, c'est-à-dire ce que ce service existe pour éviter. La
+    provenance part donc en lignes `#`, que pandas et R sautent d'eux-
+    mêmes et qui survivent à l'enregistrement du fichier, contrairement à
+    un en-tête HTTP."""
+    import io
+
+    import pandas as pd
+
+    p = {"stations": "F700000103", "cards": "QA,VCN10", "start": "1990-01-01"}
+    r = client.get("/v1/extract.csv", params=p)
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+
+    entete = [ligne for ligne in r.text.splitlines() if ligne.startswith("#")]
+    joint = "\n".join(entete)
+    for attendu in ("card-api", "stations :", "fiches :", "source :",
+                    "empreinte", "droits :", "citer :"):
+        assert attendu in joint, attendu
+
+    # et le fichier reste un CSV ordinaire une fois les commentaires sautés
+    d = pd.read_csv(io.StringIO(r.text), comment="#")
+    assert list(d.columns) == ["id", "date", "variable", "valeur"]
+    assert set(d["variable"]) == {"QA", "VCN10"}
+
+
+def test_le_nom_du_fichier_dit_l_analyse():
+    """Du plus général au plus particulier, pour que deux analyses
+    voisines se rangent côte à côte. L'empreinte des données termine le
+    nom : deux extractions séparées par une révision Hub'Eau ne
+    s'écrasent pas l'une l'autre, là où une date de génération changerait
+    sans que rien ne change."""
+    r = client.get("/v1/trend.csv", params={"stations": "F700000103",
+                                            "cards": "QA,VCN10"})
+    nom = r.headers["content-disposition"].split('filename="')[1].rstrip('"')
+    champs = nom.removesuffix(".csv").split("_")
+    assert champs[0] == "card-api" and champs[1] == "trend"
+    assert champs[2] == "F700000103"
+    assert "QA-VCN10" in nom and "AR1" in nom
+    assert nom.endswith(".csv")
+
+    from card_api.main import _abrege
+    assert _abrege(["A", "B"], "stations") == "A-B"
+    assert _abrege(list("ABCDE"), "stations") == "5stations"
+
+
+def test_les_csv_ont_un_contrat_exact():
+    """Une représentation, une URL : chaque opération déclare le seul
+    type de média qu'elle rend, et les quatre endpoints d'un même calcul
+    partagent leurs paramètres au lieu de les recopier."""
+    paths = client.get("/openapi.json").json()["paths"]
+    attendu = {"/v1/extract": "application/json", "/v1/extract.csv": "text/csv",
+               "/v1/trend": "application/json", "/v1/trend.csv": "text/csv",
+               "/v1/trend/figure": "text/plain"}
+    for path, media in attendu.items():
+        contenu = paths[path]["get"]["responses"]["200"]["content"]
+        assert set(contenu) == {media}, (path, list(contenu))
+    for a, b in (("/v1/extract", "/v1/extract.csv"),
+                 ("/v1/trend", "/v1/trend.csv")):
+        assert ([q["name"] for q in paths[a]["get"]["parameters"]]
+                == [q["name"] for q in paths[b]["get"]["parameters"]])

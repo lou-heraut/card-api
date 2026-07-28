@@ -35,6 +35,41 @@ des deux endroits.
   caractères dans la réponse, mais c'est la corvée qui décidait de
   l'abandon.
 
+- **Les champs de période pré-remplis enseignaient la mauvaise fenêtre
+  (2026-07-28).** `/docs` proposait `1970-01-01 → 2020-12-31`, si bien
+  qu'un premier essai calculait sur une fenêtre arbitraire, close six ans
+  avant aujourd'hui. Le début devient `1968-09-01`, la convention
+  d'analyse du projet et la borne des validations MAKAHO, et **la fin
+  reste vide** : le comportement voulu est de suivre la chronique jusqu'à
+  son dernier jour disponible, donc de ne pas poser de borne. Un champ
+  pré-rempli n'est pas neutre, il enseigne.
+
+- **Le tableur, sans perdre la provenance (2026-07-28) :**
+  `/v1/extract.csv` et `/v1/trend.csv` rendent les mêmes données qu'à
+  l'URL nue, en fichier ouvrable au tableur. Virgule et point décimal,
+  pas le `;` de Hub'Eau : les clients documentés dans le README sont
+  pandas et R.
+
+  Le point qui décidait de l'intérêt de la chose : **un CSV ne sait pas
+  porter de bloc `versions`, de SWHID, d'empreinte ni de droits.** Livré
+  nu, il devient en trois copies un tableau de chiffres dont plus
+  personne ne sait d'où il vient, c'est-à-dire ce que ce service existe
+  pour éviter, et Hub'Eau ne résout pas ce point. La provenance part donc
+  en **lignes de commentaire `#`** en tête de fichier, que
+  `read_csv(comment="#")` et `read.csv(comment.char="#")` sautent d'elles-
+  mêmes et qui survivent à l'enregistrement, contrairement à un en-tête
+  HTTP.
+
+  Le nom proposé au téléchargement porte l'analyse, du plus général au
+  plus particulier :
+  `card-api_trend_F700000103_QA-VCN10_AR1_2005-2026_ac9c7eed.csv`. La
+  période y vient de la **donnée** et non de la demande (« depuis 1970 »
+  sur une station ouverte en 2005 mentirait), et le nom se termine par
+  l'**empreinte des données** plutôt que par une date de génération :
+  deux fichiers de même nom ont la même source, et deux extractions
+  séparées par une révision Hub'Eau ne s'écrasent pas. Détail et
+  arbitrages dans `docs/dev/API.md`.
+
 - **La tendance se lit aussi dessinée (2026-07-28) :**
   `GET /v1/trend/figure` rend le **même** résultat en table, une ligne
   par variable, avec le sens, l'ampleur dans l'unité de la variable, la
