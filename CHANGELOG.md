@@ -39,7 +39,9 @@ des deux endroits.
 
   Le lien de l'en-tête est désormais un `mailto:` qui porte l'objet et le
   canevas de la demande, ce qui donne la structure du formulaire sans le
-  formulaire. À l'échelle réelle, quelques demandes par an et une
+  formulaire. Rien n'a été mis à la place du gabarit dans le sélecteur
+  d'issues : le README et l'en-tête disent déjà où écrire, une entrée de
+  plus n'aurait fait qu'un détour supplémentaire. À l'échelle réelle, quelques demandes par an et une
   attribution manuelle assumée, le courriel n'est pas un pis-aller :
   c'est le bon outil. Un formulaire hébergé n'éviterait pas d'avoir à
   répondre par courriel de toute façon.

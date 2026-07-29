@@ -1,15 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  # Le gabarit « clé de priorité » vivait ici. Retiré : une issue de
-  # dépôt public est publique, donc le jeton ne pouvait pas en revenir
-  # sans être divulgué, le formulaire ne demandait aucune adresse de
-  # réponse, et il fallait un compte GitHub. Reste ce renvoi, pour que
-  # celui qui cherchait le gabarit trouve le bon chemin.
-  - name: Demander une clé de priorité (usage massif)
-    url: https://github.com/lou-heraut/card-api#quotas-et-clés-de-priorité
-    about: >
-      Par courriel, pas par une issue : le jeton ne peut pas transiter
-      par une page publique.
   - name: Question sur les fiches CARD (définitions, classification)
     url: https://github.com/lou-heraut/card/issues
     about: Les fiches vivent dans le repo card, posez-y les questions de contenu.
