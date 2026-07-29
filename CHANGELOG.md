@@ -22,7 +22,57 @@ des deux endroits.
 
 ## Non publié
 
+### Corrigé
+
+- **Une demande trop grosse ne casse plus le CSV ni la figure
+  (2026-07-29).** Au-dessus des plafonds synchrones (10 stations, 20
+  fiches), la demande bascule en file de calcul. Cette bascule ne
+  fonctionnait qu'en JSON : `/v1/extract.csv`, `/v1/trend.csv` et
+  `/v1/trend/figure` rendaient un **500** au lieu du ticket, alors même
+  que le job partait bien en file. Le ticket était fabriqué directement
+  sous forme de réponse JSON, que ces trois représentations tentaient
+  ensuite de relire comme des données pour y prendre le numéro de job.
+
+  Le ticket est désormais construit en **données**, et chaque
+  représentation le rend dans son propre medium : JSON pour `/v1/extract`
+  et `/v1/trend`, lignes `#` pour les deux `.csv`, phrase en clair pour
+  la figure. Les trois portent maintenant l'en-tête `Location` comme la
+  réponse JSON, si bien qu'un ticket se suit de la même façon quel que
+  soit le point d'entrée. Couvert par un test paramétré sur les trois
+  chemins, pour que la prochaine représentation ajoutée hérite du cas.
+
+- **`make stats` ne comptait pas un job deux fois (2026-07-29).** Le
+  tableau de bord retenait comme requête toute entrée du journal portant
+  un `endpoint`. Or l'événement `job_done` en porte un, celui du
+  traitement exécuté : chaque job était donc compté au dépôt PUIS à sa
+  fin, et la famille calcul surestimait d'autant. Le filtre écarte
+  désormais les événements, qui ne sont pas des requêtes. Premiers tests
+  du tableau de bord au passage : ses chiffres servent de preuve d'impact
+  pour les financements, un chiffre faux n'y saute pas aux yeux.
+
 ### Modifié
+
+- **Quotas par IP relevés, de 10 à 60 requêtes de calcul par minute, et
+  de 60 à 300 pour le catalogue (2026-07-29).** Ils avaient été posés bas
+  par prudence, avant tout usage réel. Ce compteur n'est pas ce qui
+  protège la VM : le sémaphore de calcul sérialise les traitements lourds
+  et la bascule en job absorbe les grosses demandes, quel que soit le
+  rythme des appels. Il compte d'ailleurs des requêtes et non leur coût,
+  alors qu'une requête de 10 stations et 20 fiches pèse cent fois une
+  requête d'une station. Serré, il gênait surtout deux innocents : un
+  établissement entier derrière une seule IP publique, DREAL ou agence de
+  l'eau, où le plafond se partage entre collègues sans que personne
+  n'aille vite, et la boucle station par station, premier script que tout
+  le monde écrit. Les refus étant désormais mesurés, ces valeurs se
+  resserreront à la charge observée s'il le faut, et plus à l'intuition.
+  Raisonnement complet dans `docs/dev/API.md`.
+
+- **Le message du 429 enseigne la bonne forme d'appel (2026-07-29).** Il
+  n'offrait que « demandez une clé de priorité », c'est-à-dire une
+  attribution manuelle, comme seule issue à un service public par défaut.
+  Il rappelle maintenant que `stations` prend une LISTE et qu'une demande
+  trop grosse bascule d'elle-même en file, ce qui est la vraie réponse
+  dans la quasi-totalité des cas. Même conseil ajouté au README.
 
 - **Une clé de priorité se demande par courriel, plus par une issue
   GitHub (2026-07-29).** Le gabarit d'issue est retiré. Il était
@@ -47,6 +97,25 @@ des deux endroits.
   répondre par courriel de toute façon.
 
 ### Ajouté
+
+- **Les refus de quota sont journalisés (2026-07-29).** `check_rate`
+  levait son 429 avant tout `log_usage` : un utilisateur repoussé ne
+  laissait aucune trace. Impossible de savoir si le plafond mordait, sur
+  qui ni sur quel endpoint, donc impossible de le régler autrement qu'à
+  l'intuition. Le refus s'écrit maintenant au journal comme **événement**
+  et non comme usage, avec la famille, l'endpoint et le plafond atteint.
+  Il ne grossit donc aucun compteur d'usage : quelqu'un qu'on repousse
+  n'a rien consommé.
+
+  `make stats` affiche une ligne `REFUS`, muette tant qu'il n'y en a pas,
+  qui donne le nombre d'**IP distinctes** repoussées. C'est la question
+  qui permet de trancher : une personne bloquée trente fois est un script
+  à qui il faut expliquer la liste, trente personnes bloquées une fois
+  est un plafond trop bas.
+
+  L'écriture se fait hors du verrou de la fenêtre glissante : `_append`
+  prend le même `_lock`, qui n'est pas réentrant, donc journaliser depuis
+  la section critique aurait figé le service au premier dépassement.
 
 - **`make stats` distingue la représentation demandée (2026-07-29).** Un
   CSV et une figure se comptaient comme du JSON : impossible de savoir si

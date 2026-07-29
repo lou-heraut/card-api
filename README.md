@@ -261,6 +261,14 @@ dépassement (`429`), l'en-tête `Retry-After` indique quand réessayer.
 Les chroniques sont mises en cache 24 h côté serveur : répéter une
 requête ne re-télécharge rien depuis Hub'Eau.
 
+Si vous atteignez le quota, c'est presque toujours qu'une boucle
+appelle le service une fois par station. Ce n'est pas la bonne forme :
+`stations` prend une **liste** (`stations=A,B,C`), un appel rapporte
+tout, et au-delà des plafonds synchrones la demande bascule d'elle-même
+en file de calcul. Le quota est calculé large pour ne gêner personne en
+usage normal, y compris tout un établissement derrière une même adresse
+publique.
+
 Pour un besoin massif ou récurrent (centaines de stations, chaînes de
 traitement), demandez une clé de priorité gratuite **par courriel** à
 <louis.heraut@inrae.fr> : qui vous êtes, l'usage prévu, et le projet

@@ -110,7 +110,14 @@ def _dir_size(path):
 # ── cadres ───────────────────────────────────────────────────────────────────
 
 def _activity_box(entries):
-    reqs = [e for e in entries if "endpoint" in e]
+    # `event` exclut : un ÉVÉNEMENT n'est pas une requête. Le filtre ne
+    # regardait que la présence d'`endpoint`, or `job_done` en porte un
+    # (celui du traitement exécuté) : chaque job était donc compté deux
+    # fois, au dépôt puis à sa fin, et la famille calcul surestimait
+    # d'autant. Les refus de quota, ajoutés le 2026-07-29, tombent sous
+    # la même règle et pour une raison plus forte encore : un utilisateur
+    # repoussé n'a rien consommé.
+    reqs = [e for e in entries if "endpoint" in e and "event" not in e]
     month = [e for e in reqs
              if e.get("ts", "")[:10] >= str(date.today() - timedelta(30))]
     # DEUX FAMILLES, jamais additionnées. Consulter le catalogue et
@@ -148,6 +155,25 @@ def _activity_box(entries):
         if vus:
             detail = " · ".join(f"{n} {nom}" for nom, n in vus.most_common(3))
             lines.append(f"            {detail}")
+
+    # Les REFUS de quota. Muet tant qu'il n'y en a pas : un plafond qui
+    # ne mord jamais n'a rien à dire. Dès qu'une ligne apparaît, elle
+    # répond à la seule question qui permette de régler les plafonds,
+    # combien de personnes DISTINCTES sont repoussées. Une personne
+    # bloquée trente fois est un script mal écrit, à qui il faut
+    # expliquer la liste ; trente personnes bloquées une fois est un
+    # plafond trop bas.
+    refus = [e for e in entries
+             if e.get("event") == "quota"
+             and e.get("ts", "")[:10] >= str(date.today() - timedelta(30))]
+    if refus:
+        lines.append("")
+        série = _per_day(refus, 30)
+        bloqués = len({e["user"] for e in refus if "user" in e})
+        lines.append(f"REFUS       {_spark(série)}  {sum(série):>5}")
+        par_famille = Counter(e.get("famille", "?") for e in refus)
+        detail = " · ".join(f"{n} {nom}" for nom, n in par_famille.most_common())
+        lines.append(f"            {detail} · {bloqués} IP distinctes")
 
     users = len({e["user"] for e in month if "user" in e})
     lines += ["", f"30 jours · {len(month)} requêtes · "

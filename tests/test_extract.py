@@ -120,12 +120,24 @@ def test_rate_limit_and_usage_log(monkeypatch, tmp_path):
     assert ok1.status_code == ok2.status_code == 200
     assert blocked.status_code == 429
     assert "Retry-After" in blocked.headers
-    log = next(tmp_path.glob("usage-*.jsonl")).read_text().strip().split("\n")
-    assert len(log) == 2                       # seules les requêtes servies
     import json
-    entry = json.loads(log[0])
+    log = [json.loads(ligne) for ligne in
+           next(tmp_path.glob("usage-*.jsonl")).read_text().strip().split("\n")]
+    servies = [e for e in log if "event" not in e]
+    assert len(servies) == 2                   # seules les requêtes servies
+    entry = servies[0]
     assert entry["endpoint"] == "extract" and "user" in entry
     assert "." not in entry["user"] and len(entry["user"]) == 12   # hash, pas l'IP
+
+    # Le REFUS laisse une trace, sans quoi le plafond serait invisible et
+    # se réglerait à l'aveugle. Trace d'événement, jamais d'usage : un
+    # utilisateur repoussé n'a rien consommé et ne doit gonfler aucun
+    # compteur de `make stats`.
+    refus = [e for e in log if e.get("event") == "quota"]
+    assert len(refus) == 1
+    assert refus[0]["endpoint"] == "extract"
+    assert refus[0]["famille"] == "calcul" and refus[0]["limit"] == 2
+    assert refus[0]["user"] == entry["user"]   # même IP hachée, jamais en clair
 
 
 def test_extract_sampling_override():

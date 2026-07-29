@@ -72,7 +72,14 @@ src/card_api/
                 #   encore été publiée.
                 #   client Hub'Eau v2 (obs_elab QmnJ, L/s -> m3/s,
                 #   pagination next, codes post-refonte) + cache 24 h
-  usage.py      # quotas IP (fenêtre glissante, 429+Retry-After),
+  usage.py      # quotas IP (fenêtre glissante, 429+Retry-After) ;
+                #   plafonds LARGES à dessein : ce compteur compte des
+                #   requêtes, pas leur coût, et la charge est tenue par
+                #   le sémaphore de calcul et la bascule en job. Un refus
+                #   est journalisé (log_refusal) comme ÉVÉNEMENT, jamais
+                #   comme usage : sinon le plafond est invisible et se
+                #   règle à l'aveugle. Écrit HORS du verrou, `_lock`
+                #   n'étant pas réentrant.
                 #   priority_of (X-API-Key/key=, 401 si inconnue),
                 #   journal usage-AAAA.jsonl (rotation annuelle ; IP
                 #   hachée salée, préfixe de clé, log_event)
@@ -85,7 +92,13 @@ src/card_api/
   serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
   stats.py      # tableau de bord terminal (make stats / make watch) :
                 #   DEUX familles jamais additionnées, calcul et
-                #   découverte ; le champ `rendu` dit json/csv/figure ;
+                #   découverte ; un ÉVÉNEMENT n'est ni l'un ni l'autre
+                #   (job_done porte un `endpoint` : le compter faisait
+                #   deux appels pour un job) ; le champ `rendu` dit
+                #   json/csv/figure ; ligne REFUS muette tant que le
+                #   quota ne mord pas, en IP DISTINCTES : une personne
+                #   bloquée 30 fois est un script, 30 personnes bloquées
+                #   une fois est un plafond trop bas ;
                 #   sparklines, heatmap 12 semaines, file, disque
 tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
                 #   validation MAKAHO, précision machine) + live

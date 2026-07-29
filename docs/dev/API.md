@@ -99,6 +99,23 @@ Préfixe `/v1` dès le départ.
    besoins massifs (en-tête `X-API-Key`). Pas d'inscription pour
    l'usage normal.
 
+**Où porte réellement la protection (revu le 2026-07-29).** Le quota par
+IP a d'abord été posé bas, par prudence. C'est l'étage 2 qui protège
+vraiment : le sémaphore de calcul sérialise les traitements lourds et la
+bascule en job absorbe les grosses demandes, quel que soit le rythme des
+appels. Le compteur par minute, lui, compte des requêtes et non leur
+coût, alors qu'une requête de 10 stations et 20 fiches pèse cent fois
+une requête d'une station. Serré, il ne réduit donc pas la charge de
+manière fiable, mais il gêne deux innocents : un établissement entier
+derrière une seule IP publique, où le plafond se partage entre collègues
+sans que personne n'aille vite, et la boucle station par station, premier
+script que tout le monde écrit. D'où des plafonds larges, et surtout le
+choix de les rendre MESURABLES : un refus est journalisé comme événement
+(jamais comme usage) et `make stats` affiche combien d'IP distinctes sont
+repoussées. Une personne bloquée trente fois est un script à qui il faut
+expliquer la liste ; trente personnes bloquées une fois est un plafond
+trop bas. Les valeurs se règlent désormais sur cette observation.
+
 - **Journal d'usage** anonymisé (IP hachée, endpoint, stations,
   fiches, date) → la matière première des bilans d'impact pour les
   dossiers de financement, sans gestion de comptes.

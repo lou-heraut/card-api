@@ -165,8 +165,8 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_PORT` | 8000 | port hôte (boucle locale) du conteneur ; à changer si 8000 est déjà pris, `make apache` suit |
 | `COMPOSE_PROFILES` | absent | `caddy` pour activer le frontal Caddy autoportant (VM nue) ; absent = frontal Apache de la VM (`make apache`) |
 | `CARD_API_SALT` | aucun (requis, généré par `make env`) | sel du hachage des IP du journal ; fixe en prod pour des comptes d'utilisateurs distincts stables |
-| `CARD_API_RATE_COMPUTE` | 10 | requêtes de calcul (extract/trend/jobs) par IP/minute |
-| `CARD_API_RATE_LIGHT` | 60 | requêtes de catalogue par IP/minute |
+| `CARD_API_RATE_COMPUTE` | 60 | requêtes de calcul (extract/trend/jobs) par IP/minute ; large à dessein, les refus sont journalisés et remontent dans `make stats` |
+| `CARD_API_RATE_LIGHT` | 300 | requêtes de catalogue par IP/minute |
 | `CARD_API_SYNC_STATIONS` / `CARD_API_SYNC_CARDS` | 10 / 20 | plafonds des réponses immédiates ; au-delà, bascule en job |
 | `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs (public ; les clés de priorité les lèveront) |
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |

@@ -38,8 +38,20 @@ from . import keys as keys_mod
 from .hubeau import data_dir
 
 WINDOW = 60.0                                   # secondes
-RATE_COMPUTE = int(os.environ.get("CARD_API_RATE_COMPUTE", 10))
-RATE_LIGHT = int(os.environ.get("CARD_API_RATE_LIGHT", 60))
+# Plafonds LARGES, et assumés comme tels (relevés le 2026-07-29 depuis
+# 10 et 60). Ce qui protège réellement la VM n'est pas ce compteur mais
+# le sémaphore `jobs.COMPUTE`, qui sérialise les calculs lourds, plus la
+# bascule en file au-delà de SYNC_STATIONS. Un compteur de REQUÊTES est
+# de toute façon un mauvais juge du coût : une requête de 10 stations et
+# 20 fiches pèse cent fois une requête d'une station, et elles comptent
+# pareil. Serrer ici gênerait surtout deux innocents : un établissement
+# entier derrière une seule IP publique (DREAL, agence de l'eau), où le
+# plafond se partage entre collègues sans que personne n'aille vite, et
+# la boucle station par station, premier script que tout le monde écrit.
+# Les refus étant désormais journalisés, ces valeurs se règlent à la
+# charge observée plutôt qu'à l'intuition : cf. `make stats`.
+RATE_COMPUTE = int(os.environ.get("CARD_API_RATE_COMPUTE", 60))
+RATE_LIGHT = int(os.environ.get("CARD_API_RATE_LIGHT", 300))
 
 _SALT = os.environ.get("CARD_API_SALT") or secrets.token_hex(8)
 _hits: dict = defaultdict(deque)
@@ -76,27 +88,40 @@ def priority_of(request: Request) -> dict | None:
     return info
 
 
-def check_rate(request: Request, limit: int):
-    """Fenêtre glissante : au plus `limit` requêtes par IP et par minute."""
+def check_rate(request: Request, limit: int, famille: str):
+    """Fenêtre glissante : au plus `limit` requêtes par IP et par minute.
+
+    Le refus est journalisé, et il l'est HORS du verrou : `_append` prend
+    le même `_lock`, qui n'est pas réentrant, donc écrire depuis la
+    section critique bloquerait le service au premier dépassement.
+    """
     ip = client_ip(request)
     now = time.time()
+    retry = None
     with _lock:
         q = _hits[ip]
         while q and now - q[0] > WINDOW:
             q.popleft()
         if len(q) >= limit:
             retry = int(WINDOW - (now - q[0])) + 1
-            raise HTTPException(
-                429, f"quota public atteint ({limit} requêtes/minute) : "
-                     "réessayez dans quelques instants ; besoin massif : "
-                     "demandez une clé de priorité",
-                headers={"Retry-After": str(retry)})
-        q.append(now)
+        else:
+            q.append(now)
+    if retry is None:
+        return
+    log_refusal(request, famille, limit)
+    raise HTTPException(
+        429, f"quota public atteint ({limit} requêtes/minute) : réessayez "
+             "dans quelques instants. Une demande porte une LISTE : "
+             "`stations=A,B,C` en un appel plutôt qu'un appel par station, "
+             "et au-delà des plafonds synchrones elle bascule d'elle-même "
+             "en file de calcul. Besoin massif ou régulier : demandez une "
+             "clé de priorité",
+        headers={"Retry-After": str(retry)})
 
 
 def rate_compute(request: Request):
     if priority_of(request) is None:
-        check_rate(request, RATE_COMPUTE)
+        check_rate(request, RATE_COMPUTE, "calcul")
 
 
 # Endpoints légers que l'on NE journalise PAS, et pourquoi. Ce ne sont
@@ -119,7 +144,7 @@ def rate_light(request: Request):
     qu'on y pense.
     """
     if priority_of(request) is None:
-        check_rate(request, RATE_LIGHT)
+        check_rate(request, RATE_LIGHT, "découverte")
     route = request.scope.get("route")
     nom = getattr(route, "name", None)
     if nom and nom not in _MUET:
@@ -140,6 +165,32 @@ def log_usage(request: Request, endpoint: str, **fields):
         "user": ip_hash(client_ip(request)),
         "endpoint": endpoint,
         **fields,
+    })
+
+
+def log_refusal(request: Request, famille: str, limit: int):
+    """Un dépassement de quota, journalisé comme ÉVÉNEMENT.
+
+    Sans cette ligne le plafond était invisible : `check_rate` lève son
+    429 avant tout `log_usage`, donc un utilisateur repoussé ne laissait
+    aucune trace. On ne pouvait ni savoir si le quota mordait, ni sur qui,
+    ni sur quel endpoint, et le régler revenait à deviner. C'est ce qui
+    manquait pour arbitrer les valeurs plutôt que de les intuiter.
+
+    Un refus n'est PAS un usage, et ne doit jamais grossir les compteurs
+    de `make stats` : il porte `event`, ce qui le tient hors des deux
+    familles. L'utilisateur est haché comme partout ailleurs, si bien
+    qu'on distingue « une personne bloquée trente fois » de « trente
+    personnes bloquées », qui n'appellent pas le même réglage.
+    """
+    route = request.scope.get("route")
+    _append({
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "user": ip_hash(client_ip(request)),
+        "event": "quota",
+        "famille": famille,
+        "endpoint": getattr(route, "name", None) or "?",
+        "limit": limit,
     })
 
 
