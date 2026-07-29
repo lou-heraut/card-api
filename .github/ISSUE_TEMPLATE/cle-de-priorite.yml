@@ -42,5 +42,10 @@ body:
         service n'enregistre jamais ce nom : seul un identifiant
         pseudonyme (préfixe du jeton) y figure, à des fins de
         statistiques d'usage agrégées (preuve d'impact pour les
-        financements). Contact : louis.heraut@inrae.fr
+        financements). Cette issue étant PUBLIQUE, ce que vous y
+        écrivez est visible de tous : écrivez directement si vous
+        préférez. Détail, droits et contact du délégué à la protection
+        des données : [mentions
+        légales](https://github.com/lou-heraut/card-api#mentions-légales).
+        Contact : louis.heraut@inrae.fr
 

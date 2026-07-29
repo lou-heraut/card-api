@@ -350,35 +350,53 @@ Chaque réponse du service porte ces droits dans son bloc `rights`.
 
 ### Données personnelles
 
-Le service est **public, sans inscription et sans compte**. Il ne
-demande ni ne conserve d'identité.
+Le service est **public, sans inscription et sans compte** : le
+consulter et l'interroger ne demande aucune identité. Deux traitements
+existent néanmoins, de natures très différentes.
 
-**Ce qui est enregistré.** Une ligne par requête de calcul dans un
-journal d'usage : l'horodatage, l'endpoint appelé, le nombre de
-stations et les variables demandées, et un **identifiant technique
-dérivé de l'adresse IP**. L'adresse IP elle-même n'est **jamais
-écrite** : seul en est conservé un condensat SHA-256 salé, tronqué,
-dont le sel est propre au déploiement. Il permet de compter des
-visiteurs distincts sans permettre de remonter à quiconque.
+**1. Le journal d'usage, anonymisé.** Une ligne par requête de calcul :
+horodatage, endpoint appelé, nombre de stations et variables demandées,
+et un identifiant technique dérivé de l'adresse IP. L'adresse IP
+elle-même n'est **jamais écrite** : seul en est conservé un condensat
+SHA-256 salé et tronqué, dont le sel est propre au déploiement. Il
+permet de compter des visiteurs distincts sans permettre de remonter à
+quiconque. Aucun traceur, aucun cookie, aucune mesure d'audience tierce.
 
-**Finalité.** Mesurer l'usage du service, ce qui constitue la preuve
+*Finalité* : mesurer l'usage du service, ce qui constitue la preuve
 d'impact attendue dans les dossiers de financement de la recherche
-publique. Aucune autre exploitation, aucune cession, aucun traceur,
-aucun cookie.
+publique. *Base légale* : l'exécution de la mission d'intérêt public
+d'INRAE. *Conservation* : journal segmenté par année, les fichiers
+anciens sont supprimés. Ces données étant anonymisées, elles ne
+permettent pas de vous identifier et aucune demande individuelle ne peut
+y être rattachée.
 
-**Clés de priorité.** Une clé est nominative à la demande, mais le
-journal n'en reçoit que le **préfixe**, jamais le nom : le lien entre
-préfixe et personne ne vit que dans le fichier de clés du serveur et
-disparaît à la révocation. Le jeton lui-même n'est pas conservé, seul
-son condensat l'est.
+**2. Les clés de priorité, nominatives.** Une clé est attribuée à une
+personne identifiée, et le fichier de clés du serveur conserve son
+**nom et son organisme**, associés au préfixe public du jeton et à sa
+date de création. Le jeton lui-même n'est pas conservé, seul son
+condensat l'est.
 
-**Conservation.** Le journal est segmenté par année ; les fichiers
-anciens sont supprimés. Les résultats des calculs différés (jobs) sont
-effacés au terme de leur durée de rétention, réglée au déploiement
-(7 jours par défaut).
+*Finalité* : attribuer et révoquer les clés, et distinguer les usages
+massifs dans les statistiques. *Base légale* : l'exécution de la mission
+d'intérêt public d'INRAE. *Conservation* : jusqu'à la révocation de la
+clé, qui efface le lien entre le préfixe et la personne. *Diffusion* :
+le journal d'usage ne reçoit **que le préfixe**, jamais le nom.
 
-**Vos droits.** Les données du journal étant anonymisées, elles ne
-permettent pas de vous identifier et aucune demande d'accès ou
-d'effacement ne peut y être rattachée. Pour toute question sur le
-traitement, écrire à <louis.heraut@inrae.fr>, ou au délégué à la
-protection des données d'INRAE : <dpd@inrae.fr>.
+À noter, parce que ce n'est pas évident : une clé se demande en
+**ouvrant une issue publique** sur GitHub. Ce que vous y écrivez est
+donc visible de tous, et relève des conditions de GitHub, pas de
+celles-ci. Si vous préférez ne rien publier, écrivez directement à
+l'adresse ci-dessous.
+
+**Vos droits.** Sur les données nominatives des clés, vous disposez d'un
+droit d'accès, de rectification, d'opposition pour motifs légitimes, de
+limitation et d'effacement. Pour les exercer, ou pour toute question sur
+ces traitements, écrire à <louis.heraut@inrae.fr>, ou au délégué à la
+protection des données d'INRAE : <cil-dpo@inrae.fr>, INRAE, 24 chemin de
+Borde Rouge, Auzeville, CS 52627, 31326 Castanet-Tolosan Cedex.
+
+En cas de désaccord persistant, vous pouvez saisir la CNIL, 3 place de
+Fontenoy, TSA 80715, 75334 Paris Cedex 07.
+
+Politique de protection des données d'INRAE :
+<https://science-ouverte.inrae.fr/fr/donnees-personnelles>.

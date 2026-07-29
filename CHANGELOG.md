@@ -39,10 +39,25 @@ des deux endroits.
   par un visiteur. Le lien visible est en fin de ligne de contacts dans
   l'en-tête.
 
-  **Une réserve à lever** : ces mentions sont rédigées d'après ce que le
-  code fait, pas d'après un modèle institutionnel. L'éditeur et
-  l'hébergeur en particulier gagneraient à être confirmés par le service
-  compétent d'INRAE, qui a probablement une formulation type.
+  **Alignées sur la politique d'INRAE le même jour.** L'adresse du
+  délégué à la protection des données que j'avais supposée était fausse
+  (`dpd@` au lieu de `cil-dpo@`), et la relecture de
+  <https://science-ouverte.inrae.fr/fr/donnees-personnelles> a surtout
+  révélé un manque de fond : le texte ne traitait que le journal
+  anonymisé et **passait sous silence les clés de priorité**, qui sont
+  nominatives. Le fichier de clés conserve un nom et un organisme
+  jusqu'à la révocation : c'est un traitement de données personnelles à
+  part entière, avec sa finalité, sa base légale (l'exécution de la
+  mission d'intérêt public d'INRAE, formulation d'INRAE) et des droits
+  qui, eux, s'exercent réellement. Les deux traitements sont désormais
+  distingués, la voie de recours CNIL est indiquée, et il est dit que la
+  demande de clé passe par une **issue publique**, ce que personne ne
+  devine.
+
+  **Réserve qui subsiste** : l'éditeur, le responsable de la publication
+  et l'hébergeur sont rédigés d'après le bon sens et non d'après un
+  modèle institutionnel. Ces trois lignes gagneraient une validation par
+  le service compétent d'INRAE.
 
 - **card-api a enfin un CI (2026-07-29) :** pytest sur 3.11 et 3.12, ruff
   à la version épinglée du `pyproject.toml`. Le dépôt rejoint card et
