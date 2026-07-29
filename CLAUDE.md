@@ -15,6 +15,23 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
 
 ```
 src/card_api/
+  pipeline.py   # LA chaîne de calcul, écrite UNE fois, et l'identité
+                #   qu'elle publie (versions/rights/SOURCE/LTP_SEED/
+                #   START_DEFAUT). Ne connaît RIEN de HTTP : lève des
+                #   exceptions neutres que main traduit (_traduit) et que
+                #   jobs enregistre. C'est ce qui permet aux DEUX portes
+                #   d'appeler le même code. Existe à cause d'un bug : la
+                #   chaîne était écrite deux fois, main pour le synchrone
+                #   et jobs pour la file, et une correction d'un côté
+                #   n'atteignait pas l'autre (2026-07-29, stations muettes
+                #   fatales en job seulement). `normalise` applique
+                #   défauts et validations AVANT la bifurcation sync/job :
+                #   sans quoi un POST /v1/jobs sans `start` calculait sur
+                #   une autre fenêtre qu'un GET /v1/extract, en silence.
+                #   `compute` prend `progress` en PARAMÈTRE : c'est la
+                #   seule chose que la file avait de plus, et la seule
+                #   raison qu'avait la copie d'exister.
+                #   NE JAMAIS refaire de boucle chroniques ailleurs.
   main.py       # endpoints : racine / (panneau indicateur, forme des
                 #   « landing pages » OGC API : liens typés service-desc,
                 #   service-doc, latest-version ; le détail reste dans
@@ -118,7 +135,15 @@ src/card_api/
                 #   … ce qu'il coupe (« ✗ 5 échecs » se lisait « ✗ 5 éc »)
                 #   sparklines, heatmap 12 semaines, file, disque
 tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
-                #   validation MAKAHO, précision machine) + live
+                #   validation MAKAHO, précision machine) + live.
+                #   test_jobs.py::test_les_deux_portes_rendent_le_meme_
+                #   contrat compare les ENVELOPPES sync et job, pas
+                #   seulement `data` : c'est le garde-fou contre le retour
+                #   de la duplication. PROPRES_AU_JOB y liste les seuls
+                #   champs autorisés à différer. Un test qui protège
+                #   l'ancien comportement et reste vert après un
+                #   changement de comportement est un SIGNAL D'ARRÊT :
+                #   c'est ce qui a masqué le bug du 2026-07-29.
 scripts/        # veille_sante.py : sonde cron à lancer HORS VM
                 #   (ntfy.sh optionnel ; une veille sur la VM meurt
                 #   avec elle)

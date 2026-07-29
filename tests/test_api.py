@@ -82,14 +82,16 @@ def test_commit_publie_quand_l_image_le_connait(tmp_path, monkeypatch):
     """Le numéro de version ne désigne un état unique que si la ref
     était un tag. Construite depuis une branche, l'image résout le
     commit : c'est lui qui rend le résultat reproductible."""
-    from card_api import main
+    from card_api import main, pipeline
 
     refs = tmp_path / "build_refs.json"
     refs.write_text('{"card": {"ref": "main", "commit": "abc123def456"},'
                     ' "stase": {"ref": "main", "commit": "789abc012def"}}')
     monkeypatch.setenv("CARD_API_BUILD_REFS", str(refs))
-    monkeypatch.setattr(main, "CARD_COMMIT", "abc123def456")
-    monkeypatch.setattr(main, "STASE_COMMIT", "789abc012def")
+    # `versions()` a migré dans pipeline.py avec le reste de
+    # l'identité du calcul : c'est là que vivent les commits.
+    monkeypatch.setattr(pipeline, "CARD_COMMIT", "abc123def456")
+    monkeypatch.setattr(pipeline, "STASE_COMMIT", "789abc012def")
 
     v = main.versions()
     assert v["card_commit"] == "abc123def456"
@@ -389,7 +391,10 @@ def test_la_fenetre_par_defaut_demarre_en_1968(hubeau_simule):
     et le point où le réseau français devient assez fourni pour que des
     stations se comparent. La période effective est publiée, donc le
     résultat dit toujours sur quoi il porte."""
-    from card_api.main import START_DEFAUT
+    # La fenêtre par défaut est appliquée par `pipeline.normalise`, avant
+    # que la demande ne bifurque vers une réponse immédiate ou un job :
+    # c'est ce qui garantit que les deux portes portent la même période.
+    from card_api.pipeline import START_DEFAUT
 
     assert START_DEFAUT == "1968-01-01"
     j = client.get("/v1/trend", params={"stations": "F700000103",

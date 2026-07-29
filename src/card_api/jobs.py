@@ -37,7 +37,6 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from . import hubeau, usage
-from .serialize import serialize
 
 # Plafonds et réglages d'exploitation (surchager dans .env)
 SYNC_STATIONS = int(os.environ.get("CARD_API_SYNC_STATIONS", 10))
@@ -248,76 +247,45 @@ def _worker():
 
 
 def _execute(job: dict, progress) -> dict:
-    """Exécute un job extract ou trend. Même chaîne que les endpoints
-    synchrones, avec progression par station."""
-    import card
+    """Exécute un job extract ou trend.
 
-    p = job["params"]
-    frames = []
-    from .main import LTP_SEED, _fetched_at
+    Ce corps réimplémentait la chaîne des endpoints synchrones, pour la
+    seule raison d'afficher la progression. Toute correction faite d'un
+    côté n'atteignait donc pas l'autre : le 2026-07-29, les stations sans
+    série ont cessé d'être fatales en synchrone et sont restées fatales
+    ici. La progression est devenue un PARAMÈTRE de la chaîne partagée
+    (`pipeline.compute`), et il ne reste dans cette fonction que ce qui
+    distingue vraiment un job d'une réponse immédiate.
+    """
+    from . import pipeline
 
+    # RENORMALISÉ, même si la demande l'était déjà. Les paramètres gelés
+    # sont écrits sans leurs valeurs nulles, pour que le ticket reste
+    # lisible : `end` absent n'est pas `end: null`. Le worker doit donc
+    # les recompléter, et `normalise` étant idempotent, c'est aussi ce qui
+    # garantit qu'un job déposé avant un changement de défaut sera exécuté
+    # avec les mêmes règles qu'une demande immédiate d'aujourd'hui.
+    p = pipeline.normalise(job["params"])
     total = len(p["stations"])
-    empreintes = {}
-    for i, s in enumerate(p["stations"]):
-        progress(i, total, f"chronique {s}")
-        df = hubeau.fetch_chronicle(s)
-        empreintes[s] = hubeau.fingerprint(df)
-        if p.get("start"):
-            df = df[df["date"] >= p["start"]]
-        if p.get("end"):
-            df = df[df["date"] <= p["end"]]
-        if df.empty:
-            raise ValueError(f"{s}: aucune donnée sur la période")
-        frames.append(df)
-    data = pd.concat(frames, ignore_index=True)
-    # Date de LECTURE des chroniques, pas du calcul : avec un cache de 24 h
-    # les deux diffèrent d'autant, et c'est la première qui compte puisque
-    # Hub'Eau révise ses données.
-    fetched_at = _fetched_at(p["stations"])
+    brut = pipeline.compute(p, progress=progress, verrou=COMPUTE)
+    out = pipeline.sans_prives(brut)
 
-    with COMPUTE:
-        progress(total, total, "extraction")
-        res = card.extract(data, cards=p["cards"],
-                           sampling_period=p.get("sampling"), verbose=False)
-        extracted = res["data"]
-        if p["endpoint"] == "trend":
-            progress(total, total, "tendance")
-            tr = card.trend(res, level=p.get("level", 0.1),
-                            dependency=p.get("mk", "AR1"), seed=LTP_SEED)
-            res = {"data": tr["data"], "meta": res["meta"]}
-
-    orient = p.get("orient", "records")
-    from .main import LTP_SEED, SOURCE, rights, versions
-    out = {
-        "job": {
-            "id": job["id"],
-            "created": job["created"],
-            "data_fetched_at": fetched_at,
-            "params": {k: v for k, v in p.items() if v is not None},
-        },
-        **versions(),
-        "rights": rights(),
-        "stations": p["stations"],
-        "cards": p["cards"],
-        "period": {"start": p.get("start"), "end": p.get("end")},
-        "sampling": p.get("sampling"),
-        "ltp_seed": LTP_SEED if p.get("mk") == "LTP" else None,
-        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
-        # Détail par station dans le résultat GELÉ seulement : c'est
-        # l'artefact qu'on archive et qu'on cite, la verbosité y est utile
-        # là où elle alourdirait une réponse immédiate.
-        "data_fingerprints": empreintes,
-        "source": SOURCE,
-        "orient": orient,
-        "meta": serialize(res["meta"]),
-        "data": {k: serialize(v, orient) for k, v in res["data"].items()},
+    # Ce qu'un job a de plus, et pourquoi. Un résultat de job est un
+    # artefact GELÉ, qu'on archive et qu'on cite : la verbosité y est
+    # utile là où elle alourdirait une réponse immédiate. C'est la seule
+    # divergence légitime entre les deux portes, et les tests la listent
+    # nommément (PROPRES_AU_JOB) pour qu'aucune autre ne s'y glisse.
+    out["job"] = {
+        "id": job["id"],
+        "created": job["created"],
+        # Date de LECTURE des chroniques, pas du calcul : avec un cache de
+        # 24 h les deux diffèrent d'autant, et c'est la première qui compte
+        # puisque Hub'Eau révise ses données.
+        "data_fetched_at": out["data_fetched_at"],
+        "params": {k: v for k, v in p.items() if v is not None},
     }
-    if p["endpoint"] == "trend":
-        out["mk"] = p.get("mk", "AR1")
-        out["level"] = p.get("level", 0.1)
-        if p.get("series"):
-            out["series"] = {k: serialize(v, orient)
-                             for k, v in extracted.items()}
+    out["data_fingerprints"] = brut["_empreintes"]
+    out["ltp_seed"] = pipeline.LTP_SEED if p.get("mk") == "LTP" else None
     if p.get("stations_meta"):
         progress(total, total, "référentiel stations")
         out["stations_meta"] = hubeau.stations_referential(p["stations"])

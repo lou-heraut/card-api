@@ -14,9 +14,7 @@ des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
 par IP et journal d'usage anonymisé (usage.py).
 """
 
-import datetime as dt
 import hashlib
-import json
 import os
 import pathlib
 import re
@@ -39,11 +37,17 @@ from pydantic import BaseModel, Field
 
 import card
 
-from . import hubeau, jobs, usage
+from . import hubeau, jobs, pipeline, usage
+# Réexportés : l'identité du calcul vit dans pipeline.py, mais elle
+# reste lisible ici, où l'on écrit les réponses. `LTP_SEED` et
+# `_fetched_at` ne servent plus à main lui-même, ils restent exposés
+# parce que le contrat du module les publie (tests, introspection).
+from .pipeline import (API_VERSION, CARD_COMMIT, LTP_SEED,  # noqa: F401
+                       rights, versions)
+from .pipeline import fetched_at as _fetched_at             # noqa: F401
 from .serialize import clean, serialize
 
 _SAMPLING_RE = re.compile(r"^(preferred|\d{2}-\d{2})$")
-SOURCE = "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s"
 
 
 def _card_meta_map():
@@ -65,127 +69,8 @@ def _card_meta_map():
                                    {"input_vars": iv, "output": out})
         return _CARDS_META
 
-try:
-    from importlib.metadata import version as _pkg_version
-    try:
-        CARD_VERSION = _pkg_version("card")
-    except Exception:       # distribution "card-stase" (PEP 541 en attente)
-        CARD_VERSION = _pkg_version("card-stase")
-except Exception:                                    # non installé
-    CARD_VERSION = "dev"
-
-try:
-    STASE_VERSION = _pkg_version("stase")
-except Exception:                                    # non installé
-    STASE_VERSION = "dev"
-
-try:
-    API_VERSION = _pkg_version("card-api")
-except Exception:                                    # exécution hors install
-    API_VERSION = "dev"
-
-# Commits résolus à la construction de l'image (scripts/resolve_refs.py).
-# Un numéro de version ne désigne un état unique que si la ref était un
-# tag ; le commit, lui, désigne toujours un état et un seul. Absent hors
-# Docker : le service annonce alors le seul numéro de version.
-def _build_refs():
-    path = os.environ.get("CARD_API_BUILD_REFS", "/app/build_refs.json")
-    try:
-        with open(path, encoding="utf-8") as f:
-            refs = json.load(f)
-        return (refs.get("card", {}).get("commit"),
-                refs.get("stase", {}).get("commit"))
-    except Exception:
-        return None, None
 
 
-# Le LTP départage les ex-æquo au hasard (choix documenté dans le tools.R
-# d'origine). Sans graine, deux appels identiques rendent des p-values
-# différentes : le service en fixe donc une, en dur. Elle n'est pas
-# réglable par déploiement, ce qui ne servirait personne ; si un jour on
-# veut tester la sensibilité d'un verdict au tirage, c'est un paramètre
-# de REQUÊTE qu'il faudra, pas une variable d'environnement.
-LTP_SEED = 0
-
-
-# Début de la fenêtre d'analyse quand la demande n'en donne pas. Ce n'est
-# PAS « toute la chronique » : 1968 est la borne d'analyse du projet,
-# celle des validations MAKAHO, et le point à partir duquel le réseau
-# hydrométrique français est assez fourni pour que des stations se
-# comparent entre elles. Laisser courir jusqu'aux plus anciennes séries
-# donnerait, sans que personne ne l'ait demandé, des périodes de
-# longueurs très différentes d'une station à l'autre.
-#
-# Conséquence assumée : les mesures antérieures à 1968 ne sont pas
-# reprises par défaut. Elles restent accessibles en donnant `start`
-# explicitement, et la période effective est publiée dans chaque réponse
-# (bloc `period`) : le résultat dit toujours sur quoi il porte.
-#
-# Pas de borne de fin symétrique : on veut suivre la chronique jusqu'à
-# son dernier jour disponible, donc ne pas en poser.
-START_DEFAUT = "1968-01-01"
-
-
-CARD_COMMIT, STASE_COMMIT = _build_refs()
-
-
-def _fetched_at(stations):
-    """Date de lecture des chroniques employées, la plus ancienne.
-
-    Hub'Eau révise ses données : sans cette date, deux résultats
-    identiques en apparence ne sont pas comparables. On prend la plus
-    ancienne des chroniques du lot, qui borne l'âge de l'ensemble.
-
-    À défaut d'information (chronique jamais mise en cache), on rend
-    l'instant courant : la donnée a forcément été lue au plus tard
-    maintenant, c'est une borne vraie, simplement moins précise.
-    """
-    dates = [d for d in (hubeau.chronicle_fetched_at(s) for s in stations) if d]
-    if dates:
-        return min(dates)
-    return (dt.datetime.now(dt.timezone.utc)
-            .replace(microsecond=0).isoformat())
-
-
-def versions():
-    """Identité du calcul, telle qu'elle part chez l'utilisateur.
-
-    Le numéro dit la version publiée, le commit dit l'état exact. Les
-    versions des FICHES employées voyagent à part, dans les métadonnées :
-    une par variable, puisque deux fiches d'une même réponse peuvent
-    avoir des versions différentes.
-    """
-    v = {"card_version": CARD_VERSION, "stase_version": STASE_VERSION,
-         "api_version": API_VERSION}
-    # Pour un dépôt git, l'identifiant Software Heritage d'une révision
-    # est swh:1:rev: suivi du hash du commit : citable tel quel, sans
-    # appel d'API, dès lors que le dépôt a été archivé une fois.
-    if CARD_COMMIT:
-        v["card_commit"] = CARD_COMMIT
-        v["card_swhid"] = f"swh:1:rev:{CARD_COMMIT}"
-    if STASE_COMMIT:
-        v["stase_commit"] = STASE_COMMIT
-        v["stase_swhid"] = f"swh:1:rev:{STASE_COMMIT}"
-    return v
-
-
-def rights():
-    """Droits sur un résultat : il combine des données ouvertes (Hub'Eau)
-    et des définitions GPL (fiches CARD). Les énoncer, c'est le rendre
-    réutilisable sans zone grise (FAIR, le R de Reusable)."""
-    return {
-        "data": {
-            "source": "Hub'Eau (eaufrance)",
-            "license": "Licence Ouverte / Etalab 2.0",
-            "url": "https://hubeau.eaufrance.fr/",
-        },
-        "definitions": {
-            "source": "fiches CARD",
-            "license": "GPL-3.0-or-later",
-            "url": "https://github.com/lou-heraut/card",
-        },
-        "cite": "https://github.com/lou-heraut/card/blob/main/CITATION.cff",
-    }
 
 
 # ── Vocabulaire de classification : des menus, pas des champs libres ──
@@ -990,14 +875,18 @@ def _job_response(envelope: dict) -> JSONResponse:
         content=envelope)
 
 
-def _maybe_job(request, endpoint, st, cd, prio=None, **params):
+def _maybe_job(request, params, prio=None):
     """Bascule automatique : au-dessus des plafonds synchrones, la
     demande devient un job (202 + ticket) au lieu d'un refus. Une clé
-    de priorité met le job en tête de file."""
+    de priorité met le job en tête de file.
+
+    `params` est DÉJÀ normalisé : le job gèle exactement les valeurs sur
+    lesquelles la réponse immédiate aurait porté."""
+    st, cd = params["stations"], params["cards"]
+    endpoint = params["endpoint"]
     if len(st) <= jobs.SYNC_STATIONS and len(cd) <= jobs.SYNC_CARDS:
         return None
-    job_params = {"endpoint": endpoint, "stations": st, "cards": cd,
-                  **{k: v for k, v in params.items() if v is not None}}
+    job_params = {k: v for k, v in params.items() if v is not None}
     try:
         job = jobs.submit(job_params,
                           user=usage.ip_hash(usage.client_ip(request)),
@@ -1287,93 +1176,25 @@ def _trend_figure(out, meta_par_id):
     return "\n".join(lignes)
 
 
-def _omission(station: str, reason: str, detail) -> dict:
-    """Une station écartée du calcul, dite en clair ET en code.
+def _traduit(exc):
+    """Une exception de la chaîne partagée devient un code HTTP.
 
-    `reason` se teste par un programme, `detail` se lit par un humain.
-    Le nom de colonne est `code_station`, celui de Hub'Eau, pour que le
-    bloc se joigne au référentiel sans traduction (règle du service).
+    `pipeline` ignore HTTP à dessein, c'est ce qui permet à la file de
+    calcul d'appeler exactement le même code. La traduction vit donc ici,
+    en un seul endroit, plutôt qu'en `raise HTTPException` semés dans la
+    chaîne : autrement il faudrait la réécrire pour chaque nouvel
+    appelant, et on retomberait dans la duplication qu'on vient de
+    supprimer.
     """
-    return {"code_station": station, "reason": reason, "detail": str(detail)}
-
-
-def _check_sampling(sampling):
-    if sampling is not None and not _SAMPLING_RE.match(sampling):
-        raise HTTPException(
-            422, f"sampling invalide : {sampling!r}. Valeurs acceptées : "
-                 "'preferred' (fenêtre fixe déclarée par chaque fiche) "
-                 "ou 'MM-JJ' (ex. '09-01')")
-
-
-def _run_extract(st, cd, start, end, sampling=None):
-    """Retourne (résultat de card.extract, empreintes, retenues, omises).
-
-    L'empreinte est prise sur la chronique ENTIÈRE, avant filtre de
-    période : la période demandée figure déjà dans la provenance, et ce
-    qu'on identifie ici c'est la source.
-
-    Une station sans série exploitable est OMISE, pas fatale. Le contraire
-    a longtemps été vrai et c'était trop raide : une seule station muette
-    sur vingt annulait les dix-neuf autres, et le travail déjà fait était
-    perdu. Or il n'existe aucun moyen de le savoir d'avance, le référentiel
-    Hub'Eau ne portant pas l'information (ni `type_station` ni `en_service`
-    ne disent si une série de débit existe : vérifié le 2026-07-29, une
-    station en service peut n'avoir aucun QmnJ, une station fermée peut
-    avoir vingt ans d'historique). Demander la série EST le seul test.
-
-    La ligne de partage n'est donc pas la gravité mais la REPRODUCTIBILITÉ :
-    ce qui est vrai de la station elle-même (elle ne publie pas de débit,
-    son code est un site ambigu, il n'y a rien dans la période demandée)
-    est un fait stable, qui se rapporte ; ce qui tient à l'instant de
-    l'appel (Hub'Eau injoignable) reste une erreur. Sauter le second
-    fabriquerait des résultats silencieusement plus petits les jours de
-    panne, ce qu'aucun lecteur ne remarquerait.
-    """
-    frames, empreintes, retenues, omises = [], {}, [], []
-    for s in st:
-        try:
-            df = hubeau.fetch_chronicle(s)
-        except hubeau.StationInconnue as e:
-            omises.append(_omission(s, "no_series", e))
-            continue
-        except hubeau.SiteAmbigu as e:
-            omises.append(_omission(s, "ambiguous_site", e))
-            continue
-        except hubeau.HubEauIndisponible as e:
-            raise HTTPException(504, str(e), headers={"Retry-After": "300"})
-        empreintes[s] = hubeau.fingerprint(df)
-        if start:
-            df = df[df["date"] >= start]
-        if end:
-            df = df[df["date"] <= end]
-        if df.empty:
-            del empreintes[s]        # rien n'a servi, rien n'est à identifier
-            omises.append(_omission(
-                s, "no_data_in_period",
-                f"chronique présente, mais aucune mesure entre "
-                f"{start or 'le début'} et {end or 'la fin'}"))
-            continue
-        retenues.append(s)
-        frames.append(df)
-    if not frames:
-        # Toutes omises : il n'y a rien à calculer. Un 200 portant zéro
-        # ligne serait un mensonge poli, du genre qu'un script avale sans
-        # broncher. On refuse en nommant chaque station et son motif.
-        detail = " ; ".join(f"{o['code_station']} ({o['detail']})"
-                            for o in omises)
-        raise HTTPException(
-            404, f"aucune des {len(st)} stations demandées n'a de série "
-                 f"exploitable : {detail}")
-    data = pd.concat(frames, ignore_index=True)
-    with jobs.COMPUTE:
-        try:
-            res = card.extract(data, cards=cd, sampling_period=sampling,
-                               verbose=False)
-        except FileNotFoundError as e:
-            raise HTTPException(404, str(e))
-        except ValueError as e:
-            raise HTTPException(422, str(e))
-    return res, empreintes, retenues, omises
+    if isinstance(exc, hubeau.HubEauIndisponible):
+        return HTTPException(504, str(exc), headers={"Retry-After": "300"})
+    if isinstance(exc, pipeline.RienACalculer):
+        return HTTPException(404, str(exc))
+    if isinstance(exc, pipeline.ParametresInvalides):
+        return HTTPException(422, str(exc))
+    if isinstance(exc, FileNotFoundError):
+        return HTTPException(404, str(exc))
+    return HTTPException(422, str(exc))
 
 
 class ExtractParams(BaseModel):
@@ -1391,60 +1212,60 @@ class ExtractParams(BaseModel):
     orient: _Orient = Field("records", description=_D_ORIENT)
 
 
+def _params_partages(request, p, endpoint):
+    """Les paramètres normalisés, communs aux deux portes.
+
+    La normalisation (défauts, validations) se fait AVANT la bifurcation
+    sync/job, pour que la demande et le job qu'elle engendre portent
+    exactement les mêmes valeurs. C'est ce qui manquait : `START_DEFAUT`
+    n'était appliqué qu'ici, et un `POST /v1/jobs` direct calculait sur
+    une autre fenêtre sans que rien ne le dise.
+    """
+    prio = usage.priority_of(request)
+    st, cd = _parse_lists(p.stations, p.cards, prio)
+    if endpoint == "trend":
+        _check_cards_series(cd)
+    brut = {"endpoint": endpoint, "stations": st, "cards": cd,
+            "start": p.start, "end": p.end, "sampling": p.sampling,
+            "stations_meta": p.stations_meta or None, "orient": p.orient}
+    if endpoint == "trend":
+        brut.update(mk=p.mk, level=p.level, series=p.series or None)
+    try:
+        return pipeline.normalise(brut), prio
+    except pipeline.ParametresInvalides as e:
+        raise _traduit(e)
+
+
+def _calcule(params):
+    """Appelle la chaîne partagée et traduit ses erreurs en codes HTTP."""
+    try:
+        return pipeline.compute(params, verrou=jobs.COMPUTE)
+    except (hubeau.HubEauIndisponible, pipeline.RienACalculer,
+            pipeline.ParametresInvalides, FileNotFoundError, ValueError) as e:
+        raise _traduit(e)
+
+
 def _extract_result(request: Request, p: ExtractParams, rendu="json"):
     """Le calcul, partagé par les deux représentations d'extract.
 
     Rend (résultat JSON, données par fiche), ou (ticket, None) si la
     demande a basculé en file de calcul.
     """
-    # Résolu ICI et une seule fois : la valeur effective part ensuite
-    # partout, y compris dans les paramètres gelés d'un job. Sans quoi
-    # une demande sans `start` et le job qu'elle engendre ne porteraient
-    # pas la même fenêtre.
-    p = p.model_copy(update={"start": p.start or START_DEFAUT})
-    _check_sampling(p.sampling)
-    prio = usage.priority_of(request)
-    st, cd = _parse_lists(p.stations, p.cards, prio)
-    ticket = _maybe_job(request, "extract", st, cd, prio, start=p.start,
-                        end=p.end, sampling=p.sampling,
-                        stations_meta=p.stations_meta or None,
-                        orient=p.orient)
+    params, prio = _params_partages(request, p, "extract")
+    ticket = _maybe_job(request, params, prio)
     if ticket is not None:
         return ticket, None
-    res, empreintes, retenues, omises = _run_extract(
-        st, cd, p.start, p.end, p.sampling)
-
-    extracted = res["data"]
-    if not isinstance(extracted, dict):
-        extracted = {cd[0]: extracted}
-    usage.log_usage(request, "extract", stations=len(st), cards=cd,
-                    rendu=rendu, omises=len(omises) or None)
-    out = {
-        **versions(),
-        "rights": rights(),
-        # `stations` décrit les DONNÉES, pas la demande : ce sont les
-        # stations que `data` contient réellement. Recopier la demande
-        # annoncerait vingt stations pour dix-neuf séries, et toute
-        # jointure faite sur cette liste porterait à faux.
-        "stations": retenues,
-        "stations_requested": st,
-        "stations_omitted": omises,
-        "cards": cd,
-        "period": {"start": p.start, "end": p.end},
-        "sampling": p.sampling,
-        "source": SOURCE,
-        "data_fetched_at": _fetched_at(retenues),
-        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
-        "orient": p.orient,
-        "meta": serialize(res["meta"]),
-        "data": {k: serialize(v, p.orient) for k, v in extracted.items()},
-    }
-    if p.stations_meta:
+    brut = _calcule(params)
+    out = pipeline.sans_prives(brut)
+    usage.log_usage(request, "extract", stations=len(params["stations"]),
+                    cards=params["cards"], rendu=rendu,
+                    omises=len(out["stations_omitted"]) or None)
+    if params.get("stations_meta"):
         # Le référentiel couvre les stations DEMANDÉES, omises comprises :
         # c'est là qu'on lit pourquoi. Le libellé « échelle aval de Mâcon »
         # explique à lui seul qu'un limnimètre ne publie pas de débit.
-        out["stations_meta"] = _stations_meta(st)
-    return out, extracted
+        out["stations_meta"] = _stations_meta(params["stations"])
+    return out, brut["_extracted"]
 
 
 @app.get("/v1/extract", tags=["data"],
@@ -1540,54 +1361,19 @@ def _trend_result(request: Request, p: TrendParams, rendu="json"):
     Rend soit un ticket de job (la demande dépassait les plafonds
     synchrones), soit le couple (résultat JSON, tendances par fiche).
     """
-    p = p.model_copy(update={"start": p.start or START_DEFAUT})
-    _check_sampling(p.sampling)
-    prio = usage.priority_of(request)
-    st, cd = _parse_lists(p.stations, p.cards, prio)
-    _check_cards_series(cd)
-    ticket = _maybe_job(request, "trend", st, cd, prio, start=p.start,
-                        end=p.end, sampling=p.sampling, mk=p.mk,
-                        level=p.level, series=p.series or None,
-                        stations_meta=p.stations_meta or None,
-                        orient=p.orient)
+    params, prio = _params_partages(request, p, "trend")
+    ticket = _maybe_job(request, params, prio)
     if ticket is not None:
         return ticket, None
 
-    res, empreintes, retenues, omises = _run_extract(
-        st, cd, p.start, p.end, p.sampling)
-    with jobs.COMPUTE:
-        try:
-            tr = card.trend(res, level=p.level, dependency=p.mk,
-                            seed=LTP_SEED)
-        except ValueError as e:
-            raise HTTPException(422, str(e))
-
-    usage.log_usage(request, "trend", stations=len(st), cards=cd,
-                    mk=p.mk, rendu=rendu, omises=len(omises) or None)
-    out = {
-        **versions(),
-        "rights": rights(),
-        "stations": retenues,           # cf. _extract_result : les DONNÉES
-        "stations_requested": st,
-        "stations_omitted": omises,
-        "cards": cd,
-        "period": {"start": p.start, "end": p.end},
-        "sampling": p.sampling,
-        "mk": p.mk, "level": p.level,
-        "source": SOURCE,
-        "data_fetched_at": _fetched_at(retenues),
-        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
-        "orient": p.orient,
-        "meta": serialize(res["meta"]),
-        "data": {cid: serialize(df, p.orient)
-                 for cid, df in tr["data"].items()},
-    }
-    if p.series:
-        out["series"] = {cid: serialize(df, p.orient)
-                         for cid, df in res["data"].items()}
-    if p.stations_meta:
-        out["stations_meta"] = _stations_meta(st)
-    return out, tr
+    brut = _calcule(params)
+    out = pipeline.sans_prives(brut)
+    usage.log_usage(request, "trend", stations=len(params["stations"]),
+                    cards=params["cards"], mk=params["mk"], rendu=rendu,
+                    omises=len(out["stations_omitted"]) or None)
+    if params.get("stations_meta"):
+        out["stations_meta"] = _stations_meta(params["stations"])
+    return out, brut["_trend"]
 
 
 @app.get("/v1/trend", tags=["data"],
@@ -1711,25 +1497,12 @@ def create_job(request: Request, req: JobRequest):
     plafonds synchrones passées à /v1/extract ou /v1/trend basculent
     ici automatiquement.
     """
-    _check_sampling(req.sampling)
-    prio = usage.priority_of(request)
-    st, cd = _parse_lists(req.stations, req.cards, prio)
-    if req.endpoint == "trend":
-        _check_cards_series(cd)
-    params = {"endpoint": req.endpoint, "stations": st, "cards": cd}
-    if req.start:
-        params["start"] = req.start
-    if req.end:
-        params["end"] = req.end
-    if req.sampling:
-        params["sampling"] = req.sampling
-    if req.stations_meta:
-        params["stations_meta"] = True
-    if req.endpoint == "trend":
-        params.update(mk=req.mk, level=req.level)
-        if req.series:
-            params["series"] = True
-    params["orient"] = req.orient
+    # MÊME normalisation que les endpoints synchrones, et c'est tout
+    # l'enjeu : cette porte appliquait ses propres défauts, si bien qu'un
+    # POST sans `start` calculait sur toute la chronique là qu'un
+    # GET /v1/extract partait de 1968, en silence.
+    params, prio = _params_partages(request, req, req.endpoint)
+    params = {k: v for k, v in params.items() if v is not None}
     try:
         job = jobs.submit(params,
                           user=usage.ip_hash(usage.client_ip(request)),
@@ -1739,7 +1512,8 @@ def create_job(request: Request, req: JobRequest):
         raise HTTPException(503, str(e), headers={"Retry-After": "300"})
     extra = {"key": prio["prefix"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=req.endpoint,
-                    stations=len(st), cards=cd, **extra)
+                    stations=len(params["stations"]),
+                    cards=params["cards"], **extra)
     return _job_response(_job_envelope(job))
 
 

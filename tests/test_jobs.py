@@ -69,6 +69,52 @@ def test_job_trend_matches_sync():
     assert prov["params"]["endpoint"] == "trend"
 
 
+# Champs qui n'existent QUE dans un résultat de job, et pourquoi. Un job
+# produit un artefact gelé, qu'on archive et qu'on cite : la verbosité y
+# est utile là où elle alourdirait une réponse immédiate. Toute autre
+# différence entre les deux portes est un défaut.
+PROPRES_AU_JOB = {"job", "data_fingerprints", "ltp_seed"}
+
+
+@pytest.mark.parametrize("endpoint", ["extract", "trend"])
+def test_les_deux_portes_rendent_le_meme_contrat(endpoint):
+    """Le job et l'appel direct doivent rendre la MÊME enveloppe.
+
+    Ce test comparait les données seulement (`body["data"]`), jamais le
+    contrat. Quatre divergences vivaient dans cet angle mort, mesurées le
+    2026-07-29 : `stations_omitted` et `stations_requested` absents du
+    job, `data_fetched_at` imbriqué au lieu d'être à la racine, et surtout
+    `period.start` différent, `START_DEFAUT` n'étant pas appliqué par un
+    POST direct. Cette dernière est la plus grave : un crash se voit, une
+    fenêtre temporelle silencieusement différente, non.
+
+    Le vrai sujet n'est pas ces quatre écarts mais leur cause, deux
+    implémentations de la même chaîne. Ce test est le garde-fou qui rend
+    la divergence impossible à réintroduire sans le voir rougir.
+    """
+    params = {"stations": "K0550010,F7000001", "cards": "QA"}
+    sync = client.get(f"/v1/{endpoint}", params=params).json()
+
+    jid = client.post("/v1/jobs",
+                      json={"endpoint": endpoint, **params}).json()["job"]
+    assert _wait_done(jid)["status"] == "done"
+    job = client.get(f"/v1/jobs/{jid}/result").json()
+
+    assert set(job) - set(sync) == PROPRES_AU_JOB
+    assert set(sync) - set(job) == set()
+    # Les champs communs disent la même chose. Trois exceptions : les
+    # données elles-mêmes, comparées par le test voisin, et
+    # `data_fetched_at`, qui vaut l'instant courant tant qu'aucune
+    # chronique n'est en cache (repli documenté de `fetched_at`). Deux
+    # calculs successifs le rendent donc légitimement différent d'une
+    # seconde ; ce qui compte est qu'il soit là, et à la racine.
+    for cle in set(sync) & set(job):
+        if cle in ("data", "meta", "series", "data_fetched_at"):
+            continue
+        assert job[cle] == sync[cle], cle
+    assert job["data_fetched_at"] and sync["data_fetched_at"]
+
+
 def test_oversized_request_becomes_job():
     stations = ",".join(f"K{i:07d}" for i in range(11))   # > plafond sync
     r = client.get("/v1/extract", params={"stations": stations, "cards": "QA"})
@@ -94,6 +140,16 @@ def test_oversized_request_becomes_job_in_every_representation(chemin):
 
 
 def test_failed_job_surfaces_error():
+    """Un job dont TOUTES les stations sont muettes échoue, et le dit.
+
+    Ce test affirmait qu'un job sur station inconnue échoue, sans préciser
+    « toutes ». Il est resté vert le 2026-07-29, quand une station muette a
+    cessé d'être fatale en synchrone : il ne décrivait plus le
+    comportement voulu mais l'oubli de le porter côté job, et rien ne
+    distinguait les deux. Un test qui protège l'ancien comportement et qui
+    passe encore après un changement de comportement est un signal
+    d'arrêt.
+    """
     r = client.post("/v1/jobs", json={
         "endpoint": "extract", "stations": "X0000000", "cards": "QA"})
     jid = r.json()["job"]
@@ -101,6 +157,26 @@ def test_failed_job_surfaces_error():
     assert status["status"] == "failed"
     assert "X0000000" in status["error"]
     assert client.get(f"/v1/jobs/{jid}/result").status_code == 409
+
+
+@pytest.mark.parametrize("endpoint", ["extract", "trend"])
+def test_job_avec_une_station_muette_aboutit(endpoint):
+    """Le cas signalé : vingt stations, une échelle limnimétrique parmi
+    elles, et le job mourait à la sixième. La correction avait été portée
+    côté synchrone seulement."""
+    stations = ["K0550010", "X0000001", "F7000001"]
+    jid = client.post("/v1/jobs", json={
+        "endpoint": endpoint, "stations": stations,
+        "cards": "QA"}).json()["job"]
+    assert _wait_done(jid)["status"] == "done"
+    res = client.get(f"/v1/jobs/{jid}/result")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["stations"] == ["K0550010", "F7000001"]
+    assert body["stations_requested"] == stations
+    (omise,) = body["stations_omitted"]
+    assert omise["code_station"] == "X0000001"
+    assert omise["reason"] == "no_series"
 
 
 def test_job_validation_and_unknown():

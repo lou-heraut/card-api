@@ -24,6 +24,45 @@ des deux endroits.
 
 ### Corrigé
 
+- **Une station muette n'annule plus un JOB non plus, et la chaîne
+  n'est plus écrite deux fois (2026-07-29).** La correction de la veille
+  ne portait que sur les réponses immédiates. `jobs.py::_execute`
+  réimplémentait la même chaîne, pour la seule raison d'afficher la
+  progression, si bien qu'une demande de vingt stations continuait de
+  mourir sur la première station sans série. Sa docstring affirmait
+  « Même chaîne que les endpoints synchrones » : elle ne l'était pas.
+
+  En mesurant les deux portes, **trois autres divergences** sont
+  apparues, toutes antérieures : `data_fetched_at` imbriqué côté job au
+  lieu d'être à la racine, `stations_omitted` et `stations_requested`
+  absents, et surtout **une fenêtre temporelle différente** :
+  `START_DEFAUT` n'était appliqué que dans les endpoints synchrones,
+  donc un `POST /v1/jobs` sans `start` calculait sur toute la chronique
+  là où `GET /v1/extract` partait de 1968. Sans rien dire. Celle-là est
+  la plus grave : une panne se voit, un résultat faux non.
+
+  La chaîne vit maintenant dans un module unique, `pipeline.py`, que les
+  deux portes appellent. Il ne connaît rien de HTTP et lève des
+  exceptions neutres, que `main.py` traduit en codes et que le worker
+  enregistre : c'est cette indépendance qui rend le partage possible. La
+  progression est devenue un paramètre, et non plus une raison de
+  recopier. `normalise()` applique défauts et validations **avant** que
+  la demande ne bifurque, ce qui règle la divergence de fenêtre sans la
+  traiter comme un cas particulier.
+
+  **Le vrai livrable est le garde-fou.** `test_job_trend_matches_sync`
+  comparait les deux portes depuis toujours, mais seulement `data` : les
+  quatre divergences vivaient dans son angle mort. Un nouveau test
+  compare les enveloppes entières, avec la liste explicite des champs
+  autorisés à ne vivre que côté job (`job`, `data_fingerprints`,
+  `ltp_seed`). Il aurait attrapé les quatre.
+
+  Et `test_failed_job_surfaces_error`, qui garantissait qu'un job sur
+  station inconnue échoue, est resté vert pendant tout le bug : il ne
+  décrivait plus le comportement voulu mais l'oubli de le porter. Il dit
+  désormais ce qu'il veut dire, un job dont **toutes** les stations sont
+  muettes échoue.
+
 - **Une demande trop grosse ne casse plus le CSV ni la figure
   (2026-07-29).** Au-dessus des plafonds synchrones (10 stations, 20
   fiches), la demande bascule en file de calcul. Cette bascule ne
