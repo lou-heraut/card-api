@@ -194,6 +194,21 @@ des deux endroits.
 
 ### Modifié
 
+- **Le ticket de job n'est plus pré-rempli dans `/docs` (2026-07-29).**
+  Il portait `3f2a9c1b7e4d8506`, qui a exactement la forme d'un vrai
+  ticket, seize hexadécimaux comme en produit `token_hex(8)` : rien ne le
+  distinguait d'une valeur prête à exécuter. Or **tous les autres
+  exemples de la page marchent** si on les exécute, alors que celui-ci ne
+  pouvait jamais marcher, un ticket n'appartenant qu'à la demande qui l'a
+  produit. Le champ semblait donc rempli et rendait un 404.
+
+  Vide, il se voit : Swagger signale un paramètre de chemin manquant et
+  refuse d'exécuter, ce qui est justement la consigne à transmettre. La
+  description dit maintenant où prendre son ticket, et le 404 le redit
+  pour qui colle un ticket périmé. La règle est consignée à côté des
+  autres exemples, avec le critère qui la justifie : un exemple qui ne
+  peut pas fonctionner n'est pas un exemple.
+
 - **Le sélecteur de serveur de `/docs` est masqué (2026-07-29).**
   Swagger le rend dès qu'un bloc `servers` existe, même avec une seule
   entrée : un menu déroulant qui ne sélectionne rien et répète l'adresse

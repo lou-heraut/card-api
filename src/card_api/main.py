@@ -185,7 +185,12 @@ _D_SERIES = (
     "Joint sous `series` les séries extraites sur lesquelles la tendance "
     "a été calculée. Mêmes données garanties, puisque tout vient du même "
     "calcul : de quoi tracer les points et la tendance sans second appel.")
-_D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
+_D_JOB_ID = ("**Votre** ticket, à coller ici : le champ `job` de la "
+             "réponse 202 rendue par /v1/extract, /v1/trend ou "
+             "/v1/jobs, aussi lisible dans l'en-tête `Location`. Ce "
+             "champ est vide à dessein, il n'existe pas de ticket "
+             "d'exemple : un ticket ne vaut que pour la demande qui l'a "
+             "produit.")
 
 # ── Exemples : ce qui remplit vraiment le champ ───────────────────────
 #
@@ -216,7 +221,16 @@ _D_JOB_ID = "Ticket rendu au dépôt du job (champ `job` de la réponse 202)."
 _X_STATIONS = {"example": "F700000103"}
 _X_CARDS = {"example": "QA,VCN10"}
 _X_START = {"example": "1968-01-01"}
-_X_JOB_ID = {"example": "3f2a9c1b7e4d8506"}
+# PAS d'exemple pour le ticket, et c'est le seul paramètre dans ce cas.
+# Il en portait un, `3f2a9c1b7e4d8506`, qui avait exactement la forme
+# d'un vrai (16 hexadécimaux, comme `token_hex(8)`) : rien ne le
+# distinguait d'une valeur prête à exécuter. Or tous les autres exemples
+# MARCHENT si on les exécute, alors que celui-ci ne pouvait jamais
+# marcher, un ticket n'appartenant qu'à la demande qui l'a produit. Le
+# champ semblait donc rempli et rendait un 404.
+#
+# Vide, il se voit : Swagger marque un paramètre de chemin manquant et
+# refuse d'exécuter, ce qui est exactement la consigne à transmettre.
 
 # L'ordre des sections EST celui de la page : Swagger les affiche dans
 # l'ordre de cette liste, pas dans l'ordre alphabétique ni dans celui des
@@ -1674,13 +1688,12 @@ def job_list(request: Request):
          dependencies=[Depends(usage.rate_light)])
 def job_status(
     response: Response,
-    job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
-                            description=_D_JOB_ID),
+    job_id: str = PathParam(description=_D_JOB_ID),
 ):
     """Statut et progression d'un job (queued, running, done, failed)."""
     job = jobs.load(job_id)
     if job is None:
-        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+        raise HTTPException(404, _JOB_INCONNU.format(job_id=job_id))
     if job["status"] in ("queued", "running"):
         response.headers["Retry-After"] = "10"
     return {
@@ -1698,14 +1711,13 @@ def job_status(
 @app.get("/v1/jobs/{job_id}/result", tags=["jobs"],
          summary="Résultat d'un job terminé",
          dependencies=[Depends(usage.rate_light)])
-def job_result(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
-                                       description=_D_JOB_ID)):
+def job_result(job_id: str = PathParam(description=_D_JOB_ID)):
     """Résultat d'un job terminé (même format que l'endpoint synchrone,
     plus un bloc de provenance : paramètres, versions, date des
     données)."""
     job = jobs.load(job_id)
     if job is None:
-        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+        raise HTTPException(404, _JOB_INCONNU.format(job_id=job_id))
     if job["status"] == "failed":
         raise HTTPException(409, f"job en échec : {job['error']}")
     if job["status"] != "done":
@@ -1718,12 +1730,22 @@ def job_result(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
     return Response(content=raw, media_type="application/json")
 
 
+# Le ticket vient d'une réponse 202, il n'y a pas d'autre source : le
+# refus le dit, plutôt que de laisser chercher. Les jobs expirent aussi,
+# et les deux cas sont indiscernables de l'extérieur.
+_JOB_INCONNU = ("job inconnu ou expiré : {job_id}. Un ticket est rendu "
+                "par le champ `job` d'une réponse 202 (/v1/extract, "
+                "/v1/trend, /v1/jobs) et les résultats ne sont gardés "
+                "que quelques jours (durée exacte dans /v1, bloc "
+                "`limits`).")
+
+
 def _resultat_gele(job_id):
     """Le résultat d'un job terminé, chargé, plus l'endpoint qui l'a
     produit. Les mêmes refus que `/result`, écrits une fois."""
     job = jobs.load(job_id)
     if job is None:
-        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+        raise HTTPException(404, _JOB_INCONNU.format(job_id=job_id))
     if job["status"] == "failed":
         raise HTTPException(409, f"job en échec : {job['error']}")
     if job["status"] != "done":
@@ -1754,8 +1776,7 @@ def _resultat_gele(job_id):
          response_class=_RawResponse,
          responses={200: {"content": {"text/csv": {}}}},
          dependencies=[Depends(usage.rate_light)])
-def job_result_csv(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
-                                           description=_D_JOB_ID)):
+def job_result_csv(job_id: str = PathParam(description=_D_JOB_ID)):
     """Le résultat gelé du job, dans le même CSV que l'endpoint
     synchrone : mêmes colonnes, même provenance en lignes `#`.
 
@@ -1770,8 +1791,7 @@ def job_result_csv(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
          summary="Le résultat d'un job de tendance, dessiné",
          response_class=PlainTextResponse,
          dependencies=[Depends(usage.rate_light)])
-def job_result_figure(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
-                                              description=_D_JOB_ID)):
+def job_result_figure(job_id: str = PathParam(description=_D_JOB_ID)):
     """Le résultat gelé du job, dessiné comme `/v1/trend/figure`.
 
     Réservé aux jobs de tendance : une extraction n'a pas de verdict de
@@ -1802,15 +1822,14 @@ def _tree_mb(path) -> float:
             summary="Abandonner un job par son ticket",
             dependencies=[Depends(usage.rate_light)])
 def job_delete(request: Request,
-               job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
-                                       description=_D_JOB_ID)):
+               job_id: str = PathParam(description=_D_JOB_ID)):
     """Supprime un job et son résultat sans attendre le TTL (le
     « dismiss » d'OGC API Processes). Le ticket vaut capacité, comme
     pour la lecture. Un job en cours d'exécution n'est pas annulable
     (calcul non interruptible) : réessayer une fois terminé."""
     job = jobs.load(job_id)
     if job is None:
-        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+        raise HTTPException(404, _JOB_INCONNU.format(job_id=job_id))
     if job["status"] == "running":
         raise HTTPException(409, "job en cours d'exécution : "
                                  "suppression possible une fois terminé")

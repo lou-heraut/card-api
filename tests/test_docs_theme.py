@@ -220,3 +220,29 @@ def test_la_description_garde_sa_prose_et_ses_liens_a_part():
     # en revenir sans être divulgué, et il faudrait un compte GitHub.
     assert "cle-de-priorite" not in desc, "le gabarit d'issue est retiré"
     assert desc.count("mailto:") >= 2, "signaler ET demander une clé"
+
+
+def test_le_ticket_de_job_n_est_jamais_pre_rempli():
+    """Tous les exemples de la page MARCHENT si on les exécute, sauf un
+    qui ne le pouvait pas.
+
+    Le ticket portait `3f2a9c1b7e4d8506`, qui a exactement la forme d'un
+    vrai (16 hexadécimaux, comme `token_hex(8)`) : rien ne le distinguait
+    d'une valeur prête. Or un ticket n'appartient qu'à la demande qui l'a
+    produit, donc le champ semblait rempli et rendait un 404. Vide, il se
+    voit, et Swagger refuse d'exécuter un paramètre de chemin manquant.
+    """
+    spec = client.get("/openapi.json").json()
+    tickets, autres = [], []
+    for chemin, ops in spec["paths"].items():
+        for methode in ops.values():
+            for q in methode.get("parameters", []):
+                cible = tickets if q["name"] == "job_id" else autres
+                cible.append((chemin, q))
+    assert tickets, "aucun paramètre job_id trouvé"
+    for chemin, q in tickets:
+        assert "example" not in q.get("schema", {}), chemin
+        assert "examples" not in q, chemin
+        assert "202" in q["description"], chemin      # dit d'où vient le ticket
+    # et les autres gardent bien le leur : la règle vise ce seul cas
+    assert any("example" in q.get("schema", {}) for _, q in autres)
