@@ -966,19 +966,28 @@ def _parse_lists(stations, cards, prio=None):
     return st, cd
 
 
-def _job_response(job: dict) -> JSONResponse:
+def _job_envelope(job: dict) -> dict:
+    """Le ticket en DONNÉES, pas en réponse. Une demande peut basculer en
+    file depuis n'importe quelle représentation : le CSV et la figure ont
+    eux aussi à annoncer le ticket, chacun dans son medium. Rendre ici un
+    objet Response les priverait du numéro."""
+    return {
+        "job": job["id"],
+        "status": job["status"],
+        "status_url": f"/v1/jobs/{job['id']}",
+        "result_url": f"/v1/jobs/{job['id']}/result",
+        "detail": "demande mise en file : suivre status_url, le "
+                  "résultat reste disponible "
+                  f"{jobs.JOB_TTL_DAYS:g} jours",
+    }
+
+
+def _job_response(envelope: dict) -> JSONResponse:
+    """Le ticket en JSON : 202 + Location, forme d'OGC API Processes."""
     return JSONResponse(
         status_code=202,
-        headers={"Location": f"/v1/jobs/{job['id']}"},
-        content={
-            "job": job["id"],
-            "status": job["status"],
-            "status_url": f"/v1/jobs/{job['id']}",
-            "result_url": f"/v1/jobs/{job['id']}/result",
-            "detail": "demande mise en file : suivre status_url, le "
-                      "résultat reste disponible "
-                      f"{jobs.JOB_TTL_DAYS:g} jours",
-        })
+        headers={"Location": envelope["status_url"]},
+        content=envelope)
 
 
 def _maybe_job(request, endpoint, st, cd, prio=None, **params):
@@ -999,7 +1008,7 @@ def _maybe_job(request, endpoint, st, cd, prio=None, **params):
     extra = {"key": prio["prefix"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=endpoint,
                     stations=len(st), cards=cd, **extra)
-    return _job_response(job)
+    return _job_envelope(job)
 
 
 def _stations_meta(st):
@@ -1167,9 +1176,10 @@ def _csv_job(out):
     return _RawResponse(
         (f"# demande trop grosse pour une réponse immédiate\n"
          f"# elle est partie en file de calcul, ticket {out['job']}\n"
-         f"# suivi : /v1/jobs/{out['job']} · résultat en JSON\n"
+         f"# suivi : {out['status_url']} · résultat en JSON\n"
          ).encode("utf-8"),
-        media_type="text/csv; charset=utf-8", status_code=202)
+        media_type="text/csv; charset=utf-8", status_code=202,
+        headers={"Location": out["status_url"]})
 
 
 # ── La tendance, DESSINÉE ──────────────────────────────────────────────
@@ -1373,8 +1383,8 @@ def extract(request: Request, p: Annotated[ExtractParams, Query()]):
     Pour un fichier ouvrable au tableur : `/v1/extract.csv`, mêmes
     paramètres.
     """
-    out, _ = _extract_result(request, p)
-    return out
+    out, extracted = _extract_result(request, p)
+    return _job_response(out) if extracted is None else out
 
 
 @app.get("/v1/extract.csv", tags=["data"],
@@ -1502,8 +1512,8 @@ def trend(request: Request, p: Annotated[TrendParams, Query()]):
     Pour lire le résultat sans traverser le JSON : `/v1/trend/figure`,
     mêmes paramètres.
     """
-    out, _ = _trend_result(request, p)
-    return out
+    out, tr = _trend_result(request, p)
+    return _job_response(out) if tr is None else out
 
 
 @app.get("/v1/trend.csv", tags=["data"],
@@ -1544,9 +1554,10 @@ def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
         return PlainTextResponse(
             f"Demande trop grosse pour une réponse immédiate : elle est "
             f"partie en file de calcul.\nTicket {out['job']}, suivi sur "
-            f"/v1/jobs/{out['job']}.\nLe résultat d'un job est du JSON ; "
+            f"{out['status_url']}.\nLe résultat d'un job est du JSON ; "
             f"cette page ne dessine que les réponses immédiates.",
-            status_code=202)
+            status_code=202,
+            headers={"Location": out["status_url"]})
     # La table se lit sur `records` quel que soit `orient` : elle parcourt
     # des lignes, pas des colonnes. `orient` ne concerne que la sortie
     # JSON, il n'a pas à changer un dessin.
@@ -1633,7 +1644,7 @@ def create_job(request: Request, req: JobRequest):
     extra = {"key": prio["prefix"]} if prio else {}
     usage.log_usage(request, "jobs", job=job["id"], target=req.endpoint,
                     stations=len(st), cards=cd, **extra)
-    return _job_response(job)
+    return _job_response(_job_envelope(job))
 
 
 @app.get("/v1/jobs", tags=["jobs"],

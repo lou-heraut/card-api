@@ -79,6 +79,20 @@ def test_oversized_request_becomes_job():
     assert len({row["id"] for row in data}) == 11
 
 
+@pytest.mark.parametrize("chemin", ["/v1/extract.csv", "/v1/trend.csv",
+                                    "/v1/trend/figure"])
+def test_oversized_request_becomes_job_in_every_representation(chemin):
+    """La bascule en file valait pour le JSON seulement : le CSV et la
+    figure rendaient 500 (2026-07-29). Une demande trop grosse doit
+    annoncer son ticket dans le medium demandé, quel qu'il soit."""
+    stations = ",".join(f"K{i:07d}" for i in range(11))   # > plafond sync
+    r = client.get(chemin, params={"stations": stations, "cards": "QA"})
+    assert r.status_code == 202
+    jid = r.headers["location"].rsplit("/", 1)[-1]
+    assert jid in r.text                        # le ticket, lisible en clair
+    assert _wait_done(jid)["status"] == "done"
+
+
 def test_failed_job_surfaces_error():
     r = client.post("/v1/jobs", json={
         "endpoint": "extract", "stations": "X0000000", "cards": "QA"})
