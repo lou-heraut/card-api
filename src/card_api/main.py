@@ -555,7 +555,10 @@ _FAVICON = "data:image/svg+xml," + urllib.parse.quote(
 def swagger_docs(request: Request) -> HTMLResponse:
     page = get_swagger_ui_html(
         openapi_url=str(request.scope.get("root_path", "")) + app.openapi_url,
-        title=f"{app.title} : documentation interactive",
+        # Le <title> est ce que le navigateur met dans l'onglet et
+        # dans un signet : le nom du service suffit, la page se voit
+        # bien assez pour ne pas avoir à s'annoncer.
+        title=app.title,
         swagger_favicon_url=_FAVICON,
         swagger_ui_parameters=app.swagger_ui_parameters,
     ).body.decode()
