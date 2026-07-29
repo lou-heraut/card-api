@@ -1070,8 +1070,14 @@ def _csv_sans_virgule(ligne):
     Reste à ne pas produire de virgule du tout. Le bandeau se lit alors
     d'un trait en colonne A dans un tableur, et reste sauté par pandas
     et R.
+
+    Le remplaçant est le POINT-VIRGULE, pas le point médian. Ce dernier
+    convient à une énumération de codes, pas à une phrase : le motif d'une
+    station écartée donnait « n'en publie pas · cas d'une échelle · que ni
+    type_station », qui ne se lit plus. Les listes, elles, sont déjà
+    jointes par ` · ` à la construction et ne passent pas par ici.
     """
-    return ligne.replace(", ", " · ").replace(",", " · ")
+    return ligne.replace(", ", " ; ").replace(",", " ; ")
 
 
 def _csv_entete(out, endpoint):
