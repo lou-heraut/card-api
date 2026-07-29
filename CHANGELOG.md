@@ -192,6 +192,27 @@ des deux endroits.
   c'est le bon outil. Un formulaire hébergé n'éviterait pas d'avoir à
   répondre par courriel de toute façon.
 
+### Modifié
+
+- **Le sélecteur de serveur de `/docs` est masqué (2026-07-29).**
+  Swagger le rend dès qu'un bloc `servers` existe, même avec une seule
+  entrée : un menu déroulant qui ne sélectionne rien et répète l'adresse
+  de la page qu'on lit. Masqué et non retiré du contrat, parce que les
+  deux ne coûtent pas la même chose : `servers` donne au contrat une
+  adresse absolue, la seule dont dispose un générateur de client ou
+  quiconque lit `openapi.json` ailleurs que sur cette page. Le retirer
+  produirait des clients pointant sur `/` pour gagner trente pixels.
+  Même doctrine que les autres champs masqués, cf. `THEME_DOCS.md`, qui
+  note aussi la condition : le masque suppose un seul serveur.
+
+- **`CHANTIERS.md` ne garde qu'une piste ouverte (2026-07-29).** Le thème
+  de `/docs` est refermé, le déploiement depuis le CI est une décision
+  prise et non une piste, et la veille sur les décomptes est devenue une
+  règle. Chaque élément est parti dans le document qui en porte la
+  matière : `THEME_DOCS.md` pour la doctrine du thème, `CLAUDE.md` pour
+  les deux règles. Un registre de pistes ouvertes qui accumule des
+  décisions closes cesse de dire ce qui reste à faire.
+
 ### Ajouté
 
 - **`/v1` publie les limites du service (2026-07-29) :** bloc `limits`,

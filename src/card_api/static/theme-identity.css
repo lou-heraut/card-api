@@ -139,12 +139,20 @@ body{margin:0;}
    rangee, on l'aere. */
 .swagger-ui .scheme-container .schemes{align-items:center; gap:16px;}
 
-.swagger-ui .scheme-container .schemes-server-url .servers-title,
-.swagger-ui .scheme-container .servers-title{
-  font-family:var(--sans); font-size:11px; font-weight:600;
-  text-transform:uppercase; letter-spacing:.1em; color:var(--muted);
-  margin-bottom:6px;
-}
+/* LE SELECTEUR DE SERVEUR, MASQUE. Swagger le rend des qu'un bloc
+   `servers` existe, meme avec une seule entree : un menu deroulant qui
+   ne selectionne rien et qui repete l'adresse de la page qu'on lit.
+   Masque ici plutot que retire du contrat, parce que les deux ne coutent
+   pas la meme chose : `servers` est ce qui donne au contrat une adresse
+   ABSOLUE, la seule dont dispose un generateur de client, ou quiconque
+   lit `openapi.json` ailleurs que sur cette page. Le retirer produirait
+   des clients pointant sur `/`, pour gagner trente pixels.
+   Ne vaut que tant qu'il n'y a QU'UN serveur : le jour ou une adresse de
+   preproduction s'ajoute, ce masque cache un vrai choix, il faut le
+   lever. Le bouton « Authorize » vit dans le meme conteneur, d'ou des
+   selecteurs qui visent le bloc des serveurs et lui seul. */
+.swagger-ui .scheme-container .servers-title,
+.swagger-ui .scheme-container .servers{display:none;}
 
 /* « Authorize » est peint en vert par Swagger, cadenas compris, avec une
    specificite superieure a celle de `.btn` : sans ce selecteur a deux
@@ -491,6 +499,11 @@ body{margin:0;}
   font-weight:500;
 }
 
+/* Les DEUX boutons d'un bloc de code sont couples : « Telecharger » est
+   pose a droite par Swagger, « Copier » se cale a cote par ce decalage en
+   dur, choisi pour la largeur du premier. Retoucher l'un demande donc de
+   verifier l'autre, et la verification est une capture d'ecran : rien
+   dans le CSS ne signale un chevauchement. */
 .swagger-ui .copy-to-clipboard{right:85px;}
 
 .swagger-ui .copy-to-clipboard:active{background:#3a3a3a;}

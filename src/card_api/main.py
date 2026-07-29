@@ -510,7 +510,7 @@ def _limits():
 
     Elles ne sont écrites nulle part en prose, et c'est délibéré : le
     projet a déjà appris qu'un nombre recopié dans une description périme
-    sans bruit (cf. docs/dev/CHANTIERS.md, et `versions()` pour la même
+    sans bruit (règle dans CLAUDE.md, et `versions()` pour la même
     règle appliquée aux numéros de version). Une description dit la RÈGLE,
     ce bloc donne les VALEURS, et elles viennent des modules qui les
     appliquent : elles ne peuvent pas mentir.

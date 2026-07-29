@@ -66,6 +66,20 @@ Les deux derniers sont repris en fin de description, sous la même forme
 que les autres liens. Sans ce regroupement, la page offrait trois
 présentations d'une même chose sur quinze centimètres.
 
+**Le sélecteur de serveur** relève de la même règle (masqué le
+2026-07-29). Swagger le rend dès qu'un bloc `servers` existe, même avec
+une seule entrée : un menu déroulant qui ne sélectionne rien et qui
+répète l'adresse de la page qu'on est en train de lire. Mais `servers`
+est ce qui donne au contrat une adresse **absolue**, la seule dont
+dispose un générateur de client ou quiconque lit `openapi.json` ailleurs
+que sur cette page ; le retirer produirait des clients pointant sur `/`,
+pour gagner trente pixels. On masque donc `.servers-title` et `.servers`,
+et pas `.scheme-container`, qui porte aussi le bouton « Authorize ».
+
+Ce masque suppose **un seul serveur**. Le jour où une adresse de
+préproduction s'ajoute au contrat, il cache un vrai choix : il faut alors
+le lever.
+
 **Masqué n'est pas supprimé.** Retirer un de ces champs du contrat pour
 gagner une ligne d'affichage serait un mauvais échange : la machine ne
 lit pas la prose d'une description. `tests/test_docs_theme.py` tient les

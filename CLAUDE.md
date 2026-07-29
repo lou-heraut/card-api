@@ -211,6 +211,16 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
   dans la réponse, avec une recommandation, et se discute dans le fil.
 - Pas de tiret quadratin (—) dans la prose (docs, messages, commentaires,
   réponses) : reformuler. Perçu comme un marqueur de texte IA.
+- **Aucun décompte ni plafond écrit en clair dans une description
+  d'API.** « 226 fiches », « défaut 10 stations, 20 fiches » : la phrase
+  reste, la valeur bouge, et le contrat ment sans que rien ne rougisse.
+  C'est arrivé deux fois, le 2026-07-28 pour la taille du corpus et le
+  2026-07-29 pour les plafonds synchrones. Une description dit la
+  **règle** ; les **valeurs** se lisent dans `/v1` (bloc `limits`,
+  alimenté par les modules qui les appliquent) comme les numéros de
+  version passent par `versions()`. Deux tests le tiennent, dans
+  `tests/test_api.py`. Même raison, même remède : ne jamais recopier à la
+  main un nombre qui vit ailleurs.
 
 ## Versions et citation
 
