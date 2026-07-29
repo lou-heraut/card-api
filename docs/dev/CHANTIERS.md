@@ -68,6 +68,50 @@ vérification est une capture `chromium --headless --screenshot`, à faire
 **page dépliée et requête exécutée**, sans quoi on ne voit rien des
 défauts réels.
 
+## Codes de SITE : à moitié réglé, la moitié qui reste est un choix
+
+Constaté le 2026-07-29 en mesurant la production. Un code de **site**
+(les anciens codes Banque Hydro en sont) passe par `code_entite` comme
+un code de station, mais Hub'Eau n'y répond pas pareil.
+
+**Ce qui est réglé.** Hub'Eau sert deux fois la même mesure : une ligne
+étiquetée avec la station qui l'a produite, une ligne sans étiquette.
+Doublon exact, vérifié sur `K0114020` et `K0018723` (365 jours comparés,
+zéro écart de valeur, seuls `code_station` et `date_prod` diffèrent). Le
+client ne garde que les lignes étiquetées. `K0114020` fonctionne
+désormais.
+
+**Ce qui reste, et c'est une vraie question.** Un site peut porter
+plusieurs stations qui mesurent **en même temps, avec des valeurs
+différentes**. `K0018723` : ses stations se succèdent de 1955 à 2007,
+puis **deux mesurent en parallèle de 2017 à aujourd'hui**, et les valeurs
+diffèrent sur 738 des 1358 jours concernés (0,356 contre 0,386 le
+2017-11-30). Il n'y a là aucun doublon à écarter : ce sont deux mesures
+réelles du même cours d'eau.
+
+Trois issues possibles, à trancher :
+
+1. **Refuser** un code qui donne plusieurs séries concurrentes, avec un
+   message qui liste les stations et renvoie vers `/v1/stations`. Honnête,
+   n'invente rien, coûte un aller-retour.
+2. **Choisir** une station, par exemple la plus récente ou la plus
+   complète. Commode, mais c'est un arbitrage hydrologique fait à la
+   place de l'utilisateur, et silencieux.
+3. **Rendre les deux séries**, une par station. Fidèle, mais change la
+   forme de la réponse pour ce seul cas.
+
+Ma préférence va à la 1 : ce service ne doit pas décider à la place de
+qui l'interroge, et le message peut être assez précis pour que le
+deuxième appel soit évident.
+
+**Indépendant du choix, et à faire dans tous les cas** : le 422 actuel
+vient de card et conseille `drop_duplicates=True`, un paramètre Python
+qu'aucun client HTTP ne peut passer. L'utilisateur est dans une impasse.
+
+**Portée réelle** : seuls les gens qui arrivent avec un code de site sont
+touchés. Ceux qui passent par `/v1/stations` reçoivent des `code_station`
+et ne rencontrent jamais ce chemin.
+
 ## À surveiller : les décomptes écrits dans les textes
 
 Retirés des descriptions d'API le 2026-07-28, et un test refuse

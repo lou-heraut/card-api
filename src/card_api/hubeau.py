@@ -180,6 +180,25 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
             "depuis la refonte Hydro, cherchez le nouveau code via "
             "/v1/stations"
         )
+    # Hub'Eau sert DEUX FOIS la même mesure quand le code demandé est un
+    # code de SITE : une ligne étiquetée avec la station qui l'a produite,
+    # une ligne sans étiquette de station. Vérifié sur K0114020 et
+    # K0018723 : à une date donnée, les deux lignes ne diffèrent que par
+    # `code_station` (rempli / vide) et par leur `date_prod` ; la valeur
+    # est identique, sur 365 jours comparés, zéro écart.
+    #
+    # Ce n'est donc pas un choix entre deux séries, c'est un doublon. Non
+    # filtré, il faisait échouer toute demande sur un code de site avec un
+    # 422 « dates dupliquées » venu de card, dont le message conseillait
+    # un paramètre Python inaccessible depuis HTTP. Or les anciens codes
+    # Banque Hydro SONT des codes de site : la panne visait exactement les
+    # gens que /v1/stations doit dépanner.
+    #
+    # Repli si le filtre ne laisse rien : mieux vaut la chronique telle
+    # quelle qu'une station soudainement introuvable.
+    etiquetees = [r for r in rows if r.get("code_station")]
+    if etiquetees:
+        rows = etiquetees
     df = pd.DataFrame({
         "code_station": station,
         "date": pd.to_datetime([r["date_obs_elab"] for r in rows]),

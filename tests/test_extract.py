@@ -152,3 +152,4 @@ def test_extract_sampling_invalid():
         "stations": "K0550010", "cards": "QA", "sampling": "septembre"})
     assert r.status_code == 422
     assert "preferred" in r.json()["detail"]
+

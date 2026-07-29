@@ -359,6 +359,22 @@ des deux endroits.
 
 ### Corrigé
 
+- **Un code de site échouait sur un doublon de Hub'Eau (2026-07-29).**
+  Interrogé avec un code de **site** (les anciens codes Banque Hydro en
+  sont), Hub'Eau sert **deux fois la même mesure** : une ligne étiquetée
+  avec la station qui l'a produite, une ligne sans étiquette. Vérifié sur
+  `K0114020` et `K0018723` : à une date donnée, les deux ne diffèrent que
+  par `code_station` et `date_prod`, la valeur est identique sur 365
+  jours comparés. Non filtré, ce doublon faisait échouer la demande par
+  un 422 « dates dupliquées » dont le message conseillait un paramètre
+  Python inatteignable depuis HTTP. Le client ne garde que les lignes
+  étiquetées.
+
+  **Cela ne referme pas tout le sujet** : un site peut porter deux
+  stations qui mesurent en parallèle avec des valeurs différentes, et
+  c'est alors un vrai choix, pas un doublon. Consigné dans
+  `docs/dev/CHANTIERS.md`.
+
 - **La suite « hors-ligne » ne l'était plus (2026-07-29).** `conftest`
   place le cache des chroniques dans un dossier temporaire, donc toujours
   vide : les tests ajoutés la veille, qui appellent `/v1/trend` et
