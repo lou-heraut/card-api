@@ -27,7 +27,7 @@ src/card_api/
                 #   fiche DESSINÉE en text/plain ; le détail reste du
                 #   JSON), vocabulary (valeurs de facette valides =
                 #   filtres de cards), stations (champ `codes`, même
-                #   service que `ids`), extract,
+                #   service que `ids`), extract + extract.csv,
                 #   trend + trend.csv + trend/figure (le MÊME
                 #   diagnostic ; paramètres déclarés UNE fois dans
                 #   TrendParams/ExtractParams, partagés ; une
@@ -170,7 +170,7 @@ Doctrine complète : « Versions, en quatre phrases », en tête de
   utiles à card et stase, qui se citent.
 
 
-## État (2026-07-28)
+## État (2026-07-29)
 
 Le service est **déployé** depuis le 2026-07-17 sur la VM de
 l'utilisateur, derrière l'Apache qui y sert déjà d'autres services
@@ -188,11 +188,23 @@ ouvert dans `docs/dev/CHANTIERS.md`. Ces deux fichiers font foi : ne pas
 les paraphraser ici, cette section ne doit pas regonfler à chaque
 chantier.
 
-**Passe de vérification du 2026-07-28, avant diffusion** : les trois
-dépôts sont verts (stase 131, card 126, card-api 71 tests ; trois lints
-propres, ruff épinglé partout). Les deux gestes à faire au prochain
-`make update` : ajouter `CARD_API_PUBLIC_URL` au `.env` de la VM, et
-vider `data/chroniques/` (les caches portent l'ancien en-tête `id`).
+**Passe de finalisation des 2026-07-28 et 29, avant diffusion.** Les
+trois dépôts sont verts (stase 131, card 126, card-api 75 tests ; trois
+lints propres, ruff épinglé et jeu de règles déclaré dans les trois
+`pyproject.toml`). card-api a désormais un CI (pytest 3.11/3.12 + ruff) ;
+le déploiement reste manuel, réserve explicite de l'utilisateur.
+
+Trois points qui ne se déduisent pas du code :
+
+- **Les clés se demandent par COURRIEL**, plus par une issue GitHub : le
+  gabarit a été retiré parce qu'un jeton ne peut pas repartir par une
+  page publique. Ne pas le réintroduire.
+- **Les mentions légales** (README) sont rédigées d'après ce que le code
+  fait ; éditeur, responsable de publication et hébergeur gagneraient une
+  validation par le service compétent d'INRAE.
+- **Un code de SITE Hub'Eau** n'est pas un code de station : le client
+  écarte le doublon que Hub'Eau sert alors, et refuse en 422 nommant les
+  stations quand plusieurs mesurent en parallèle (cf. `hubeau.py`).
 
 À partir de la diffusion des premières clés, les numéros de version
 redeviennent des engagements : `FINGERPRINT_VERSION` s'incrémente à tout
