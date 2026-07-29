@@ -15,6 +15,7 @@ par IP et journal d'usage anonymisé (usage.py).
 """
 
 import hashlib
+import json
 import os
 import pathlib
 import re
@@ -45,7 +46,7 @@ from . import hubeau, jobs, pipeline, usage
 from .pipeline import (API_VERSION, CARD_COMMIT, LTP_SEED,  # noqa: F401
                        rights, versions)
 from .pipeline import fetched_at as _fetched_at             # noqa: F401
-from .serialize import clean, serialize
+from .serialize import clean
 
 _SAMPLING_RE = re.compile(r"^(preferred|\d{2}-\d{2})$")
 
@@ -844,9 +845,10 @@ def _parse_lists(stations, cards, prio=None):
         dit_cd = max_cd if max_cd > 0 else "sans limite"
         raise HTTPException(
             422, f"au plus {dit_st} stations et {dit_cd} fiches par "
-                 f"demande (au-delà de {jobs.SYNC_STATIONS} stations ou "
-                 f"{jobs.SYNC_CARDS} fiches, la demande devient un "
-                 f"job){hint}")
+                 f"demande (au-delà de {jobs.SYNC_STATIONS} stations à "
+                 f"télécharger, de {jobs.SYNC_STATIONS_CACHED} stations au "
+                 f"total ou de {jobs.SYNC_CARDS} fiches, la demande devient "
+                 f"un job){hint}")
     _check_cards_q(cd)
     return st, cd
 
@@ -875,6 +877,33 @@ def _job_response(envelope: dict) -> JSONResponse:
         content=envelope)
 
 
+def _tient_en_direct(st, cd) -> bool:
+    """La demande peut-elle être servie sans passer par la file ?
+
+    Ce n'est pas le nombre de stations qui décide, c'est le nombre de
+    stations à TÉLÉCHARGER. Mesuré en production le 2026-07-29 : une
+    chronique coûte environ 1,2 s à rapatrier et 0,04 s à calculer, trente
+    fois moins. Les mêmes 20 stations valent donc 24 s à froid et 1 s à
+    chaud, et le compteur unique tranchait au mauvais endroit : on payait
+    un ticket, une file et un aller-retour pour économiser une seconde.
+
+    Deux seuils, chacun sur ce qu'il borne vraiment. Le bas s'applique aux
+    téléchargements, il tient la durée d'une réponse immédiate. Le haut
+    s'applique au total, il évite qu'une demande énorme mais toute en
+    cache monopolise un worker.
+
+    Conséquence assumée : la même URL peut partir en file au premier appel
+    et répondre en direct au second. C'est voulu. Le coût réel varie, il
+    est normal que la décision suive, et la variation joue toujours dans
+    le sens de l'utilisateur. Un client doit de toute façon savoir lire un
+    202, qui reste possible à tout moment.
+    """
+    if len(cd) > jobs.SYNC_CARDS or len(st) > jobs.SYNC_STATIONS_CACHED:
+        return False
+    a_telecharger = sum(1 for s in st if not hubeau.en_cache(s))
+    return a_telecharger <= jobs.SYNC_STATIONS
+
+
 def _maybe_job(request, params, prio=None):
     """Bascule automatique : au-dessus des plafonds synchrones, la
     demande devient un job (202 + ticket) au lieu d'un refus. Une clé
@@ -884,7 +913,7 @@ def _maybe_job(request, params, prio=None):
     lesquelles la réponse immédiate aurait porté."""
     st, cd = params["stations"], params["cards"]
     endpoint = params["endpoint"]
-    if len(st) <= jobs.SYNC_STATIONS and len(cd) <= jobs.SYNC_CARDS:
+    if _tient_en_direct(st, cd):
         return None
     job_params = {k: v for k, v in params.items() if v is not None}
     try:
@@ -1057,6 +1086,69 @@ def _csv_nom(table, out, endpoint):
     return re.sub(r"[^A-Za-z0-9._-]", "", nom) + ".csv"
 
 
+# ── Les rendus : une seule entrée, le RÉSULTAT ─────────────────────────
+#
+# Règle sans exception : un rendu prend `out`, le résultat SÉRIALISÉ, et
+# rien d'autre. Jamais les DataFrames que card vient de produire.
+#
+# Elle vient d'un audit. Les trois rendus étaient alimentés par les
+# DataFrames vivants, alors qu'un résultat de job n'existe que sérialisé.
+# Servir un CSV depuis un job aurait donc demandé un second chemin vers
+# chacun des trois, c'est-à-dire trois occasions de diverger, exactement
+# le bug qu'on venait de corriger sur l'axe du calcul. En n'ayant qu'une
+# entrée possible, la question « laquelle des deux ai-je modifiée » cesse
+# d'exister.
+#
+# `pd.DataFrame` relit indifféremment les deux orientations (`records` en
+# liste de dicts, `columns` en dict de listes) : vérifié, le CSV produit
+# est identique à l'octet près. Une seule fonction suffit donc à couvrir
+# `orient`, là où il fallait auparavant forcer `records` chez l'appelant.
+
+def _table(bloc):
+    """Une section de `out["data"]` relue en DataFrame, quel que soit
+    l'`orient` sous lequel elle a été gelée."""
+    return pd.DataFrame(bloc)
+
+
+def _table_trend(out):
+    """La table d'un résultat de tendance : une ligne par station et par
+    variable, toutes les colonnes du test."""
+    tables = [_table(bloc) for bloc in out["data"].values()]
+    return (pd.concat(tables, ignore_index=True) if tables
+            else pd.DataFrame())
+
+
+def _table_extract(out):
+    """La table d'une extraction, en forme LONGUE.
+
+    (`code_station, date, variable, value`) et non une colonne par
+    variable : deux fiches n'ont pas le même pas de temps ni les mêmes
+    années, les mettre côte à côte fabriquerait des trous qui ne sont pas
+    dans la donnée.
+    """
+    longues = []
+    for df in (_table(bloc) for bloc in out["data"].values()):
+        colonnes = [c for c in df.columns
+                    if c not in ("code_station", "date")]
+        for col in colonnes:
+            part = (df[["code_station", "date", col]]
+                    .rename(columns={col: "value"}))
+            part.insert(2, "variable", col)
+            longues.append(part)
+    return (pd.concat(longues, ignore_index=True) if longues
+            else pd.DataFrame(
+                columns=["code_station", "date", "variable", "value"]))
+
+
+_TABLES = {"extract": _table_extract, "trend": _table_trend}
+
+
+def _csv_du_resultat(out, endpoint):
+    """Le CSV d'un résultat, d'où qu'il vienne : réponse immédiate ou
+    résultat gelé d'un job. C'est LE chemin, il n'y en a pas d'autre."""
+    return _csv_response(_TABLES[endpoint](out), out, endpoint)
+
+
 def _csv_response(table, out, endpoint):
     """Le fichier complet : provenance en `#`, puis le tableau.
 
@@ -1078,7 +1170,8 @@ def _csv_job(out):
     return _RawResponse(
         (f"# demande trop grosse pour une réponse immédiate\n"
          f"# elle est partie en file de calcul, ticket {out['job']}\n"
-         f"# suivi : {out['status_url']} · résultat en JSON\n"
+         f"# suivi : {out['status_url']}\n"
+         f"# le CSV une fois terminé : {out['result_url']}.csv\n"
          ).encode("utf-8"),
         media_type="text/csv; charset=utf-8", status_code=202,
         headers={"Location": out["status_url"]})
@@ -1105,6 +1198,23 @@ def _fmt_nombre(x, chiffres=2):
     if x is None or (isinstance(x, float) and x != x):
         return "-"
     return f"{x:+,.{chiffres}f}".replace(",", " ")
+
+
+def _figure_du_resultat(out):
+    """La figure d'un résultat de tendance, d'où qu'il vienne.
+
+    L'orientation est normalisée ICI et non chez l'appelant. Elle l'était
+    en amont, ce qui marchait tant que le seul appelant tenait des
+    DataFrames : un résultat gelé sous `orient=columns` aurait produit une
+    figure vide, sans erreur, ce qui est le pire des deux mondes. Une
+    table se parcourt par lignes, `orient` ne concerne que la sortie JSON
+    et n'a pas à changer un dessin.
+    """
+    lisible = dict(out, data={
+        cid: _table(bloc).to_dict(orient="records")
+        for cid, bloc in out["data"].items()})
+    return _trend_figure(
+        lisible, {m.get("variable_en"): m for m in out["meta"]})
 
 
 def _trend_figure(out, meta_par_id):
@@ -1314,19 +1424,7 @@ def extract_csv(request: Request, p: Annotated[ExtractParams, Query()]):
     out, extracted = _extract_result(request, p, rendu="csv")
     if extracted is None:
         return _csv_job(out)
-    longues = []
-    for cid, df in extracted.items():
-        colonnes = [c for c in df.columns
-                    if c not in ("code_station", "date")]
-        for col in colonnes:
-            part = (df[["code_station", "date", col]]
-                    .rename(columns={col: "value"}))
-            part.insert(2, "variable", col)
-            longues.append(part)
-    table = (pd.concat(longues, ignore_index=True) if longues
-             else pd.DataFrame(
-                 columns=["code_station", "date", "variable", "value"]))
-    return _csv_response(table, out, "extract")
+    return _csv_du_resultat(out, "extract")
 
 
 class TrendParams(BaseModel):
@@ -1413,8 +1511,7 @@ def trend_csv(request: Request, p: Annotated[TrendParams, Query()]):
     out, tr = _trend_result(request, p, rendu="csv")
     if tr is None:
         return _csv_job(out)
-    table = pd.concat(list(tr["data"].values()), ignore_index=True)
-    return _csv_response(table, out, "trend")
+    return _csv_du_resultat(out, "trend")
 
 
 @app.get("/v1/trend/figure", tags=["data"],
@@ -1436,17 +1533,11 @@ def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
         return PlainTextResponse(
             f"Demande trop grosse pour une réponse immédiate : elle est "
             f"partie en file de calcul.\nTicket {out['job']}, suivi sur "
-            f"{out['status_url']}.\nLe résultat d'un job est du JSON ; "
-            f"cette page ne dessine que les réponses immédiates.",
+            f"{out['status_url']}.\nLa figure une fois le job terminé : "
+            f"{out['result_url']}/figure",
             status_code=202,
             headers={"Location": out["status_url"]})
-    # La table se lit sur `records` quel que soit `orient` : elle parcourt
-    # des lignes, pas des colonnes. `orient` ne concerne que la sortie
-    # JSON, il n'a pas à changer un dessin.
-    lisible = dict(out, data={cid: serialize(df, "records")
-                              for cid, df in tr["data"].items()})
-    return PlainTextResponse(
-        _trend_figure(lisible, {m.get("variable_en"): m for m in out["meta"]}))
+    return PlainTextResponse(_figure_du_resultat(out))
 
 
 # ── Jobs : demandes massives en file de calcul ──────────────────────────────
@@ -1584,6 +1675,74 @@ def job_result(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
     if raw is None:
         raise HTTPException(404, f"résultat expiré : {job_id}")
     return Response(content=raw, media_type="application/json")
+
+
+def _resultat_gele(job_id):
+    """Le résultat d'un job terminé, chargé, plus l'endpoint qui l'a
+    produit. Les mêmes refus que `/result`, écrits une fois."""
+    job = jobs.load(job_id)
+    if job is None:
+        raise HTTPException(404, f"job inconnu ou expiré : {job_id}")
+    if job["status"] == "failed":
+        raise HTTPException(409, f"job en échec : {job['error']}")
+    if job["status"] != "done":
+        raise HTTPException(
+            409, f"job pas encore terminé (statut : {job['status']}), "
+                 f"suivre /v1/jobs/{job_id}")
+    raw = jobs.result_bytes(job_id)
+    if raw is None:
+        raise HTTPException(404, f"résultat expiré : {job_id}")
+    return json.loads(raw), job["params"]["endpoint"]
+
+
+# Le résultat d'un job est une RESSOURCE, et ses représentations ne
+# dépendent pas de la porte par laquelle il a été déposé. Une demande
+# partie de `/v1/trend.csv` rendait jusqu'ici un ticket dont le résultat
+# n'existait qu'en JSON : on avait demandé un CSV et on recevait autre
+# chose, ce qui contredisait la doctrine « une représentation, une URL »
+# appliquée partout ailleurs. Ce qui limite les représentations n'est pas
+# l'endpoint d'origine mais ce que le résultat CONTIENT : un extract n'a
+# pas de tendance à dessiner.
+#
+# Ces routes ne recalculent rien et ne resérialisent pas le JSON : un
+# résultat gelé est un artefact citable, porteur d'une empreinte. Un CSV
+# et une figure sont des RENDUS des mêmes nombres, pas un second calcul.
+
+@app.get("/v1/jobs/{job_id}/result.csv", tags=["jobs"],
+         summary="Le résultat d'un job, en CSV pour le tableur",
+         response_class=_RawResponse,
+         responses={200: {"content": {"text/csv": {}}}},
+         dependencies=[Depends(usage.rate_light)])
+def job_result_csv(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
+                                           description=_D_JOB_ID)):
+    """Le résultat gelé du job, dans le même CSV que l'endpoint
+    synchrone : mêmes colonnes, même provenance en lignes `#`.
+
+    Disponible quelle que soit la porte d'entrée : un job déposé en
+    demandant du JSON se récupère en CSV, et l'inverse.
+    """
+    out, endpoint = _resultat_gele(job_id)
+    return _csv_du_resultat(out, endpoint)
+
+
+@app.get("/v1/jobs/{job_id}/result/figure", tags=["jobs"],
+         summary="Le résultat d'un job de tendance, dessiné",
+         response_class=PlainTextResponse,
+         dependencies=[Depends(usage.rate_light)])
+def job_result_figure(job_id: str = PathParam(json_schema_extra=_X_JOB_ID,
+                                              description=_D_JOB_ID)):
+    """Le résultat gelé du job, dessiné comme `/v1/trend/figure`.
+
+    Réservé aux jobs de tendance : une extraction n'a pas de verdict de
+    stationnarité à afficher.
+    """
+    out, endpoint = _resultat_gele(job_id)
+    if endpoint != "trend":
+        raise HTTPException(
+            422, f"ce job est une extraction ({endpoint}) : il n'y a pas de "
+                 f"tendance à dessiner. Le tableau des séries : "
+                 f"/v1/jobs/{job_id}/result.csv")
+    return PlainTextResponse(_figure_du_resultat(out))
 
 
 def _tree_mb(path) -> float:

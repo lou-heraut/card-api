@@ -140,6 +140,30 @@ Deux paramètres méritent un mot :
   devient autoportant : tracer une carte ne demande plus d'aller chercher
   les positions ailleurs.
 
+### Quand la demande part en file de calcul
+
+Une grosse demande reçoit un ticket (`202`) au lieu d'une réponse
+immédiate. Ce qui décide n'est pas le nombre de stations mais le nombre
+de stations **à télécharger** : rapatrier une chronique coûte environ
+trente fois plus que la calculer. Vingt stations déjà lues répondent donc
+en direct, les mêmes vingt à froid partent en file. La même URL peut par
+conséquent donner un ticket au premier appel et un résultat au second,
+et c'est voulu.
+
+Le résultat d'un job se récupère dans la représentation de votre choix,
+quelle que soit celle demandée au dépôt :
+
+| route | rend |
+|---|---|
+| `/v1/jobs/{id}/result` | le JSON gelé, avec son bloc de provenance |
+| `/v1/jobs/{id}/result.csv` | le même résultat en CSV, mêmes colonnes qu'en direct |
+| `/v1/jobs/{id}/result/figure` | le même résultat dessiné (jobs de tendance) |
+
+Ce qui limite le choix n'est pas la porte d'entrée mais ce que le
+résultat contient : une extraction n'a pas de verdict de stationnarité à
+dessiner. Le ticket rendu par un `.csv` porte directement l'adresse de
+son CSV, il n'y a rien à deviner.
+
 ### Quand une station n'a rien à donner
 
 Toutes les stations du référentiel hydrométrique ne publient pas de débit
