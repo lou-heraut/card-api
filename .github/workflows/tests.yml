@@ -14,8 +14,15 @@ env:
   # card et stase ne sont pas sur PyPI : installés depuis GitHub, à
   # `main`, comme le fait l'image Docker. Un test qui passerait ici
   # contre une révision figée ne dirait rien de la production.
-  STASE_GIT: "stase @ git+https://github.com/lou-heraut/stase.git"
-  CARD_GIT: "card @ git+https://github.com/lou-heraut/card.git"
+  #
+  # ARCHIVES et non `nom @ git+...` : le paquet card se DISTRIBUE sous le
+  # nom `card-stase` (le nom `card` est pris sur PyPI, demande PEP 541 en
+  # cours) alors qu'il s'IMPORTE sous `card`. Avec la forme `nom @`, pip
+  # compare le nom demandé aux métadonnées et refuse. Avec une URL
+  # d'archive il ne compare rien, et c'est déjà la forme qu'emploie le
+  # Dockerfile : le CI installe donc exactement comme la production.
+  STASE_URL: "https://github.com/lou-heraut/stase/archive/main.tar.gz"
+  CARD_URL: "https://github.com/lou-heraut/card/archive/main.tar.gz"
 
 jobs:
   tests:
@@ -33,7 +40,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install "${{ env.STASE_GIT }}" "${{ env.CARD_GIT }}"
+          pip install "${{ env.STASE_URL }}" "${{ env.CARD_URL }}"
           pip install -e .[dev]
       # La suite est HORS-LIGNE : Hub'Eau est simulé par la fixture
       # `hubeau_simule` de tests/conftest.py. Les tests qui appellent
