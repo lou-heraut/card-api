@@ -124,7 +124,7 @@ body{margin:0;}
 .swagger-ui a.nostyle,
 .swagger-ui .info .base-url{color:var(--get);}
 
-.swagger-ui .info a:hover{color:#a8c8e8;}
+.swagger-ui .info a:hover{color:var(--get);}
 
 .swagger-ui .info .base-url{
   font-family:var(--mono); font-size:12px; color:var(--faint);

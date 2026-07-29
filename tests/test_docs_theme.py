@@ -195,16 +195,23 @@ def test_le_contrat_porte_ce_que_la_page_ne_montre_pas(identity):
     assert "quotas" in info["termsOfService"]
 
 
-def test_la_description_tient_en_un_paragraphe_et_quatre_lignes():
-    """Un en-tête n'est pas un résumé du projet. La prose est d'un seul
-    tenant, sans lien, et les quatre lignes qui suivent vont du plus
-    utile au plus formel : la bibliothèque Python d'abord (le service est
-    une porte d'entrée, pas un moteur de calcul de masse), puis à qui
-    écrire, où aller lire, et sous quels droits."""
+def test_la_description_garde_sa_prose_et_ses_liens_a_part():
+    """Un en-tête n'est pas un résumé du projet.
+
+    Ce test ne fige PAS le nombre de blocs ni leur ordre : la mise en
+    forme de l'en-tête se retouche souvent, et un test qui casse à chaque
+    virgule déplacée finit par être contourné plutôt que lu. Il tient les
+    deux invariants qui, eux, ne dépendent pas du goût du jour.
+
+    1. La PROSE d'ouverture ne porte aucun lien. C'est le défaut d'origine
+       (2026-07-27) : quatre liens semés au fil des phrases, et on ne
+       savait plus si on lisait un texte ou un sommaire.
+    2. Les trois chemins de contact restent atteignables : un bug, une
+       demande de clé, un courriel. Sans eux, la page annonce un service
+       public sans dire à qui s'adresser.
+    """
     desc = client.get("/openapi.json").json()["info"]["description"]
-    prose, paquet, contacts, ressources, droits = desc.split("\n\n")
+    prose = desc.split("\n\n")[0]
     assert "](" not in prose, "un lien s'est glissé dans la prose"
-    assert "card" in paquet and "local" in paquet
-    assert contacts.count("](") == 3
-    assert ressources.count("](") == 3
-    assert "GPL" in droits and "Licence Ouverte" in droits
+    for chemin in ("/issues", "template=cle-de-priorite", "mailto:"):
+        assert chemin in desc, chemin

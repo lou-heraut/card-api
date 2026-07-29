@@ -8,6 +8,9 @@ help:            ## liste des cibles
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | \
 	  awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
 
+dev:
+	.python_env/bin/uvicorn card_api.main:app --reload
+
 env:             ## crée .env depuis l'exemple (à éditer ensuite)
 	@test -f .env || (cp .env.example .env \
 	  && sed -i "s/changez-moi/$$(openssl rand -hex 16)/" .env \
