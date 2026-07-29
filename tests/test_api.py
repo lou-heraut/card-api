@@ -459,3 +459,38 @@ def test_la_consultation_est_journalisee_mais_pas_les_sondes():
     assert {"cards", "vocabulary"} <= vus
     assert "health" not in vus, "la sonde de surveillance doit rester muette"
     assert all(e["famille"] == "découverte" for e in lignes)
+
+
+def test_les_defauts_de_compose_suivent_le_code():
+    """`compose.yaml` fournit un défaut pour chaque réglage : s'il diverge
+    de celui du code, retirer une ligne de son `.env` change le
+    comportement en silence, dans le sens de l'ancien réglage.
+
+    Trouvé le 2026-07-29 : `CARD_API_PRIORITY_CARDS` valait encore 226
+    dans compose alors que le code était passé à 0 (sans limite). 226
+    était la taille du corpus au jour où il avait été écrit, un plafond
+    qui redevenait mordant dès que card gagnait une fiche.
+
+    On compare les DÉCLARATIONS des deux fichiers, pas les valeurs du
+    module : celles-ci sont remplacées par la fixture de test, et un test
+    qui lit l'état courant ne dirait rien du défaut livré.
+    """
+    import pathlib
+    import re
+
+    racine = pathlib.Path(__file__).resolve().parents[1]
+    compose = dict(re.findall(
+        r"\$\{(CARD_API_[A-Z_]+):-([^}]*)\}",
+        (racine / "compose.yaml").read_text()))
+    code = {}
+    for module in ("jobs.py", "usage.py"):
+        code.update(dict(re.findall(
+            r'os\.environ\.get\("(CARD_API_[A-Z_]+)",\s*([0-9.]+)\)',
+            (racine / "src" / "card_api" / module).read_text())))
+
+    assert code, "aucun défaut lu dans le code"
+    manquants = [n for n in code if n not in compose]
+    assert not manquants, f"absents de compose.yaml : {manquants}"
+    for nom, attendu in code.items():
+        assert float(compose[nom]) == float(attendu), (
+            f"{nom} : compose dit {compose[nom]}, le code dit {attendu}")

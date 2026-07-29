@@ -25,7 +25,12 @@ services:
       CARD_API_JOB_TTL_DAYS: ${CARD_API_JOB_TTL_DAYS:-7}
       CARD_API_JOB_QUEUE_MAX: ${CARD_API_JOB_QUEUE_MAX:-100}
       CARD_API_PRIORITY_STATIONS: ${CARD_API_PRIORITY_STATIONS:-1000}
-      CARD_API_PRIORITY_CARDS: ${CARD_API_PRIORITY_CARDS:-226}
+      # 0 = SANS LIMITE. Ce défaut valait 226, la taille du corpus au jour
+      # où il a été écrit : il voulait dire « toutes les fiches » mais
+      # redevenait un vrai plafond dès que card gagnait une fiche. Corrigé
+      # dans le code et dans .env.example, il était resté ici, prêt à
+      # ressurgir chez quiconque retirerait la ligne de son .env.
+      CARD_API_PRIORITY_CARDS: ${CARD_API_PRIORITY_CARDS:-0}
     volumes:
       - data:/data
     ports:
