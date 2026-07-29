@@ -140,6 +140,41 @@ Deux paramètres méritent un mot :
   devient autoportant : tracer une carte ne demande plus d'aller chercher
   les positions ailleurs.
 
+### Quand une station n'a rien à donner
+
+Toutes les stations du référentiel hydrométrique ne publient pas de débit
+journalier. Une échelle limnimétrique, par exemple, mesure une hauteur
+d'eau : sans courbe de tarage elle n'a pas de série de débit, et rien
+dans le référentiel ne l'annonce (ni `type_station`, ni `en_service`, qui
+vaut d'ailleurs `false` pour beaucoup de stations fermées dont
+l'historique est intact et parfaitement utilisable). La demander est le
+seul moyen de le savoir.
+
+Une telle station est donc **écartée du calcul, pas fatale** : les autres
+sont calculées, et le résultat dit exactement ce qu'il contient.
+
+| champ | contenu |
+|---|---|
+| `stations` | les stations réellement calculées, celles que `data` contient |
+| `stations_requested` | celles que vous avez demandées |
+| `stations_omitted` | les écartées, avec `reason` et `detail` |
+
+`reason` vaut `no_series` (aucune chronique publiée), `no_data_in_period`
+(chronique présente, mais rien dans la fenêtre demandée) ou
+`ambiguous_site` (code de site dont plusieurs stations mesurent en
+parallèle). Le bloc est **toujours** présent, vide quand tout va bien :
+un client n'a pas à tester son existence.
+
+Deux garde-fous. Si aucune station n'a de série, la demande est refusée
+en `404` plutôt que rendue vide, un résultat sans lignes se laissant lire
+comme un résultat. Et une panne Hub'Eau reste une erreur `504` : elle
+n'est jamais transformée en omission, sans quoi un incident passager
+produirait des résultats discrètement amputés.
+
+L'information voyage dans toutes les représentations : bloc JSON, lignes
+`# station écartée` en tête des `.csv`, mention en clair dans
+`/v1/trend/figure`, et gelée dans le résultat d'un job.
+
 ### En Python
 
 Extraction : module (QA) et étiage (VCN10) de la Seine à Paris.

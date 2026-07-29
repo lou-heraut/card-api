@@ -1098,6 +1098,13 @@ def _csv_entete(out, endpoint):
     if out.get("mk"):
         lignes.insert(4, f"test : Mann-Kendall {out['mk']} · "
                          f"seuil {out['level']}")
+    # Les stations écartées, DANS le fichier. Un tableur ne verra jamais
+    # le JSON : sans ces lignes, un CSV de dix-neuf stations pour une
+    # demande de vingt se lit comme complet, et l'absence passe pour un
+    # fait. C'est la leçon du ticket de job, qui ne sortait qu'en JSON.
+    for o in out.get("stations_omitted") or []:
+        lignes.append(f"station écartée : {o['code_station']} "
+                      f"({o['reason']}) {o['detail']}")
     return "".join(f"# {_csv_sans_virgule(ligne)}\n" for ligne in lignes)
 
 
@@ -1253,6 +1260,16 @@ def _trend_figure(out, meta_par_id):
         lignes += [rangee(cellules) for cellules in lignes_st]
         lignes += [bas, ""]
 
+    # Écarter une station est un fait du résultat, pas une note de bas de
+    # page : il se lit AVANT la provenance, avec le compte, pour qu'un
+    # lecteur pressé sache tout de suite que le lot n'est pas entier.
+    omises = out.get("stations_omitted") or []
+    if omises:
+        lignes.append(f"  {len(omises)} station(s) écartée(s) sur "
+                      f"{len(out['stations']) + len(omises)} demandées :")
+        for o in omises:
+            lignes.append(f"    {o['code_station']} · {o['detail']}")
+        lignes.append("")
     lignes.append(f"  source : {out['source']}")
     lignes.append(f"  données lues le {out['data_fetched_at'][:10]} "
                   f"· empreinte {out['data_fingerprint'][:12]}")
@@ -1264,6 +1281,16 @@ def _trend_figure(out, meta_par_id):
     return "\n".join(lignes)
 
 
+def _omission(station: str, reason: str, detail) -> dict:
+    """Une station écartée du calcul, dite en clair ET en code.
+
+    `reason` se teste par un programme, `detail` se lit par un humain.
+    Le nom de colonne est `code_station`, celui de Hub'Eau, pour que le
+    bloc se joigne au référentiel sans traduction (règle du service).
+    """
+    return {"code_station": station, "reason": reason, "detail": str(detail)}
+
+
 def _check_sampling(sampling):
     if sampling is not None and not _SAMPLING_RE.match(sampling):
         raise HTTPException(
@@ -1273,20 +1300,39 @@ def _check_sampling(sampling):
 
 
 def _run_extract(st, cd, start, end, sampling=None):
-    """Retourne (résultat de card.extract, empreintes par station).
+    """Retourne (résultat de card.extract, empreintes, retenues, omises).
 
     L'empreinte est prise sur la chronique ENTIÈRE, avant filtre de
     période : la période demandée figure déjà dans la provenance, et ce
     qu'on identifie ici c'est la source.
+
+    Une station sans série exploitable est OMISE, pas fatale. Le contraire
+    a longtemps été vrai et c'était trop raide : une seule station muette
+    sur vingt annulait les dix-neuf autres, et le travail déjà fait était
+    perdu. Or il n'existe aucun moyen de le savoir d'avance, le référentiel
+    Hub'Eau ne portant pas l'information (ni `type_station` ni `en_service`
+    ne disent si une série de débit existe : vérifié le 2026-07-29, une
+    station en service peut n'avoir aucun QmnJ, une station fermée peut
+    avoir vingt ans d'historique). Demander la série EST le seul test.
+
+    La ligne de partage n'est donc pas la gravité mais la REPRODUCTIBILITÉ :
+    ce qui est vrai de la station elle-même (elle ne publie pas de débit,
+    son code est un site ambigu, il n'y a rien dans la période demandée)
+    est un fait stable, qui se rapporte ; ce qui tient à l'instant de
+    l'appel (Hub'Eau injoignable) reste une erreur. Sauter le second
+    fabriquerait des résultats silencieusement plus petits les jours de
+    panne, ce qu'aucun lecteur ne remarquerait.
     """
-    frames, empreintes = [], {}
+    frames, empreintes, retenues, omises = [], {}, [], []
     for s in st:
         try:
             df = hubeau.fetch_chronicle(s)
         except hubeau.StationInconnue as e:
-            raise HTTPException(404, str(e))
+            omises.append(_omission(s, "no_series", e))
+            continue
         except hubeau.SiteAmbigu as e:
-            raise HTTPException(422, str(e))
+            omises.append(_omission(s, "ambiguous_site", e))
+            continue
         except hubeau.HubEauIndisponible as e:
             raise HTTPException(504, str(e), headers={"Retry-After": "300"})
         empreintes[s] = hubeau.fingerprint(df)
@@ -1295,8 +1341,23 @@ def _run_extract(st, cd, start, end, sampling=None):
         if end:
             df = df[df["date"] <= end]
         if df.empty:
-            raise HTTPException(404, f"{s}: aucune donnée sur la période")
+            del empreintes[s]        # rien n'a servi, rien n'est à identifier
+            omises.append(_omission(
+                s, "no_data_in_period",
+                f"chronique présente, mais aucune mesure entre "
+                f"{start or 'le début'} et {end or 'la fin'}"))
+            continue
+        retenues.append(s)
         frames.append(df)
+    if not frames:
+        # Toutes omises : il n'y a rien à calculer. Un 200 portant zéro
+        # ligne serait un mensonge poli, du genre qu'un script avale sans
+        # broncher. On refuse en nommant chaque station et son motif.
+        detail = " ; ".join(f"{o['code_station']} ({o['detail']})"
+                            for o in omises)
+        raise HTTPException(
+            404, f"aucune des {len(st)} stations demandées n'a de série "
+                 f"exploitable : {detail}")
     data = pd.concat(frames, ignore_index=True)
     with jobs.COMPUTE:
         try:
@@ -1306,7 +1367,7 @@ def _run_extract(st, cd, start, end, sampling=None):
             raise HTTPException(404, str(e))
         except ValueError as e:
             raise HTTPException(422, str(e))
-    return res, empreintes
+    return res, empreintes, retenues, omises
 
 
 class ExtractParams(BaseModel):
@@ -1344,28 +1405,38 @@ def _extract_result(request: Request, p: ExtractParams, rendu="json"):
                         orient=p.orient)
     if ticket is not None:
         return ticket, None
-    res, empreintes = _run_extract(st, cd, p.start, p.end, p.sampling)
+    res, empreintes, retenues, omises = _run_extract(
+        st, cd, p.start, p.end, p.sampling)
 
     extracted = res["data"]
     if not isinstance(extracted, dict):
         extracted = {cd[0]: extracted}
     usage.log_usage(request, "extract", stations=len(st), cards=cd,
-                    rendu=rendu)
+                    rendu=rendu, omises=len(omises) or None)
     out = {
         **versions(),
         "rights": rights(),
-        "stations": st,
+        # `stations` décrit les DONNÉES, pas la demande : ce sont les
+        # stations que `data` contient réellement. Recopier la demande
+        # annoncerait vingt stations pour dix-neuf séries, et toute
+        # jointure faite sur cette liste porterait à faux.
+        "stations": retenues,
+        "stations_requested": st,
+        "stations_omitted": omises,
         "cards": cd,
         "period": {"start": p.start, "end": p.end},
         "sampling": p.sampling,
         "source": SOURCE,
-        "data_fetched_at": _fetched_at(st),
+        "data_fetched_at": _fetched_at(retenues),
         "data_fingerprint": hubeau.combine_fingerprints(empreintes),
         "orient": p.orient,
         "meta": serialize(res["meta"]),
         "data": {k: serialize(v, p.orient) for k, v in extracted.items()},
     }
     if p.stations_meta:
+        # Le référentiel couvre les stations DEMANDÉES, omises comprises :
+        # c'est là qu'on lit pourquoi. Le libellé « échelle aval de Mâcon »
+        # explique à lui seul qu'un limnimètre ne publie pas de débit.
         out["stations_meta"] = _stations_meta(st)
     return out, extracted
 
@@ -1379,6 +1450,18 @@ def extract(request: Request, p: Annotated[ExtractParams, Query()]):
     Au-dessus des plafonds synchrones (défaut 10 stations, 20 fiches),
     la demande devient un job : réponse 202 avec un ticket à suivre
     (cf. /v1/jobs/{id}).
+
+    **Une station sans série exploitable est écartée, pas fatale.** Le
+    résultat décrit alors ce qu'il contient réellement : `stations` liste
+    les stations CALCULÉES, `stations_requested` celles demandées, et
+    `stations_omitted` dit lesquelles ont été écartées et pourquoi
+    (`no_series` : aucune chronique QmnJ publiée, cas d'une station
+    limnimétrique ; `no_data_in_period` : rien dans la fenêtre demandée ;
+    `ambiguous_site` : code de site à plusieurs stations parallèles). Le
+    bloc est toujours présent, vide quand tout va bien. Si AUCUNE station
+    n'a de série, la demande est refusée en 404 : il n'y a rien à rendre.
+    Une panne Hub'Eau, elle, reste une erreur (504) et n'est jamais
+    silencieusement transformée en omission.
 
     Pour un fichier ouvrable au tableur : `/v1/extract.csv`, mêmes
     paramètres.
@@ -1464,7 +1547,8 @@ def _trend_result(request: Request, p: TrendParams, rendu="json"):
     if ticket is not None:
         return ticket, None
 
-    res, empreintes = _run_extract(st, cd, p.start, p.end, p.sampling)
+    res, empreintes, retenues, omises = _run_extract(
+        st, cd, p.start, p.end, p.sampling)
     with jobs.COMPUTE:
         try:
             tr = card.trend(res, level=p.level, dependency=p.mk,
@@ -1473,17 +1557,19 @@ def _trend_result(request: Request, p: TrendParams, rendu="json"):
             raise HTTPException(422, str(e))
 
     usage.log_usage(request, "trend", stations=len(st), cards=cd,
-                    mk=p.mk, rendu=rendu)
+                    mk=p.mk, rendu=rendu, omises=len(omises) or None)
     out = {
         **versions(),
         "rights": rights(),
-        "stations": st,
+        "stations": retenues,           # cf. _extract_result : les DONNÉES
+        "stations_requested": st,
+        "stations_omitted": omises,
         "cards": cd,
         "period": {"start": p.start, "end": p.end},
         "sampling": p.sampling,
         "mk": p.mk, "level": p.level,
         "source": SOURCE,
-        "data_fetched_at": _fetched_at(st),
+        "data_fetched_at": _fetched_at(retenues),
         "data_fingerprint": hubeau.combine_fingerprints(empreintes),
         "orient": p.orient,
         "meta": serialize(res["meta"]),
@@ -1508,6 +1594,10 @@ def trend(request: Request, p: Annotated[TrendParams, Query()]):
     Fiches acceptées : sorties de forme `series` uniquement, la tendance
     d'un scalaire ou d'une courbe n'ayant pas de sens. Les analyses
     MAKAHO correspondent à `sampling=preferred`.
+
+    Comme `/v1/extract`, une station sans série exploitable est écartée et
+    non fatale : `stations` liste les stations calculées et
+    `stations_omitted` dit lesquelles ont sauté et pourquoi.
 
     Pour lire le résultat sans traverser le JSON : `/v1/trend/figure`,
     mêmes paramètres.

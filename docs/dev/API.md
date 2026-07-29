@@ -135,6 +135,60 @@ trop bas. Les valeurs se règlent désormais sur cette observation.
   via le patron OGC API-EDR (le standard des séries temporelles
   environnementales) : non prioritaire.
 
+## Une station muette n'annule pas le lot (arbitré 2026-07-29)
+
+Une demande de vingt stations échouait entièrement dès que l'une d'elles
+n'avait pas de série, le travail déjà fait compris. Le cas rencontré :
+`U430003001`, la Saône à Dracé, échelle aval de Mâcon. Le référentiel la
+donne `en_service: true`, jamais fermée, fiche mise à jour cinq mois plus
+tôt, et Hub'Eau ne publie aucun QmnJ pour elle, ni pour son site. C'est
+une échelle limnimétrique : elle mesure une hauteur, et sans courbe de
+tarage une hauteur ne devient pas un débit.
+
+**On ne peut pas l'éviter en amont.** `/v1/stations` proxie
+`referentiel/stations`, un registre administratif des stations qui
+existent, pas un catalogue des séries disponibles. Les deux champs qui
+sembleraient servir n'en disent rien :
+
+| station | `type_station` | `en_service` | QmnJ |
+|---|---|---|---|
+| K066331001 | STD | true | 20435 |
+| U430003001 | STD | true | **0** |
+| U471001001 | STD | **false** | 20437 |
+
+`type_station` ne discrimine pas, et `en_service` est à contre-emploi :
+une station fermée garde son historique, ce qu'une étude de tendance veut
+précisément. Demander la série est le seul test. Sonder chaque code avant
+le calcul a été envisagé puis écarté : cela double les appels à Hub'Eau et
+ne fait qu'anticiper un refus, sans régler le fond, qui est qu'une station
+muette ne devrait pas coûter les dix-neuf autres.
+
+**La ligne de partage retenue n'est pas la gravité, c'est la
+reproductibilité.** Ce qui est vrai de la station elle-même (pas de série
+publiée, rien dans la période, code de site ambigu) est un fait stable :
+il se rapporte dans `stations_omitted` et le calcul continue. Ce qui tient
+à l'instant de l'appel (Hub'Eau injoignable) reste une erreur `504`.
+Sauter le second fabriquerait, les jours de panne, des résultats
+silencieusement plus petits, noyés au milieu d'omissions d'apparence
+banale : personne ne le remarquerait.
+
+Trois conséquences tenues comme des règles. `stations` décrit désormais
+les DONNÉES et non la demande, sans quoi une jointure faite sur cette
+liste porte à faux ; `stations_requested` garde la demande. Le bloc
+`stations_omitted` est toujours présent, vide quand tout va bien : une
+clé qui n'apparaît qu'en cas de problème oblige chaque client à tester sa
+présence et laisse croire à celui qui l'ignore que le cas n'existe pas.
+Et l'omission voyage dans TOUTES les représentations, lignes `#` du CSV
+et figure comprises : c'est la leçon du ticket de job, qui ne sortait
+qu'en JSON et rendait un 500 partout ailleurs.
+
+Reste une piste, écartée pour l'instant : mémoriser qu'une station n'a
+pas de QmnJ permettrait à `/v1/stations` d'annoncer la disponibilité sans
+appel supplémentaire, et le catalogue se corrigerait à l'usage. Écarté
+parce qu'un cache de cette nature devient faux le jour où Hub'Eau publie
+enfin la série, et qu'un état explicite au moment de la demande vaut
+mieux qu'une prédiction qui vieillit.
+
 ## Une représentation, une URL (arbitré 2026-07-28)
 
 Question posée par la tendance dessinée : sous-endpoint ou paramètre
