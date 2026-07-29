@@ -194,6 +194,20 @@ des deux endroits.
 
 ### Ajouté
 
+- **`/v1` publie les limites du service (2026-07-29) :** bloc `limits`,
+  avec les seuils de bascule en job, les plafonds de job et les quotas
+  par minute. Un client ne pouvait les découvrir qu'en se cognant à un
+  422 ou à un 429, alors qu'il en a besoin pour découper sa liste,
+  choisir entre l'appel direct et le job, ou espacer ses requêtes.
+
+  Les valeurs sont LUES dans les modules qui les appliquent, jamais
+  recopiées. C'est la même règle que pour les numéros de version, et elle
+  vient de se rappeler à nous : la description de `/v1/extract` annonçait
+  encore « défaut 10 stations, 20 fiches » alors que le seuil était
+  devenu double. Les descriptions disent désormais la règle, ce bloc
+  donne les valeurs, et un test refuse tout plafond écrit en clair dans
+  une description d'opération ou de paramètre.
+
 - **Le résultat d'un job a enfin toutes ses représentations
   (2026-07-29) :** `/v1/jobs/{id}/result.csv` et
   `/v1/jobs/{id}/result/figure`, en plus du JSON. Demander `trend.csv`

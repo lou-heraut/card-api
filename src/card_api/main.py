@@ -501,6 +501,41 @@ app.add_middleware(
 
 
 
+def _limits():
+    """Les limites d'exploitation, LUES là où elles s'appliquent.
+
+    Un client a besoin de les connaître pour s'adapter : découper sa liste,
+    choisir entre l'appel direct et le job, espacer ses requêtes. Il ne
+    pouvait jusqu'ici que les deviner en se cognant à un 422 ou à un 429.
+
+    Elles ne sont écrites nulle part en prose, et c'est délibéré : le
+    projet a déjà appris qu'un nombre recopié dans une description périme
+    sans bruit (cf. docs/dev/CHANTIERS.md, et `versions()` pour la même
+    règle appliquée aux numéros de version). Une description dit la RÈGLE,
+    ce bloc donne les VALEURS, et elles viennent des modules qui les
+    appliquent : elles ne peuvent pas mentir.
+    """
+    return {
+        "sync": {
+            "stations_to_download": jobs.SYNC_STATIONS,
+            "stations_total": jobs.SYNC_STATIONS_CACHED,
+            "cards": jobs.SYNC_CARDS,
+            "note": "au-delà de l'un de ces seuils la demande devient un "
+                    "job (202 + ticket). Ce qui compte n'est pas le nombre "
+                    "de stations mais celles qui restent à télécharger : "
+                    "une chronique déjà lue coûte environ trente fois moins "
+                    "qu'un téléchargement.",
+        },
+        "job": {"stations": jobs.JOB_STATIONS, "cards": jobs.JOB_CARDS,
+                "result_ttl_days": jobs.JOB_TTL_DAYS},
+        "rate_per_minute": {"compute": usage.RATE_COMPUTE,
+                            "light": usage.RATE_LIGHT,
+                            "note": "par adresse IP, sans clé de priorité. "
+                                    "Une demande porte une LISTE : grouper "
+                                    "vaut mieux qu'un appel par station."},
+    }
+
+
 def _endpoints():
     """La liste des endpoints de /v1, DÉRIVÉE des routes déclarées.
 
@@ -590,6 +625,7 @@ def root():
                        "url": "https://hubeau.eaufrance.fr/"},
         },
         "endpoints": _endpoints(),
+        "limits": _limits(),
         "reuse": "API pour l'usage ponctuel ; la bibliothèque Python card "
                  "pour le gros volume et l'intégration ; citer une fiche par "
                  "son swhid (présent dans les métadonnées) pour reproduire.",
@@ -1384,9 +1420,14 @@ def _extract_result(request: Request, p: ExtractParams, rendu="json"):
 def extract(request: Request, p: Annotated[ExtractParams, Query()]):
     """Extrait des variables CARD sur des chroniques Hub'Eau.
 
-    Au-dessus des plafonds synchrones (défaut 10 stations, 20 fiches),
-    la demande devient un job : réponse 202 avec un ticket à suivre
-    (cf. /v1/jobs/{id}).
+    Au-dessus des plafonds synchrones, la demande devient un job : réponse
+    202 avec un ticket à suivre (cf. /v1/jobs/{id}), dont le résultat se
+    récupère ensuite en JSON, en CSV ou en figure. Ce qui déclenche la
+    bascule n'est pas le nombre de stations demandées mais celles qui
+    restent à TÉLÉCHARGER, le rapatriement coûtant environ trente fois
+    plus que le calcul : les mêmes stations peuvent donc répondre en
+    direct au second appel. Les valeurs en vigueur sont publiées par
+    `/v1` (bloc `limits`), jamais recopiées ici où elles périmeraient.
 
     **Une station sans série exploitable est écartée, pas fatale.** Le
     résultat décrit alors ce qu'il contient réellement : `stations` liste
@@ -1582,7 +1623,7 @@ def create_job(request: Request, req: JobRequest):
     """Dépose une demande massive en file de calcul (public, sans clé).
 
     Mêmes paramètres que /v1/extract et /v1/trend, plafonds plus hauts
-    (défaut 100 stations, 50 fiches). Réponse : 202 + ticket ; suivre
+    (publiés par `/v1`, bloc `limits`). Réponse : 202 + ticket ; suivre
     status_url puis récupérer result_url (résultat gelé avec bloc de
     provenance, conservé quelques jours). Les demandes au-dessus des
     plafonds synchrones passées à /v1/extract ou /v1/trend basculent

@@ -494,3 +494,43 @@ def test_les_defauts_de_compose_suivent_le_code():
     for nom, attendu in code.items():
         assert float(compose[nom]) == float(attendu), (
             f"{nom} : compose dit {compose[nom]}, le code dit {attendu}")
+
+
+def test_les_limites_sont_publiees_et_ne_peuvent_pas_mentir():
+    """Un client doit pouvoir DÉCOUVRIR les limites : découper sa liste,
+    choisir entre l'appel direct et le job, espacer ses requêtes. Il ne
+    pouvait que se cogner à un 422 ou à un 429.
+
+    Elles sont lues dans les modules qui les appliquent, jamais recopiées.
+    Le 2026-07-29, la description de /v1/extract annonçait encore
+    « 10 stations, 20 fiches » alors que le seuil était devenu double :
+    un nombre recopié dans une prose périme sans bruit.
+    """
+    from card_api import jobs, usage
+
+    lim = client.get("/v1").json()["limits"]
+    assert lim["sync"]["stations_to_download"] == jobs.SYNC_STATIONS
+    assert lim["sync"]["stations_total"] == jobs.SYNC_STATIONS_CACHED
+    assert lim["sync"]["cards"] == jobs.SYNC_CARDS
+    assert lim["job"]["stations"] == jobs.JOB_STATIONS
+    assert lim["job"]["cards"] == jobs.JOB_CARDS
+    assert lim["rate_per_minute"]["compute"] == usage.RATE_COMPUTE
+    assert lim["rate_per_minute"]["light"] == usage.RATE_LIGHT
+
+
+def test_aucune_description_ne_fige_un_plafond():
+    """Même règle que pour la taille du corpus, étendue aux plafonds et
+    aux descriptions d'OPÉRATIONS, pas seulement de paramètres : c'est là
+    que la phrase périmée s'était glissée."""
+    import re
+
+    spec = client.get("/openapi.json").json()
+    textes = []
+    for chemin in spec["paths"].values():
+        for op in chemin.values():
+            textes.append(op.get("description", ""))
+            textes += [q.get("description", "")
+                       for q in op.get("parameters", [])]
+    motif = re.compile(r"\b\d{2,4} (stations|fiches)\b")
+    fautifs = [t for t in textes if motif.search(t)]
+    assert not fautifs, fautifs
