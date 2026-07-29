@@ -264,10 +264,12 @@ les paraphraser ici, cette section ne doit pas regonfler à chaque
 chantier.
 
 **Passe de finalisation des 2026-07-28 et 29, avant diffusion.** Les
-trois dépôts sont verts (stase 131, card 126, card-api 75 tests ; trois
-lints propres, ruff épinglé et jeu de règles déclaré dans les trois
-`pyproject.toml`). card-api a désormais un CI (pytest 3.11/3.12 + ruff) ;
-le déploiement reste manuel, réserve explicite de l'utilisateur.
+trois dépôts sont verts, trois lints propres, ruff épinglé et jeu de
+règles déclaré dans les trois `pyproject.toml`. card-api a désormais un
+CI (pytest 3.11/3.12 + ruff) ; le déploiement reste manuel, réserve
+explicite de l'utilisateur. Le décompte des tests n'est pas écrit ici :
+il périme à chaque test ajouté, `pytest` le donne (même raison que la
+règle sur les décomptes plus haut).
 
 Trois points qui ne se déduisent pas du code :
 
