@@ -113,14 +113,21 @@ def _activity_box(entries):
     reqs = [e for e in entries if "endpoint" in e]
     month = [e for e in reqs
              if e.get("ts", "")[:10] >= str(date.today() - timedelta(30))]
+    # DEUX FAMILLES, jamais additionnées. Consulter le catalogue et
+    # lancer un calcul sont deux usages réels mais d'un tout autre ordre
+    # de grandeur : une somme unique serait écrasée par la découverte et
+    # ne dirait plus rien du calcul. Les entrées d'avant le 2026-07-29
+    # n'ont pas de famille et sont toutes du calcul, ce qu'elles étaient
+    # (la découverte n'était pas journalisée).
+    calcul = [e for e in reqs if e.get("famille") != "découverte"]
+    decouverte = [e for e in reqs if e.get("famille") == "découverte"]
     lines = [""]
-    for label, sel in (("requêtes", reqs),
-                       ("extract ", [e for e in reqs if e["endpoint"] == "extract"]),
-                       ("trend   ", [e for e in reqs if e["endpoint"] == "trend"]),
-                       ("jobs    ", [e for e in reqs if e["endpoint"] == "jobs"])):
+    for label, sel in (("CALCUL  ", calcul),
+                       ("extract ", [e for e in calcul if e["endpoint"] == "extract"]),
+                       ("trend   ", [e for e in calcul if e["endpoint"] == "trend"]),
+                       ("jobs    ", [e for e in calcul if e["endpoint"] == "jobs"])):
         série = _per_day(sel, 30)
-        n_month = sum(série)
-        lines.append(f"{label}  {_spark(série)}  {n_month:>5}")
+        lines.append(f"{label}  {_spark(série)}  {sum(série):>5}")
     # Quelle REPRÉSENTATION a été demandée. Sans cette ligne, un CSV et
     # une figure se comptent comme du JSON : on ne saurait jamais si ces
     # deux sorties, ajoutées le 2026-07-28, servent à quelqu'un. Les
@@ -130,6 +137,17 @@ def _activity_box(entries):
     if sum(rendus.values()):
         detail = " · ".join(f"{n} {nom}" for nom, n in rendus.most_common())
         lines.append(f"          {detail}")
+
+    if decouverte:
+        lines.append("")
+        vus = Counter(e["endpoint"] for e in decouverte
+                      if e.get("ts", "")[:10]
+                      >= str(date.today() - timedelta(30)))
+        série = _per_day(decouverte, 30)
+        lines.append(f"DÉCOUVERTE  {_spark(série)}  {sum(série):>5}")
+        if vus:
+            detail = " · ".join(f"{n} {nom}" for nom, n in vus.most_common(3))
+            lines.append(f"            {detail}")
 
     users = len({e["user"] for e in month if "user" in e})
     lines += ["", f"30 jours · {len(month)} requêtes · "

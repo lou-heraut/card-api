@@ -55,14 +55,24 @@ des deux endroits.
   Les entrées antérieures n'ont pas le champ et comptent pour du JSON, ce
   qu'elles étaient.
 
-  **Reste un trou plus large, consigné dans `docs/dev/CHANTIERS.md`** :
-  les endpoints de découverte (`/v1/cards`, `/v1/stations`,
-  `/v1/vocabulary`) ne journalisent rien du tout, alors que c'est
-  probablement là qu'est le gros du trafic. Le tableau de bord
-  sous-estime donc l'audience, ce qui est gênant pour ce à quoi il sert.
-  Y remédier est un arbitrage, pas une correction : le volume du journal
-  changerait d'ordre de grandeur et la comparaison avec l'historique
-  serait rompue.
+  **Et la consultation du catalogue est enfin comptée.** Les endpoints
+  de découverte (`/v1/cards`, `/v1/stations`, `/v1/vocabulary`, le détail
+  et la figure d'une fiche) ne journalisaient rien, alors que c'est
+  probablement là qu'est le gros du trafic : le tableau de bord
+  sous-estimait l'audience, ce qui gêne précisément ce à quoi il sert.
+
+  Le journal se fait dans la dépendance `rate_light`, en un seul endroit
+  plutôt que dans cinq signatures, si bien qu'un endpoint léger ajouté
+  demain sera compté sans qu'on y pense. **Restent muets** ceux qu'une
+  machine appelle en boucle, et qui rempliraient le journal sans rien
+  dire de l'usage : la sonde de santé, le suivi et le résultat d'un job,
+  et les deux racines.
+
+  Les deux familles, **calcul et découverte, ne sont jamais
+  additionnées** : d'un ordre de grandeur différent, une somme unique
+  serait écrasée par la découverte et ne dirait plus rien du calcul. Les
+  entrées antérieures n'ont pas de famille et comptent pour du calcul, ce
+  qu'elles étaient.
 
 - **Mentions légales (2026-07-29).** Un service public en ligne en a
   besoin, et celui-ci d'autant plus qu'il journalise un dérivé de

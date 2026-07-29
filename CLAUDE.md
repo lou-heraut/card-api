@@ -84,6 +84,8 @@ src/card_api/
                 #   quotas levés, PRIORITY_*, tête de file, GET /v1/jobs
   serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
   stats.py      # tableau de bord terminal (make stats / make watch) :
+                #   DEUX familles jamais additionnées, calcul et
+                #   découverte ; le champ `rendu` dit json/csv/figure ;
                 #   sparklines, heatmap 12 semaines, file, disque
 tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
                 #   validation MAKAHO, précision machine) + live

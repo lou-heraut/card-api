@@ -99,9 +99,31 @@ def rate_compute(request: Request):
         check_rate(request, RATE_COMPUTE)
 
 
+# Endpoints légers que l'on NE journalise PAS, et pourquoi. Ce ne sont
+# pas des consultations : ce sont des appels répétés par une machine,
+# qui gonfleraient le journal sans rien dire de l'usage réel.
+#   health          sonde de surveillance, appelée en boucle
+#   job_status      un client suit son job en interrogeant sans cesse
+#   job_result      idem, et le vrai usage est déjà compté au dépôt
+_MUET = {"health", "job_status", "job_result", "landing", "root"}
+
+
 def rate_light(request: Request):
+    """Quota des endpoints légers, ET journal de consultation.
+
+    La consultation du catalogue est un usage aussi réel qu'un calcul :
+    l'ignorer faisait sous-estimer l'audience du service, alors que le
+    journal sert précisément de preuve d'impact. Journaliser ICI plutôt
+    que dans chaque endpoint évite d'ajouter `request` à cinq signatures
+    et garantit qu'un endpoint léger ajouté demain sera compté sans
+    qu'on y pense.
+    """
     if priority_of(request) is None:
         check_rate(request, RATE_LIGHT)
+    route = request.scope.get("route")
+    nom = getattr(route, "name", None)
+    if nom and nom not in _MUET:
+        log_usage(request, nom, famille="découverte")
 
 
 def _append(entry: dict):

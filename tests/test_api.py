@@ -1,5 +1,7 @@
 """Tests de l'étape 1 : découverte du catalogue."""
 
+import datetime as dt
+
 from fastapi.testclient import TestClient
 
 from card_api.main import app
@@ -425,3 +427,30 @@ def test_les_descriptions_ne_figent_pas_la_taille_du_corpus():
               for q in m.get("parameters", [])]
     for t in textes:
         assert not re.search(r"\b\d{2,4} (des|sur) \d{2,4}\b", t), t
+
+
+def test_la_consultation_est_journalisee_mais_pas_les_sondes():
+    """Consulter le catalogue est un usage aussi réel que lancer un
+    calcul : ne pas le journaliser faisait sous-estimer l'audience, alors
+    que le journal sert de preuve d'impact.
+
+    Mais tout ce qui est appelé EN BOUCLE par une machine reste muet :
+    la sonde de santé, et le suivi d'un job qu'un client interroge sans
+    cesse. Sinon le journal se remplit sans rien dire de l'usage."""
+    import json
+
+    from card_api import usage
+
+    journal = usage.data_dir() / f"usage-{dt.datetime.now().year}.jsonl"
+    avant = journal.stat().st_size if journal.exists() else 0
+
+    client.get("/v1/cards", params={"limit": 1})
+    client.get("/v1/vocabulary")
+    client.get("/v1/health")
+
+    lignes = [json.loads(x) for x in
+              journal.read_text(encoding="utf-8")[avant:].splitlines() if x]
+    vus = {e["endpoint"] for e in lignes}
+    assert {"cards", "vocabulary"} <= vus
+    assert "health" not in vus, "la sonde de surveillance doit rester muette"
+    assert all(e["famille"] == "découverte" for e in lignes)
