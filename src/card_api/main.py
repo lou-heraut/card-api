@@ -339,6 +339,31 @@ _X_JOB_ID = {"example": "3f2a9c1b7e4d8506"}
 # le calcul, et la file d'attente pour ce qui est trop gros. `stations`
 # passe ainsi AVANT `data` : on choisit une station avant d'extraire, et
 # c'est le code trouvé là qui remplit le champ `stations` d'`extract`.
+# Une clé se demande par COURRIEL, et le lien porte le canevas de la
+# demande. Le passage par une issue GitHub a été retiré le 2026-07-29 :
+# il était inutilisable, pour trois raisons qui se cumulaient. Les issues
+# d'un dépôt public sont publiques et le réglage n'existe pas, donc le
+# jeton ne pouvait pas repartir par là sans être divulgué ; le formulaire
+# ne demandait aucune adresse, donc il n'y avait AUCUN canal de réponse ;
+# et il fallait un compte GitHub, barrière rédhibitoire pour un public
+# d'agences et de bureaux d'études.
+#
+# `quote` sur chaque partie : un objet accentué ou un retour à la ligne
+# non échappé casse le lien sur la moitié des clients de messagerie.
+_MAILTO_CLE = "mailto:louis.heraut@inrae.fr?" + urllib.parse.urlencode({
+    "subject": "card-api : demande de clé de priorité",
+    "body": (
+        "Bonjour,\n\n"
+        "Je souhaite une clé de priorité pour card-api.\n\n"
+        "Qui je suis (nom, organisme) :\n\n"
+        "Usage prévu (combien de stations, quelles variables, à quelle "
+        "fréquence) :\n\n"
+        "Contexte, projet ou financement associé (facultatif) :\n\n"
+        "Merci."
+    ),
+}, quote_via=urllib.parse.quote)
+
+
 _TAGS = [
     {"name": "service", "description": "Identité, versions et santé du service."},
     {"name": "cards", "description": "Catalogue et détail des fiches CARD."},
@@ -410,21 +435,21 @@ app = FastAPI(
         "Gros volume, vos propres données, ou un calcul à refaire chez "
         "vous : la bibliothèque Python fait le même calcul "
         "en local, sans quota et sans réseau : [card](https://github.com/lou-heraut/card).\n\n"
-        "**Ressources** : [dépôt du service](https://github.com/lou-heraut/card-api) · "
-        "[moteur stase](https://github.com/lou-heraut/stase) · "
+        "**Service** : "
+        "[dépôt du code](https://github.com/lou-heraut/card-api) · "
+        "[mentions légales]"
+        "(https://github.com/lou-heraut/card-api#mentions-légales) <br>"
+        "**Ressources externes** : "
         "[Hub'Eau](https://hubeau.eaufrance.fr/)<br>"
         "**Codes** : "
-        "[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)<br>"
+        "[GPL-3.0-or-later]"
+        "(https://www.gnu.org/licenses/gpl-3.0.html)<br>"
         "**Données** : [Licence Ouverte / Etalab 2.0]"
         "(https://www.etalab.gouv.fr/licence-ouverte-open-licence/)\n\n"
         "[signaler un bug]"
         "(https://github.com/lou-heraut/card-api/issues) · "
-        "[demander une clé de priorité]"
-        "(https://github.com/lou-heraut/card-api/issues/new"
-        "?template=cle-de-priorite.yml) · "
-        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr) · "
-        "[mentions légales]"
-        "(https://github.com/lou-heraut/card-api#mentions-légales)\n\n"
+        f"[demander une clé de priorité]({_MAILTO_CLE}) · "
+        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr)"
     ),
     # Déclarés pour la MACHINE, masqués à l'écran (cf. plus haut). Retirer
     # `license_info` du contrat pour gagner une ligne d'affichage ferait

@@ -22,6 +22,28 @@ des deux endroits.
 
 ## Non publié
 
+### Modifié
+
+- **Une clé de priorité se demande par courriel, plus par une issue
+  GitHub (2026-07-29).** Le gabarit d'issue est retiré. Il était
+  inutilisable, pour trois raisons qui se cumulaient et dont la première
+  suffisait :
+
+  - les issues d'un dépôt **public sont publiques**, et le réglage
+    n'existe pas : le jeton ne pouvait pas repartir par là sans être
+    divulgué à tous ;
+  - le formulaire **ne demandait aucune adresse**, donc il n'existait
+    aucun canal pour répondre en privé ;
+  - il fallait un **compte GitHub**, barrière rédhibitoire pour le
+    public visé, agences de l'eau, DREAL et bureaux d'études.
+
+  Le lien de l'en-tête est désormais un `mailto:` qui porte l'objet et le
+  canevas de la demande, ce qui donne la structure du formulaire sans le
+  formulaire. À l'échelle réelle, quelques demandes par an et une
+  attribution manuelle assumée, le courriel n'est pas un pis-aller :
+  c'est le bon outil. Un formulaire hébergé n'éviterait pas d'avoir à
+  répondre par courriel de toute façon.
+
 ### Ajouté
 
 - **Mentions légales (2026-07-29).** Un service public en ligne en a

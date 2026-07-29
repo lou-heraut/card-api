@@ -93,7 +93,10 @@ scripts/        # veille_sante.py : sonde cron à lancer HORS VM
 docs/dev/       # API.md : conception et arbitrages du service ;
                 #   CHANTIERS.md : chantiers
                 #   ouverts propres au service
-.github/        # template d'issue « clé de priorité » (mention RGPD)
+.github/        # workflows CI (pytest + ruff). Le gabarit d'issue
+                #   « clé de priorité » a été RETIRÉ : une issue de
+                #   dépôt public est publique, le jeton ne peut pas
+                #   en revenir. Les clés se demandent par courriel.
 CITATION.cff    # citabilité ; codemeta.json = canal Software
                 #   Heritage / HAL (pas de Zenodo, choix utilisateur)
 Makefile        # ops : make env/up/apache/update/logs/status/stats/watch

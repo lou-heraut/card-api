@@ -213,5 +213,10 @@ def test_la_description_garde_sa_prose_et_ses_liens_a_part():
     desc = client.get("/openapi.json").json()["info"]["description"]
     prose = desc.split("\n\n")[0]
     assert "](" not in prose, "un lien s'est glissé dans la prose"
-    for chemin in ("/issues", "template=cle-de-priorite", "mailto:"):
+    for chemin in ("/issues", "mailto:"):
         assert chemin in desc, chemin
+    # La demande de clé passe par le COURRIEL et non par une issue : une
+    # issue de dépôt public est publique, donc le jeton ne pourrait pas
+    # en revenir sans être divulgué, et il faudrait un compte GitHub.
+    assert "cle-de-priorite" not in desc, "le gabarit d'issue est retiré"
+    assert desc.count("mailto:") >= 2, "signaler ET demander une clé"

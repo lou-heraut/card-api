@@ -262,8 +262,11 @@ Les chroniques sont mises en cache 24 h côté serveur : répéter une
 requête ne re-télécharge rien depuis Hub'Eau.
 
 Pour un besoin massif ou récurrent (centaines de stations, chaînes de
-traitement), demandez une clé de priorité gratuite en
-[ouvrant une issue](../../issues/new?template=cle-de-priorite.yml).
+traitement), demandez une clé de priorité gratuite **par courriel** à
+<louis.heraut@inrae.fr> : qui vous êtes, l'usage prévu, et le projet
+associé si vous voulez. Attribution manuelle, réponse rapide. Le jeton
+vous revient par le même canal, ce qui est la raison de ce choix : une
+issue GitHub est publique, le jeton ne peut pas y transiter.
 Elle se passe en en-tête `X-API-Key` (de préférence à `key=`, qui
 laisse la clé dans les logs web) : quotas par minute levés, plafonds
 relevés (jusqu'à 1000 stations par job), jobs en tête de file, et
@@ -382,11 +385,9 @@ d'intérêt public d'INRAE. *Conservation* : jusqu'à la révocation de la
 clé, qui efface le lien entre le préfixe et la personne. *Diffusion* :
 le journal d'usage ne reçoit **que le préfixe**, jamais le nom.
 
-À noter, parce que ce n'est pas évident : une clé se demande en
-**ouvrant une issue publique** sur GitHub. Ce que vous y écrivez est
-donc visible de tous, et relève des conditions de GitHub, pas de
-celles-ci. Si vous préférez ne rien publier, écrivez directement à
-l'adresse ci-dessous.
+Une clé se demande **par courriel**, et non par une issue publique :
+votre nom, votre organisme et votre projet n'ont pas à être exposés, et
+le jeton lui-même ne peut voyager que par un canal privé.
 
 **Vos droits.** Sur les données nominatives des clés, vous disposez d'un
 droit d'accès, de rectification, d'opposition pour motifs légitimes, de
