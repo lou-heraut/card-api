@@ -107,8 +107,8 @@ body{margin:0;}
    info__summary   redit la premiere phrase de la description, juste
                    au-dessus d'elle. Un catalogue d'API, lui, l'affiche
                    SEUL : il doit donc exister.
-   info__tos       conditions d'usage : une section du README, dont le
-                   depot figure deja dans la ligne de ressources.
+   info__tos       mentions legales : la description porte deja le lien
+                   visible, en fin de ligne de contacts.
    info__contact   rendu suivi d'un « - Website » ecrit en dur dans le
                    code de Swagger, qu'aucun selecteur n'atteint.
    info__license   rendu en lien nu.

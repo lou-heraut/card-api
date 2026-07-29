@@ -325,3 +325,60 @@ corpus et du moteur, la version de chaque fiche employée, la date de
 lecture des données et leur empreinte. Le détail est dans « Savoir ce
 qui a produit un résultat » plus haut ; le résultat gelé d'un job les
 rassemble dans un bloc de provenance avec les paramètres de l'appel.
+
+## Mentions légales
+
+**Éditeur.** INRAE (Institut national de recherche pour l'agriculture,
+l'alimentation et l'environnement), établissement public à caractère
+scientifique et technologique, 147 rue de l'Université, 75338 Paris
+Cedex 07. Service développé et exploité par l'unité de recherche
+**RiverLy**, 5 rue de la Doua, CS 20244, 69625 Villeurbanne Cedex.
+
+**Responsable de la publication.** Louis Héraut (INRAE, UR RiverLy),
+<louis.heraut@inrae.fr>.
+
+**Hébergement.** Machine virtuelle des centres de données d'INRAE.
+
+**Propriété intellectuelle.** Le code du service, du corpus de
+définitions [card](https://github.com/lou-heraut/card) et du moteur
+[stase](https://github.com/lou-heraut/stase) est sous
+[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html). Les
+observations hydrométriques proviennent de
+[Hub'Eau](https://hubeau.eaufrance.fr/) (eaufrance) et restent sous
+[Licence Ouverte / Etalab 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/).
+Chaque réponse du service porte ces droits dans son bloc `rights`.
+
+### Données personnelles
+
+Le service est **public, sans inscription et sans compte**. Il ne
+demande ni ne conserve d'identité.
+
+**Ce qui est enregistré.** Une ligne par requête de calcul dans un
+journal d'usage : l'horodatage, l'endpoint appelé, le nombre de
+stations et les variables demandées, et un **identifiant technique
+dérivé de l'adresse IP**. L'adresse IP elle-même n'est **jamais
+écrite** : seul en est conservé un condensat SHA-256 salé, tronqué,
+dont le sel est propre au déploiement. Il permet de compter des
+visiteurs distincts sans permettre de remonter à quiconque.
+
+**Finalité.** Mesurer l'usage du service, ce qui constitue la preuve
+d'impact attendue dans les dossiers de financement de la recherche
+publique. Aucune autre exploitation, aucune cession, aucun traceur,
+aucun cookie.
+
+**Clés de priorité.** Une clé est nominative à la demande, mais le
+journal n'en reçoit que le **préfixe**, jamais le nom : le lien entre
+préfixe et personne ne vit que dans le fichier de clés du serveur et
+disparaît à la révocation. Le jeton lui-même n'est pas conservé, seul
+son condensat l'est.
+
+**Conservation.** Le journal est segmenté par année ; les fichiers
+anciens sont supprimés. Les résultats des calculs différés (jobs) sont
+effacés au terme de leur durée de rétention, réglée au déploiement
+(7 jours par défaut).
+
+**Vos droits.** Les données du journal étant anonymisées, elles ne
+permettent pas de vous identifier et aucune demande d'accès ou
+d'effacement ne peut y être rattachée. Pour toute question sur le
+traitement, écrire à <louis.heraut@inrae.fr>, ou au délégué à la
+protection des données d'INRAE : <dpd@inrae.fr>.

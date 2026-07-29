@@ -24,6 +24,26 @@ des deux endroits.
 
 ### Ajouté
 
+- **Mentions légales (2026-07-29).** Un service public en ligne en a
+  besoin, et celui-ci d'autant plus qu'il journalise un dérivé de
+  l'adresse IP. Une section du README les porte : éditeur (INRAE, UR
+  RiverLy), responsable de la publication, hébergement, propriété
+  intellectuelle, et un volet **données personnelles** qui dit ce qui est
+  enregistré (jamais l'IP, seulement un condensat salé et tronqué),
+  pourquoi (la preuve d'impact attendue en recherche publique), combien
+  de temps, et à qui écrire, DPD d'INRAE compris.
+
+  Le champ **`termsOfService`** du contrat, qui pointait jusqu'ici la
+  section des quotas, pointe désormais celle-ci : c'est le champ prévu
+  pour ça, et il rend les mentions lisibles par une machine autant que
+  par un visiteur. Le lien visible est en fin de ligne de contacts dans
+  l'en-tête.
+
+  **Une réserve à lever** : ces mentions sont rédigées d'après ce que le
+  code fait, pas d'après un modèle institutionnel. L'éditeur et
+  l'hébergeur en particulier gagneraient à être confirmés par le service
+  compétent d'INRAE, qui a probablement une formulation type.
+
 - **card-api a enfin un CI (2026-07-29) :** pytest sur 3.11 et 3.12, ruff
   à la version épinglée du `pyproject.toml`. Le dépôt rejoint card et
   stase, et 73 tests cessent de ne tourner que sur une seule machine. Le

@@ -422,19 +422,23 @@ app = FastAPI(
         "[demander une clé de priorité]"
         "(https://github.com/lou-heraut/card-api/issues/new"
         "?template=cle-de-priorite.yml) · "
-        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr)\n\n"
+        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr) · "
+        "[mentions légales]"
+        "(https://github.com/lou-heraut/card-api#mentions-légales)\n\n"
     ),
     # Déclarés pour la MACHINE, masqués à l'écran (cf. plus haut). Retirer
     # `license_info` du contrat pour gagner une ligne d'affichage ferait
     # perdre à un moissonneur le seul endroit où il lit sous quels droits
     # réutiliser : le prix est sans commune mesure avec le gain.
     #
-    # `terms_of_service` est le champ prévu pour les conditions d'usage :
-    # ici les quotas par IP, le 429 et sa clé de priorité, déjà écrits
-    # dans le README. Il ne s'affiche pas non plus, le dépôt étant déjà
-    # dans la ligne de ressources.
+    # `terms_of_service` est le champ prévu pour les conditions d'usage.
+    # Il pointe les MENTIONS LÉGALES : éditeur, hébergeur, droits, et le
+    # volet données personnelles, qui existe parce que le service
+    # journalise un dérivé de l'adresse IP. Champ masqué à l'écran comme
+    # les autres, mais présent dans openapi.json, donc opposable et
+    # lisible par une machine ; la description porte le lien visible.
     terms_of_service=("https://github.com/lou-heraut/card-api"
-                      "#quotas-et-clés-de-priorité"),
+                      "#mentions-légales"),
     contact={"name": "Louis Héraut (INRAE, UR RiverLy)",
              "url": "https://github.com/lou-heraut/card-api"},
     license_info={"name": "GPL-3.0-or-later",

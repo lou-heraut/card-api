@@ -192,7 +192,7 @@ def test_le_contrat_porte_ce_que_la_page_ne_montre_pas(identity):
     assert info["summary"].startswith("Variables hydroclimatiques")
     assert info["license"]["name"] == "GPL-3.0-or-later"
     assert info["contact"]["url"].endswith("card-api")
-    assert "quotas" in info["termsOfService"]
+    assert "mentions" in info["termsOfService"]
 
 
 def test_la_description_garde_sa_prose_et_ses_liens_a_part():
