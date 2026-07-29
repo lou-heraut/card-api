@@ -65,7 +65,75 @@ def test_les_refus_ne_sont_pas_des_usages():
     assert "1 calcul" in texte and "1 découverte" in texte
 
 
-def test_aucun_refus_ne_dit_rien():
-    """Un plafond qui ne mord jamais n'a rien à afficher."""
-    texte = _rendu([{"ts": AUJOURD_HUI, "user": "aaa", "endpoint": "extract"}])
-    assert "REFUS" not in texte
+def test_le_tableau_garde_la_meme_forme_a_vide():
+    """Toutes les lignes, toujours, zéro compris.
+
+    Une ligne qui n'apparaît qu'au-dessus de zéro fait changer le tableau
+    de forme d'un jour à l'autre : on cherche des yeux une ligne qu'on
+    s'attendait à trouver, et on ne distingue plus « personne n'a appelé »
+    de « je ne sais pas ». Un zéro est une information, souvent la plus
+    utile puisqu'il dit qu'un endpoint qu'on maintient ne sert à personne.
+    """
+    from card_api.stats import ENDPOINTS_CALCUL, ENDPOINTS_DECOUVERTE
+
+    vide = _rendu([])
+    plein = _rendu([{"ts": AUJOURD_HUI, "user": "aaa", "endpoint": "extract"}])
+    for label in ("CALCUL", "DÉCOUVERTE", "REFUS", "rendu", "fiches",
+                  *ENDPOINTS_CALCUL, *ENDPOINTS_DECOUVERTE):
+        assert label in vide, label
+        assert label in plein, label
+    assert vide.count("\n") == plein.count("\n")     # même hauteur, à vide
+    assert "0 figure" in vide                        # les zéros sont écrits
+
+
+def test_la_decouverte_est_ventilee_comme_le_calcul():
+    """Savoir si les gens consultent `stations` ou `cards` demande une
+    courbe par endpoint, pas un total : c'est ce que la famille calcul
+    avait déjà et qui manquait ici."""
+    entries = [{"ts": AUJOURD_HUI, "user": "aaa", "endpoint": "stations",
+                "famille": "découverte"} for _ in range(4)]
+    entries += [{"ts": HIER, "user": "bbb", "endpoint": "cards",
+                 "famille": "découverte"}]
+    texte = _rendu(entries)
+    ligne = next(li for li in texte.split("\n")
+                 if li.strip().startswith("stations"))
+    assert ligne.rstrip().endswith("4")
+    ligne = next(li for li in texte.split("\n") if li.strip().startswith("cards"))
+    assert ligne.rstrip().endswith("1")
+    ligne = next(li for li in texte.split("\n")
+                 if li.strip().startswith("vocabulary"))
+    assert ligne.rstrip().endswith("0")
+
+
+def test_le_suivi_de_jobs_ne_passe_pas_pour_du_catalogue():
+    """job_list et job_delete partagent le quota léger, donc la famille
+    découverte, mais consulter ses propres tickets n'est pas consulter le
+    catalogue : ils ont leur ligne, et le total reste juste."""
+    entries = [{"ts": AUJOURD_HUI, "user": "aaa", "endpoint": e,
+                "famille": "découverte"}
+               for e in ("job_list", "job_delete", "cards")]
+    texte = _rendu(entries)
+    ligne = next(li for li in texte.split("\n") if li.strip().startswith("suivi"))
+    assert ligne.rstrip().endswith("2")
+    ligne = next(li for li in texte.split("\n")
+                 if li.strip().startswith("DÉCOUVERTE"))
+    assert ligne.rstrip().endswith("3")
+
+
+def test_une_ligne_trop_longue_le_dit():
+    """Elle était coupée en silence : « ✗ 5 échecs » se lisait « ✗ 5 éc »,
+    un chiffre amputé qu'on croit complet."""
+    from card_api.stats import W, _box
+
+    rendu = _box("t", ["x" * (W + 20)])
+    assert "…" in rendu
+    assert all(len(li) == W + 4 for li in rendu.split("\n"))
+
+
+def test_les_compteurs_de_la_file_tiennent_dans_le_cadre():
+    from card_api.stats import W, _paquets
+
+    segments = [f"compteur numéro {i} avec un libellé long" for i in range(5)]
+    for ligne in _paquets(segments):
+        assert len(ligne) <= W
+    assert "".join(_paquets(segments)).count("compteur") == 5   # rien de perdu

@@ -54,13 +54,41 @@ def _bar(v, top, width=14):
 
 
 def _box(title, lines):
+    """Le cadre. Une ligne trop longue est coupée SUR UN POINT DE
+    SUSPENSION : elle l'était silencieusement, et « ✗ 5 échecs » se
+    lisait « ✗ 5 éc », c'est-à-dire un chiffre amputé qu'on croit
+    complet. Couper reste un pis-aller, la vraie réponse est de ne pas
+    fabriquer de ligne trop longue (cf. `_paquets`), mais le jour où l'une
+    passe au travers, elle doit le dire."""
     out = [f"┌─ {title} " + "─" * max(0, W - len(title) - 1) + "┐"]
     for line in lines:
-        while _width(line) > W:
-            line = line[:-1]
+        if _width(line) > W:
+            while _width(line) > W - 1:
+                line = line[:-1]
+            line += "…"
         out.append(f"│ {line}{' ' * (W - _width(line))} │")
     out.append("└" + "─" * (W + 2) + "┘")
     return "\n".join(out)
+
+
+def _paquets(segments, sep="   "):
+    """Range des segments en lignes qui tiennent dans le cadre.
+
+    Les compteurs de la file étaient concaténés sans regarder la largeur :
+    le jour où un échec est survenu, le mot a été tronqué. Le nombre de
+    compteurs n'est pas fixe, donc aucune mise en forme figée ne tient ;
+    il faut mesurer."""
+    lignes, courante = [], ""
+    for seg in segments:
+        candidate = f"{courante}{sep}{seg}" if courante else seg
+        if courante and _width(candidate) > W:
+            lignes.append(courante)
+            courante = seg
+        else:
+            courante = candidate
+    if courante:
+        lignes.append(courante)
+    return lignes
 
 
 def _width(s):
@@ -107,6 +135,48 @@ def _dir_size(path):
     return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
 
 
+# Listes FIXES, et non les endpoints rencontrés dans le journal. Une
+# ligne qui n'apparaît que si le compteur est non nul se lit mal : on ne
+# distingue plus « personne n'a appelé /v1/vocabulary » de « je ne sais
+# pas », et le tableau change de forme d'un jour à l'autre, si bien qu'on
+# cherche des yeux une ligne qu'on s'attendait à trouver. Un zéro est une
+# information, souvent la plus utile : il dit qu'un endpoint qu'on
+# maintient ne sert à personne.
+ENDPOINTS_CALCUL = ("extract", "trend", "jobs")
+ENDPOINTS_DECOUVERTE = ("cards", "card_detail", "card_figure",
+                        "stations", "vocabulary", "suivi")
+RENDUS = ("json", "csv", "figure")
+GOUTTIERE = 13                          # colonne des libellés, commune
+
+
+def _alias(nom):
+    """`suivi` regroupe la gestion de ses propres jobs (liste, abandon).
+
+    Ce n'est pas de la découverte du catalogue, mais ça passe par le même
+    quota léger et donc par la même famille. Plutôt que d'inventer une
+    troisième famille pour deux endpoints, on les montre à part DANS la
+    découverte : le total reste juste et les cinq lignes du catalogue
+    gardent leur sens, qui est de dire ce que les gens consultent.
+    """
+    return ("job_list", "job_delete") if nom == "suivi" else (nom,)
+
+
+def _ligne(label, entries, indent=0):
+    """Un libellé, sa courbe sur 30 jours, son total. Gouttière commune
+    aux trois familles : c'est l'alignement qui rend deux courbes
+    comparables d'un coup d'œil."""
+    série = _per_day(entries, 30)
+    return f"{' ' * indent + label:<{GOUTTIERE}} {_spark(série)} {sum(série):>5}"
+
+
+def _detail(label, paires):
+    """Une ligne de ventilation, alignée sur la même gouttière. Les zéros
+    sont écrits : une représentation absente du décompte est justement ce
+    qu'on veut voir."""
+    return (f"{' ' * 2 + label:<{GOUTTIERE}} "
+            + " · ".join(f"{n} {nom}" for nom, n in paires))
+
+
 # ── cadres ───────────────────────────────────────────────────────────────────
 
 def _activity_box(entries):
@@ -128,52 +198,43 @@ def _activity_box(entries):
     # (la découverte n'était pas journalisée).
     calcul = [e for e in reqs if e.get("famille") != "découverte"]
     decouverte = [e for e in reqs if e.get("famille") == "découverte"]
+    refus = [e for e in entries
+             if e.get("event") == "quota"
+             and e.get("ts", "")[:10] >= str(date.today() - timedelta(30))]
+
     lines = [""]
-    for label, sel in (("CALCUL  ", calcul),
-                       ("extract ", [e for e in calcul if e["endpoint"] == "extract"]),
-                       ("trend   ", [e for e in calcul if e["endpoint"] == "trend"]),
-                       ("jobs    ", [e for e in calcul if e["endpoint"] == "jobs"])):
-        série = _per_day(sel, 30)
-        lines.append(f"{label}  {_spark(série)}  {sum(série):>5}")
+    lines.append(_ligne("CALCUL", calcul))
+    for nom in ENDPOINTS_CALCUL:
+        lines.append(_ligne(nom, [e for e in calcul if e["endpoint"] == nom], 2))
     # Quelle REPRÉSENTATION a été demandée. Sans cette ligne, un CSV et
     # une figure se comptent comme du JSON : on ne saurait jamais si ces
     # deux sorties, ajoutées le 2026-07-28, servent à quelqu'un. Les
     # entrées d'avant cette date n'ont pas le champ, d'où le défaut.
     rendus = Counter(e.get("rendu", "json") for e in month
                      if e["endpoint"] in ("extract", "trend"))
-    if sum(rendus.values()):
-        detail = " · ".join(f"{n} {nom}" for nom, n in rendus.most_common())
-        lines.append(f"          {detail}")
+    lines.append(_detail("rendu", [(n, rendus.get(n, 0)) for n in RENDUS]))
 
-    if decouverte:
-        lines.append("")
-        vus = Counter(e["endpoint"] for e in decouverte
-                      if e.get("ts", "")[:10]
-                      >= str(date.today() - timedelta(30)))
-        série = _per_day(decouverte, 30)
-        lines.append(f"DÉCOUVERTE  {_spark(série)}  {sum(série):>5}")
-        if vus:
-            detail = " · ".join(f"{n} {nom}" for nom, n in vus.most_common(3))
-            lines.append(f"            {detail}")
+    lines.append("")
+    lines.append(_ligne("DÉCOUVERTE", decouverte))
+    for nom in ENDPOINTS_DECOUVERTE:
+        sel = [e for e in decouverte if e["endpoint"] in _alias(nom)]
+        lines.append(_ligne(nom, sel, 2))
 
-    # Les REFUS de quota. Muet tant qu'il n'y en a pas : un plafond qui
-    # ne mord jamais n'a rien à dire. Dès qu'une ligne apparaît, elle
-    # répond à la seule question qui permette de régler les plafonds,
-    # combien de personnes DISTINCTES sont repoussées. Une personne
-    # bloquée trente fois est un script mal écrit, à qui il faut
-    # expliquer la liste ; trente personnes bloquées une fois est un
-    # plafond trop bas.
-    refus = [e for e in entries
-             if e.get("event") == "quota"
-             and e.get("ts", "")[:10] >= str(date.today() - timedelta(30))]
-    if refus:
-        lines.append("")
-        série = _per_day(refus, 30)
-        bloqués = len({e["user"] for e in refus if "user" in e})
-        lines.append(f"REFUS       {_spark(série)}  {sum(série):>5}")
-        par_famille = Counter(e.get("famille", "?") for e in refus)
-        detail = " · ".join(f"{n} {nom}" for nom, n in par_famille.most_common())
-        lines.append(f"            {detail} · {bloqués} IP distinctes")
+    # Les REFUS de quota, TOUJOURS affichés, zéro compris. Un plafond qui
+    # ne mord pas est une information, et c'est même celle qu'on espère :
+    # la ligne absente, on ne sait pas distinguer « personne n'a été
+    # repoussé » de « je ne sais pas ». Le chiffre qui permet de régler
+    # les plafonds n'est pas le total mais le nombre de personnes
+    # DISTINCTES : une personne bloquée trente fois est un script mal
+    # écrit, à qui il faut expliquer la liste ; trente personnes bloquées
+    # une fois est un plafond trop bas.
+    lines.append("")
+    lines.append(_ligne("REFUS", refus))
+    par_famille = Counter(e.get("famille", "?") for e in refus)
+    bloqués = len({e["user"] for e in refus if "user" in e})
+    lines.append(_detail("dont", [(f, par_famille.get(f, 0))
+                                  for f in ("calcul", "découverte")]
+                         + [("IP distinctes", bloqués)]))
 
     users = len({e["user"] for e in month if "user" in e})
     lines += ["", f"30 jours · {len(month)} requêtes · "
@@ -194,11 +255,11 @@ def _activity_box(entries):
     lines.append("")
 
     cards = Counter(c for e in month for c in e.get("cards", []))
-    if cards:
-        top_c = cards.most_common(3)
-        best = top_c[0][1]
-        lines.append("fiches  " + "   ".join(
-            f"{name} {_bar(n, best, 8)} {n}" for name, n in top_c))
+    top_c = cards.most_common(3)
+    best = top_c[0][1] if top_c else 0
+    lines.append("fiches  " + ("   ".join(
+        f"{name} {_bar(n, best, 8)} {n}" for name, n in top_c)
+        if top_c else "aucune demandée sur la période"))
     return _box("card-api · activité", lines)
 
 
@@ -208,9 +269,13 @@ def _jobs_box(entries):
     done = [e for e in entries if e.get("event") == "job_done"]
     done_today = [e for e in done if e.get("ts", "")[:10] == today]
     failed_today = [e for e in done_today if e.get("status") == "failed"]
-    lines = [f"● {q['running']} en cours   ○ {q['queued']} en attente   "
-             f"✓ {len(done_today)} terminés aujourd'hui"
-             + (f"   ✗ {len(failed_today)} échecs" if failed_today else "")]
+    # Les échecs sont TOUJOURS comptés, zéro compris : une journée sans
+    # échec est précisément ce qu'on vient vérifier, et une ligne qui
+    # n'apparaît qu'en cas de problème ne permet pas de le constater.
+    lines = _paquets([f"● {q['running']} en cours",
+                      f"○ {q['queued']} en attente",
+                      f"✓ {len(done_today)} terminés aujourd'hui",
+                      f"✗ {len(failed_today)} échecs"])
 
     waits = sorted(e["wait_s"] for e in done[-200:] if "wait_s" in e)
     if waits:

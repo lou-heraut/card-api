@@ -52,6 +52,63 @@ des deux endroits.
 
 ### Modifié
 
+- **Une station sans série est écartée, plus fatale (2026-07-29).** Une
+  demande de vingt stations échouait entièrement dès que l'une d'elles
+  n'avait rien à donner, le travail déjà fait compris. Cas rencontré :
+  `U430003001`, la Saône à Dracé, échelle aval de Mâcon. Le référentiel
+  Hub'Eau la donne en service, jamais fermée, fiche à jour, et ne publie
+  aucun QmnJ pour elle. C'est une échelle limnimétrique : elle mesure une
+  hauteur, et sans courbe de tarage une hauteur n'est pas un débit.
+
+  Rien ne permettait de l'éviter en amont. `/v1/stations` proxie un
+  registre administratif des stations qui EXISTENT, pas un catalogue des
+  séries disponibles, et ses deux champs plausibles n'en disent rien :
+  `type_station` vaut STD partout, et `en_service` est à contre-emploi,
+  une station fermée gardant l'historique qu'une étude de tendance veut.
+  Demander la série est le seul test.
+
+  Le résultat décrit donc maintenant ce qu'il CONTIENT : `stations` liste
+  les stations calculées, `stations_requested` celles demandées, et
+  `stations_omitted` les écartées avec un motif lisible par un programme
+  (`no_series`, `no_data_in_period`, `ambiguous_site`) et par un humain.
+  Le bloc est toujours présent, vide quand tout va bien. **`stations`
+  change de sens** : il recopiait la demande, il décrit les données. Une
+  jointure faite dessus porterait à faux autrement.
+
+  La ligne de partage retenue n'est pas la gravité mais la
+  reproductibilité : un fait stable de la station se rapporte, une panne
+  Hub'Eau reste une erreur `504`. Sauter la seconde produirait, les jours
+  d'incident, des résultats discrètement amputés que personne ne
+  remarquerait. Et si aucune station n'a de série, la demande est refusée
+  en `404` : un résultat sans lignes se laisse lire comme un résultat.
+
+  L'omission voyage dans toutes les représentations, lignes `#` du CSV et
+  figure comprises, comme le ticket de job la veille. Arbitrage complet
+  dans `docs/dev/API.md`, y compris la piste écartée d'un cache de
+  disponibilité qui deviendrait faux le jour où Hub'Eau publie la série.
+
+- **`make stats` garde la même forme, pleine ou vide (2026-07-29).** Les
+  lignes n'apparaissaient qu'au-dessus de zéro. Le tableau changeait donc
+  de forme d'un jour à l'autre, on cherchait des yeux une ligne qu'on
+  s'attendait à trouver, et on ne distinguait plus « personne n'a appelé
+  `/v1/vocabulary` » de « je ne sais pas ». Toutes les lignes sont
+  désormais là, zéro compris, depuis des listes fixes. Un zéro est une
+  information, souvent la plus utile : il dit qu'un endpoint qu'on
+  maintient ne sert à personne.
+
+  **La découverte est ventilée comme le calcul**, une courbe par
+  endpoint : savoir si les gens consultent `stations` ou `cards` demandait
+  un détail que seule la famille calcul avait. Le suivi de ses propres
+  jobs (`job_list`, `job_delete`) a sa ligne à part : il partage le quota
+  léger, donc la famille découverte, mais consulter ses tickets n'est pas
+  consulter le catalogue. Les trois familles partagent enfin une même
+  gouttière, l'alignement étant ce qui rend deux courbes comparables.
+
+  Au passage, une ligne trop longue était coupée en silence : « ✗ 5
+  échecs » se lisait « ✗ 5 éc », un chiffre amputé qu'on croit complet.
+  Les compteurs de la file sont maintenant mesurés avant d'être écrits, et
+  ce que le cadre coupe malgré tout porte un point de suspension.
+
 - **Quotas par IP relevés, de 10 à 60 requêtes de calcul par minute, et
   de 60 à 300 pour le catalogue (2026-07-29).** Ils avaient été posés bas
   par prudence, avant tout usage réel. Ce compteur n'est pas ce qui

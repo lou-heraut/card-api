@@ -61,6 +61,16 @@ src/card_api/
                 #   202+Location, progression, résultat gelé avec bloc
                 #   de provenance, TTL ; plafonds SYNC_*/JOB_* du .env ;
                 #   bascule auto des demandes > plafonds synchrones
+                #   Une station sans série est ÉCARTÉE, pas fatale :
+                #   `stations` = ce qui est CALCULÉ (pas la demande, sinon
+                #   une jointure porte à faux), `stations_requested` = la
+                #   demande, `stations_omitted` = les écartées avec
+                #   `reason` (no_series / no_data_in_period /
+                #   ambiguous_site), bloc TOUJOURS présent même vide.
+                #   Ligne de partage : la REPRODUCTIBILITÉ, pas la
+                #   gravité. Un fait de la station se rapporte, une panne
+                #   Hub'Eau reste un 504. Tout omettre = 404, un résultat
+                #   vide se lisant comme un résultat. Cf. docs/dev/API.md
   hubeau.py     # colonne de station = `code_station`, le nom de Hub'Eau :
                 #   une colonne relayée garde le nom de sa source, pour
                 #   que la jointure au référentiel se fasse sans
@@ -92,13 +102,20 @@ src/card_api/
   serialize.py  # DataFrame -> JSON (records|columns), partagé sync/jobs
   stats.py      # tableau de bord terminal (make stats / make watch) :
                 #   DEUX familles jamais additionnées, calcul et
-                #   découverte ; un ÉVÉNEMENT n'est ni l'un ni l'autre
-                #   (job_done porte un `endpoint` : le compter faisait
-                #   deux appels pour un job) ; le champ `rendu` dit
-                #   json/csv/figure ; ligne REFUS muette tant que le
-                #   quota ne mord pas, en IP DISTINCTES : une personne
-                #   bloquée 30 fois est un script, 30 personnes bloquées
-                #   une fois est un plafond trop bas ;
+                #   découverte, VENTILÉES l'une comme l'autre ; un
+                #   ÉVÉNEMENT n'est ni l'un ni l'autre (job_done porte un
+                #   `endpoint` : le compter faisait deux appels pour un
+                #   job). TOUTES les lignes sont toujours là, zéro
+                #   compris (listes FIXES ENDPOINTS_*/RENDUS) : une ligne
+                #   qui n'apparaît qu'au-dessus de zéro fait changer le
+                #   tableau de forme et confond « personne n'a appelé »
+                #   avec « je ne sais pas ». Ligne REFUS en IP
+                #   DISTINCTES : une personne bloquée 30 fois est un
+                #   script, 30 personnes bloquées une fois est un plafond
+                #   trop bas. Gouttière commune (GOUTTIERE) : c'est
+                #   l'alignement qui rend deux courbes comparables.
+                #   `_paquets` mesure avant d'écrire, `_box` marque d'un
+                #   … ce qu'il coupe (« ✗ 5 échecs » se lisait « ✗ 5 éc »)
                 #   sparklines, heatmap 12 semaines, file, disque
 tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
                 #   validation MAKAHO, précision machine) + live
