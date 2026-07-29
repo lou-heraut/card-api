@@ -195,10 +195,16 @@ def test_le_contrat_porte_ce_que_la_page_ne_montre_pas(identity):
     assert "quotas" in info["termsOfService"]
 
 
-def test_la_description_tient_en_un_paragraphe_et_deux_lignes_de_liens():
+def test_la_description_tient_en_un_paragraphe_et_quatre_lignes():
     """Un en-tête n'est pas un résumé du projet. La prose est d'un seul
-    tenant, les liens dessous : où lire, puis à qui écrire."""
+    tenant, sans lien, et les quatre lignes qui suivent vont du plus
+    utile au plus formel : la bibliothèque Python d'abord (le service est
+    une porte d'entrée, pas un moteur de calcul de masse), puis à qui
+    écrire, où aller lire, et sous quels droits."""
     desc = client.get("/openapi.json").json()["info"]["description"]
-    prose, ressources, contacts = desc.split("\n\n")
+    prose, paquet, contacts, ressources, droits = desc.split("\n\n")
     assert "](" not in prose, "un lien s'est glissé dans la prose"
-    assert ressources.count("](") == 5 and contacts.count("](") == 3
+    assert "card" in paquet and "local" in paquet
+    assert contacts.count("](") == 3
+    assert ressources.count("](") == 3
+    assert "GPL" in droits and "Licence Ouverte" in droits

@@ -387,8 +387,12 @@ app = FastAPI(
     # n'est pas un résumé du projet, c'est ce qu'il faut savoir avant de
     # cliquer sur une opération.
     #
-    # Dessous, DEUX lignes de liens, de même forme : où aller lire, puis
-    # à qui écrire. Elles absorbent la licence et le contact, que Swagger
+    # Dessous, QUATRE lignes, dans l'ordre de ce qu'on veut qu'un
+    # visiteur retienne : d'abord que la bibliothèque Python existe et
+    # qu'elle est le bon outil pour un gros volume (le service est une
+    # porte d'entrée, pas un moteur de calcul de masse), puis à qui
+    # écrire, puis où aller lire, puis sous quels droits. Elles absorbent
+    # la licence et le contact, que Swagger
     # sait pourtant rendre lui-même (`license_info`, `contact`) mais
     # chacun dans sa présentation : trois façons de poser un lien dans
     # quinze centimètres de page. Les deux champs RESTENT déclarés plus
@@ -403,17 +407,23 @@ app = FastAPI(
         "les calcule, Hub'Eau fournit les observations. Service public "
         "de recherche (INRAE, UR RiverLy), accès ouvert, sans "
         "inscription ni clé. Point d'entrée : `GET /v1`.\n\n"
-        "[fiches card](https://github.com/lou-heraut/card) · "
-        "[moteur stase](https://github.com/lou-heraut/stase) · "
-        "[Hub'Eau](https://hubeau.eaufrance.fr/) · "
-        "[dépôt du service](https://github.com/lou-heraut/card-api) · "
-        "[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)\n\n"
+        "Gros volume, vos propres données, ou un calcul à refaire chez "
+        "vous : la bibliothèque Python "
+        "[card](https://github.com/lou-heraut/card) fait le même calcul "
+        "en local, sans quota et sans réseau.\n\n"
         "[signaler un bug]"
         "(https://github.com/lou-heraut/card-api/issues) · "
         "[demander une clé de priorité]"
         "(https://github.com/lou-heraut/card-api/issues/new"
         "?template=cle-de-priorite.yml) · "
-        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr)"
+        "[écrire à l'auteur](mailto:louis.heraut@inrae.fr)\n\n"
+        "[dépôt du service](https://github.com/lou-heraut/card-api) · "
+        "[moteur stase](https://github.com/lou-heraut/stase) · "
+        "[Hub'Eau](https://hubeau.eaufrance.fr/)\n\n"
+        "Code sous "
+        "[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html) · "
+        "données Hub'Eau sous [Licence Ouverte / Etalab 2.0]"
+        "(https://www.etalab.gouv.fr/licence-ouverte-open-licence/)"
     ),
     # Déclarés pour la MACHINE, masqués à l'écran (cf. plus haut). Retirer
     # `license_info` du contrat pour gagner une ligne d'affichage ferait
@@ -1237,6 +1247,8 @@ def _run_extract(st, cd, start, end, sampling=None):
             df = hubeau.fetch_chronicle(s)
         except hubeau.StationInconnue as e:
             raise HTTPException(404, str(e))
+        except hubeau.SiteAmbigu as e:
+            raise HTTPException(422, str(e))
         except hubeau.HubEauIndisponible as e:
             raise HTTPException(504, str(e), headers={"Retry-After": "300"})
         empreintes[s] = hubeau.fingerprint(df)

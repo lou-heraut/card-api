@@ -51,6 +51,15 @@ class StationInconnue(ValueError):
     pass
 
 
+class SiteAmbigu(ValueError):
+    """Le code demandé donne plusieurs mesures concurrentes pour un même
+    jour : c'est un code de SITE dont plusieurs stations mesurent en
+    parallèle. Il n'y a pas de doublon à écarter, ce sont des mesures
+    réelles et différentes ; choisir laquelle serait un arbitrage
+    hydrologique, et le service n'a pas à le prendre à la place de qui
+    l'interroge."""
+
+
 class HubEauIndisponible(RuntimeError):
     """Hub'Eau ne répond pas (timeout ou 5xx persistant après retries)."""
 
@@ -206,6 +215,27 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
               if r["resultat_obs_elab"] is not None else float("nan")
               for r in rows],
     }).sort_values("date").reset_index(drop=True)
+    # Deux mesures pour un même jour APRÈS le filtre ci-dessus : ce n'est
+    # plus le doublon site/station, ce sont deux stations du site qui
+    # mesurent en parallèle et ne disent pas la même chose. On refuse en
+    # nommant les stations, plutôt que de laisser card échouer plus loin
+    # sur un message qui parle de paramètres Python.
+    #
+    # Des stations qui se SUCCÈDENT dans le temps ne déclenchent rien :
+    # elles forment un enregistrement continu du même point, ce qui est
+    # précisément ce qu'un site désigne.
+    if df.duplicated(subset=["date"]).any():
+        jours = df.loc[df.duplicated(subset=["date"], keep=False), "date"]
+        stations = sorted({r["code_station"] for r in rows
+                           if r.get("code_station")})
+        raise SiteAmbigu(
+            f"{station} est un code de site dont plusieurs stations "
+            f"mesurent en parallèle ({', '.join(stations)}) : "
+            f"{jours.nunique()} jours portent des valeurs différentes "
+            f"selon la station, du {jours.min():%Y-%m-%d} au "
+            f"{jours.max():%Y-%m-%d}. Choisir pour vous serait un "
+            f"arbitrage. Donnez un code de station : "
+            f"/v1/stations?code={station}")
     df.to_csv(cache, index=False)
     return df
 

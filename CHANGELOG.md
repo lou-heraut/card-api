@@ -206,7 +206,14 @@ des deux endroits.
   droits) est retirée : ces champs voyagent dans chaque réponse, où ils
   servent.
 
-  Les deux lignes absorbent la **licence** et le **contact**, que Swagger
+  **Réorganisé le 2026-07-29 en quatre lignes**, dans l'ordre de ce
+  qu'un visiteur doit retenir : la **bibliothèque Python d'abord** (le
+  service est une porte d'entrée, pas un moteur de calcul de masse ; qui
+  a du volume ou ses propres données a intérêt à calculer en local),
+  puis à qui écrire, puis où aller lire, puis sous quels droits (code
+  GPL, données Licence Ouverte).
+
+  Les lignes absorbent la **licence** et le **contact**, que Swagger
   rendait chacun à sa façon, l'un suivi d'un « - Website » écrit en dur
   dans son code. Trois présentations d'une même chose sur quinze
   centimètres de page, c'en est une de trop.
@@ -370,10 +377,16 @@ des deux endroits.
   Python inatteignable depuis HTTP. Le client ne garde que les lignes
   étiquetées.
 
-  **Cela ne referme pas tout le sujet** : un site peut porter deux
-  stations qui mesurent en parallèle avec des valeurs différentes, et
-  c'est alors un vrai choix, pas un doublon. Consigné dans
-  `docs/dev/CHANTIERS.md`.
+  **Le cas restant est refusé explicitement.** Un site peut porter
+  plusieurs stations qui mesurent **en parallèle avec des valeurs
+  différentes** (`K0018723` : 1358 jours concernés depuis 2017). Là il
+  n'y a pas de doublon à écarter, ce sont des mesures réelles, et
+  choisir serait un arbitrage hydrologique que le service n'a pas à
+  prendre. Il rend donc un 422 qui **nomme les stations concernées, dit
+  combien de jours divergent, et donne l'appel suivant**
+  (`/v1/stations?code=...`). Des stations qui se SUCCÈDENT dans le temps
+  ne déclenchent rien : elles forment l'enregistrement continu d'un même
+  point, ce qu'un site désigne précisément.
 
 - **La suite « hors-ligne » ne l'était plus (2026-07-29).** `conftest`
   place le cache des chroniques dans un dossier temporaire, donc toujours
