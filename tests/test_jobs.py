@@ -2,6 +2,7 @@
 dépôt, statut, résultat avec provenance, bascule automatique des
 demandes trop grosses, échecs, plafonds."""
 
+import os
 import time
 
 import numpy as np
@@ -242,3 +243,85 @@ def test_health_reports_queue_disk_and_data():
     assert body["disk"]["free_gb"] > 0
     assert set(body["data"]) == {"total_mb", "cache_mb", "jobs_mb"}
     assert body["data"]["total_mb"] >= body["data"]["jobs_mb"]
+
+
+# ── Le seuil suit le COÛT, pas le nombre de stations ───────────────────
+
+def _stations(n):
+    return ",".join(f"K{i:07d}" for i in range(n))
+
+
+@pytest.fixture
+def sans_calcul(monkeypatch):
+    """Le dépôt en file, sans rien exécuter.
+
+    Ces tests portent sur la DÉCISION sync/job, pas sur le calcul. Un vrai
+    job de soixante stations occupe les deux workers, qui sont partagés
+    par tout le processus, et il leur SURVIT : le simulateur Hub'Eau
+    disparaît à la fin du test, si bien que le worker part interroger le
+    vrai Hub'Eau soixante fois. Les tests suivants attendaient alors un
+    job qui ne démarrait jamais. Un test de décision ne doit rien mettre
+    en marche.
+    """
+    monkeypatch.setattr(jobs, "submit",
+                        lambda params, user, priority=0, key=None:
+                        {"id": "0" * 16, "status": "queued"})
+
+
+def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
+    """Vingt stations en cache, c'est une seconde de calcul.
+
+    Mesuré en production le 2026-07-29 : une chronique coûte ~1,2 s à
+    rapatrier et ~0,04 s à calculer. Le compteur unique envoyait donc en
+    file, avec ticket et aller-retour, une demande qui tenait en une
+    seconde. C'est la friction signalée.
+    """
+    monkeypatch.setattr(hubeau, "en_cache", lambda s: True)
+    r = client.get("/v1/extract", params={"stations": _stations(20),
+                                          "cards": "QA"})
+    assert r.status_code == 200
+    assert len(r.json()["stations"]) == 20
+
+
+def test_stations_a_telecharger_partent_en_file(monkeypatch, sans_calcul):
+    """Les mêmes vingt stations à froid, c'est une vingtaine de secondes :
+    le ticket est alors le bon service à rendre."""
+    monkeypatch.setattr(hubeau, "en_cache", lambda s: False)
+    r = client.get("/v1/extract", params={"stations": _stations(20),
+                                          "cards": "QA"})
+    assert r.status_code == 202
+
+
+def test_seul_le_froid_compte(monkeypatch):
+    """Vingt stations dont cinq à télécharger : c'est le coût de cinq."""
+    froides = {f"K{i:07d}" for i in range(5)}
+    monkeypatch.setattr(hubeau, "en_cache", lambda s: s not in froides)
+    r = client.get("/v1/extract", params={"stations": _stations(20),
+                                          "cards": "QA"})
+    assert r.status_code == 200
+
+
+def test_le_plafond_haut_borne_quand_meme(monkeypatch, sans_calcul):
+    """Tout en cache ne veut pas dire gratuit : le calcul reste petit mais
+    pas nul, et un worker ne doit pas être monopolisé."""
+    monkeypatch.setattr(hubeau, "en_cache", lambda s: True)
+    trop = jobs.SYNC_STATIONS_CACHED + 1
+    r = client.get("/v1/extract", params={"stations": _stations(trop),
+                                          "cards": "QA"})
+    assert r.status_code == 202
+
+
+def test_en_cache_respecte_le_ttl(monkeypatch, tmp_path):
+    """Même critère de fraîcheur que `fetch_chronicle`, écrit une fois :
+    une chronique périmée est une chronique à retélécharger."""
+    import time as _t
+    d = tmp_path / "chroniques"
+    d.mkdir(parents=True)
+    f = d / "K0550010.csv.gz"
+    f.write_bytes(b"x")
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    assert hubeau.en_cache("K0550010")
+    vieux = _t.time() - hubeau.CACHE_TTL - 10
+    os.utime(f, (vieux, vieux))
+    assert not hubeau.en_cache("K0550010")
+    assert not hubeau.en_cache("K9999999")          # jamais téléchargée

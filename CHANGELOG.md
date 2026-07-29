@@ -194,6 +194,58 @@ des deux endroits.
 
 ### Ajouté
 
+- **Le résultat d'un job a enfin toutes ses représentations
+  (2026-07-29) :** `/v1/jobs/{id}/result.csv` et
+  `/v1/jobs/{id}/result/figure`, en plus du JSON. Demander `trend.csv`
+  et recevoir un ticket dont le résultat n'existait qu'en JSON était une
+  friction absurde, et contredisait la doctrine « une représentation,
+  une URL » appliquée partout ailleurs.
+
+  Le résultat d'un job est une **ressource** : ses représentations ne
+  dépendent pas de la porte d'entrée. Un job déposé en demandant du JSON
+  se récupère en CSV, et l'inverse. Ce qui limite le choix n'est pas
+  l'endpoint d'origine mais ce que le résultat CONTIENT : une extraction
+  n'a pas de tendance à dessiner, `/result/figure` y répond 422 en
+  nommant la représentation qui, elle, existe. Rien n'est recalculé et
+  le JSON n'est pas resérialisé : un résultat gelé est un artefact
+  citable, un CSV et une figure en sont des rendus.
+
+  **L'ajout rouvrait le risque de duplication**, sur l'axe du rendu
+  cette fois : les trois rendus étaient alimentés par les DataFrames
+  vivants, alors qu'un résultat gelé n'existe que sérialisé. Trois
+  occasions d'écrire un second chemin. La règle posée est donc qu'un
+  rendu prend le résultat SÉRIALISÉ comme unique entrée, jamais un
+  DataFrame, et les endpoints synchrones y passent aussi. Vérifié avant
+  de s'engager : le CSV produit depuis l'une ou l'autre forme est
+  identique à l'octet près. Un test compare désormais le CSV servi en
+  direct et celui obtenu via un job.
+
+  Au passage, l'orientation est normalisée par le rendu lui-même. Elle
+  l'était chez l'appelant, ce qui suffisait tant qu'il tenait des
+  DataFrames : un résultat gelé sous `orient=columns` aurait produit une
+  figure vide, sans erreur.
+
+- **Le seuil de bascule en job suit le COÛT, plus le nombre de stations
+  (2026-07-29).** Mesuré en production : télécharger une chronique coûte
+  environ 1,2 s, la calculer 0,04 s, trente fois moins. Les mêmes vingt
+  stations valent donc 24 s à froid et 1 s à chaud. Le compteur unique
+  tranchait au mauvais endroit : une demande de vingt stations déjà en
+  cache partait en file, avec ticket, attente et aller-retour, pour
+  économiser une seconde.
+
+  Deux seuils désormais, chacun sur ce qu'il borne réellement.
+  `CARD_API_SYNC_STATIONS` (10) compte les stations **à télécharger** et
+  tient la durée d'une réponse immédiate.
+  `CARD_API_SYNC_STATIONS_CACHED` (60) compte le total et évite qu'une
+  demande énorme, fût-elle toute en cache, monopolise un worker. Savoir
+  si une chronique est là est une lecture de date de fichier, sans
+  réseau, au même critère de fraîcheur que le téléchargement.
+
+  Conséquence assumée : la même URL peut partir en file au premier appel
+  et répondre en direct au second. C'est voulu. Le coût réel varie, il
+  est normal que la décision suive, et la variation joue toujours dans
+  le sens de l'utilisateur.
+
 - **Les refus de quota sont journalisés (2026-07-29).** `check_rate`
   levait son 429 avant tout `log_usage` : un utilisateur repoussé ne
   laissait aucune trace. Impossible de savoir si le plafond mordait, sur

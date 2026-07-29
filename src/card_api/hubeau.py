@@ -163,6 +163,20 @@ def chronicle_fetched_at(station: str) -> str | None:
             .replace(microsecond=0).isoformat())
 
 
+def en_cache(station: str) -> bool:
+    """La chronique est-elle déjà là et encore fraîche ?
+
+    Lecture d'une date de fichier, aucun réseau : la question doit rester
+    assez peu coûteuse pour qu'on la pose avant CHAQUE demande, afin de
+    décider si elle tient dans une réponse immédiate. Même critère de
+    fraîcheur que `fetch_chronicle`, écrit ici une fois pour que les deux
+    ne puissent pas diverger.
+    """
+    cache = data_dir() / "chroniques" / f"{station}.csv.gz"
+    return (cache.exists()
+            and time.time() - cache.stat().st_mtime < CACHE_TTL)
+
+
 def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
     """Chronique journalière complète (id, date, Q en m3/s) d'une station,
     téléchargée puis mise en cache local (TTL 24 h)."""

@@ -39,7 +39,20 @@ import pandas as pd
 from . import hubeau, usage
 
 # Plafonds et réglages d'exploitation (surchager dans .env)
+# DEUX seuils de stations, parce que deux coûts très différents se
+# cachaient derrière un seul compteur. Mesuré le 2026-07-29 en
+# production : télécharger une chronique coûte ~1,2 s, la calculer ~0,04 s,
+# soit trente fois moins. Un même nombre de stations vaut donc 24 s à
+# froid et 1 s à chaud, et un seuil unique tranchait au mauvais endroit :
+# 20 stations déjà en cache partaient en file, avec ticket et aller-retour,
+# pour économiser une seconde.
+#
+# SYNC_STATIONS s'applique aux stations À TÉLÉCHARGER : bas, il borne la
+# durée d'une réponse immédiate. SYNC_STATIONS_CACHED s'applique au total :
+# haut, il empêche qu'une demande de 500 stations toutes en cache
+# monopolise un worker, le calcul restant petit mais pas nul.
 SYNC_STATIONS = int(os.environ.get("CARD_API_SYNC_STATIONS", 10))
+SYNC_STATIONS_CACHED = int(os.environ.get("CARD_API_SYNC_STATIONS_CACHED", 60))
 SYNC_CARDS = int(os.environ.get("CARD_API_SYNC_CARDS", 20))
 JOB_STATIONS = int(os.environ.get("CARD_API_JOB_STATIONS", 100))
 JOB_CARDS = int(os.environ.get("CARD_API_JOB_CARDS", 50))
