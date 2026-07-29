@@ -121,6 +121,16 @@ def _activity_box(entries):
         série = _per_day(sel, 30)
         n_month = sum(série)
         lines.append(f"{label}  {_spark(série)}  {n_month:>5}")
+    # Quelle REPRÉSENTATION a été demandée. Sans cette ligne, un CSV et
+    # une figure se comptent comme du JSON : on ne saurait jamais si ces
+    # deux sorties, ajoutées le 2026-07-28, servent à quelqu'un. Les
+    # entrées d'avant cette date n'ont pas le champ, d'où le défaut.
+    rendus = Counter(e.get("rendu", "json") for e in month
+                     if e["endpoint"] in ("extract", "trend"))
+    if sum(rendus.values()):
+        detail = " · ".join(f"{n} {nom}" for nom, n in rendus.most_common())
+        lines.append(f"          {detail}")
+
     users = len({e["user"] for e in month if "user" in e})
     lines += ["", f"30 jours · {len(month)} requêtes · "
                   f"{users} utilisateurs (IP hachées)", ""]

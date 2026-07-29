@@ -48,6 +48,22 @@ des deux endroits.
 
 ### Ajouté
 
+- **`make stats` distingue la représentation demandée (2026-07-29).** Un
+  CSV et une figure se comptaient comme du JSON : impossible de savoir si
+  ces deux sorties, ajoutées la veille, servaient à quelqu'un. Le journal
+  reçoit un champ `rendu` et le tableau de bord affiche la répartition.
+  Les entrées antérieures n'ont pas le champ et comptent pour du JSON, ce
+  qu'elles étaient.
+
+  **Reste un trou plus large, consigné dans `docs/dev/CHANTIERS.md`** :
+  les endpoints de découverte (`/v1/cards`, `/v1/stations`,
+  `/v1/vocabulary`) ne journalisent rien du tout, alors que c'est
+  probablement là qu'est le gros du trafic. Le tableau de bord
+  sous-estime donc l'audience, ce qui est gênant pour ce à quoi il sert.
+  Y remédier est un arbitrage, pas une correction : le volume du journal
+  changerait d'ordre de grandeur et la comparaison avec l'historique
+  serait rompue.
+
 - **Mentions légales (2026-07-29).** Un service public en ligne en a
   besoin, et celui-ci d'autant plus qu'il journalise un dérivé de
   l'adresse IP. Une section du README les porte : éditeur (INRAE, UR

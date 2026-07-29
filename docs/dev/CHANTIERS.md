@@ -68,6 +68,34 @@ vérification est une capture `chromium --headless --screenshot`, à faire
 **page dépliée et requête exécutée**, sans quoi on ne voit rien des
 défauts réels.
 
+## Le journal ne voit que les calculs
+
+`make stats` compte les requêtes d'`extract`, de `trend` et des jobs, et
+depuis le 2026-07-29 il distingue la **représentation** demandée (json,
+csv, figure), sans quoi on ne saurait jamais si le CSV et la figure
+servent à quelqu'un.
+
+**Mais les endpoints de DÉCOUVERTE ne journalisent rien** : `/v1/cards`,
+`/v1/stations`, `/v1/vocabulary`, le détail et la figure d'une fiche.
+Or c'est probablement là que se fait le gros du trafic, et la
+consultation du catalogue est un usage aussi réel qu'un calcul. Le
+tableau de bord sous-estime donc l'audience, et c'est gênant pour ce à
+quoi il sert : la preuve d'impact dans un dossier de financement.
+
+Ce n'est pas un oubli à corriger machinalement, c'est un arbitrage :
+
+- **pour** : une mesure d'usage qui reflète la réalité, et le prix est
+  d'une ligne par requête dans un fichier déjà petit ;
+- **contre** : ces endpoints sont appelés en rafale (un menu de `/docs`
+  qui se peuple, un site tiers qui interroge le catalogue à chaque
+  visite), donc le volume du journal change d'ordre de grandeur, et la
+  ligne de « requêtes » ne voudra plus dire la même chose qu'avant, ce
+  qui casse la comparaison avec l'historique.
+
+Si on le fait, deux précautions : distinguer les deux familles dans le
+tableau de bord plutôt que de les additionner, et ne pas journaliser
+`/v1` ni `/` qui sont des redirections de découverte sans contenu.
+
 ## À surveiller : les décomptes écrits dans les textes
 
 Retirés des descriptions d'API le 2026-07-28, et un test refuse

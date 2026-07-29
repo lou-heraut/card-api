@@ -1314,7 +1314,7 @@ class ExtractParams(BaseModel):
     orient: _Orient = Field("records", description=_D_ORIENT)
 
 
-def _extract_result(request: Request, p: ExtractParams):
+def _extract_result(request: Request, p: ExtractParams, rendu="json"):
     """Le calcul, partagé par les deux représentations d'extract.
 
     Rend (résultat JSON, données par fiche), ou (ticket, None) si la
@@ -1339,7 +1339,8 @@ def _extract_result(request: Request, p: ExtractParams):
     extracted = res["data"]
     if not isinstance(extracted, dict):
         extracted = {cd[0]: extracted}
-    usage.log_usage(request, "extract", stations=len(st), cards=cd)
+    usage.log_usage(request, "extract", stations=len(st), cards=cd,
+                    rendu=rendu)
     out = {
         **versions(),
         "rights": rights(),
@@ -1390,7 +1391,7 @@ def extract_csv(request: Request, p: Annotated[ExtractParams, Query()]):
     dans la donnée. `pandas.pivot` ou `tidyr::pivot_wider` remettent en
     large si besoin.
     """
-    out, extracted = _extract_result(request, p)
+    out, extracted = _extract_result(request, p, rendu="csv")
     if extracted is None:
         return _csv_job(out)
     longues = []
@@ -1434,7 +1435,7 @@ class TrendParams(BaseModel):
     orient: _Orient = Field("records", description=_D_ORIENT)
 
 
-def _trend_result(request: Request, p: TrendParams):
+def _trend_result(request: Request, p: TrendParams, rendu="json"):
     """Le calcul, partagé par les deux représentations.
 
     Rend soit un ticket de job (la demande dépassait les plafonds
@@ -1461,7 +1462,8 @@ def _trend_result(request: Request, p: TrendParams):
         except ValueError as e:
             raise HTTPException(422, str(e))
 
-    usage.log_usage(request, "trend", stations=len(st), cards=cd, mk=p.mk)
+    usage.log_usage(request, "trend", stations=len(st), cards=cd,
+                    mk=p.mk, rendu=rendu)
     out = {
         **versions(),
         "rights": rights(),
@@ -1516,7 +1518,7 @@ def trend_csv(request: Request, p: Annotated[TrendParams, Query()]):
     Contrairement à la figure, rien n'est retiré : le CSV est le même
     résultat autrement écrit, intervalles de pente compris.
     """
-    out, tr = _trend_result(request, p)
+    out, tr = _trend_result(request, p, rendu="csv")
     if tr is None:
         return _csv_job(out)
     table = pd.concat(list(tr["data"].values()), ignore_index=True)
@@ -1537,7 +1539,7 @@ def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
     intervalles de pente, la moyenne de période, les métadonnées des
     fiches) reste dans `/v1/trend`.
     """
-    out, tr = _trend_result(request, p)
+    out, tr = _trend_result(request, p, rendu="figure")
     if tr is None:                       # la demande est partie en job
         return PlainTextResponse(
             f"Demande trop grosse pour une réponse immédiate : elle est "
