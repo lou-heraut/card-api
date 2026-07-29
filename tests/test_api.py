@@ -272,7 +272,7 @@ def test_l_identifiant_d_une_fiche_est_rendu_par_le_catalogue():
     assert client.get("/v1/cards/" + fiche["id"]).status_code == 200
 
 
-def test_la_tendance_se_lit_aussi_dessinee():
+def test_la_tendance_se_lit_aussi_dessinee(hubeau_simule):
     """Une représentation, une URL. La figure est un endpoint et non un
     paramètre `format` : une opération dont le type de média dépendrait
     d'un paramètre de requête ne peut pas se décrire en OpenAPI, et le
@@ -299,7 +299,7 @@ def test_la_tendance_se_lit_aussi_dessinee():
                     spec["/v1/trend/figure"]["get"]["parameters"]]
 
 
-def test_le_csv_porte_sa_provenance():
+def test_le_csv_porte_sa_provenance(hubeau_simule):
     """Un CSV ne sait pas porter de bloc `versions` : livré nu, il devient
     en trois copies un tableau de chiffres dont plus personne ne sait d'où
     il vient, c'est-à-dire ce que ce service existe pour éviter. La
@@ -327,7 +327,7 @@ def test_le_csv_porte_sa_provenance():
     assert set(d["variable"]) == {"QA", "VCN10"}
 
 
-def test_le_nom_du_fichier_dit_l_analyse():
+def test_le_nom_du_fichier_dit_l_analyse(hubeau_simule):
     """Du plus général au plus particulier, pour que deux analyses
     voisines se rangent côte à côte. L'empreinte des données termine le
     nom : deux extractions séparées par une révision Hub'Eau ne
@@ -364,7 +364,7 @@ def test_les_csv_ont_un_contrat_exact():
                 == [q["name"] for q in paths[b]["get"]["parameters"]])
 
 
-def test_le_bandeau_csv_ne_contient_aucune_virgule():
+def test_le_bandeau_csv_ne_contient_aucune_virgule(hubeau_simule):
     """Un tableur n'a pas de notion de commentaire : il affiche les
     lignes `#` comme des données et les DÉCOUPE sur les virgules. Le
     bandeau se retrouvait éparpillé sur huit colonnes.
@@ -382,7 +382,7 @@ def test_le_bandeau_csv_ne_contient_aucune_virgule():
     assert any("QA · VCN10" in ligne for ligne in entete)
 
 
-def test_la_fenetre_par_defaut_demarre_en_1968():
+def test_la_fenetre_par_defaut_demarre_en_1968(hubeau_simule):
     """Pas « toute la chronique » : 1968 est la borne d'analyse du projet
     et le point où le réseau français devient assez fourni pour que des
     stations se comparent. La période effective est publiée, donc le

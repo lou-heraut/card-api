@@ -907,11 +907,17 @@ def _parse_lists(stations, cards, prio=None):
         raise HTTPException(422, "stations et cards sont requis")
     max_st = jobs.PRIORITY_STATIONS if prio else jobs.JOB_STATIONS
     max_cd = jobs.PRIORITY_CARDS if prio else jobs.JOB_CARDS
-    if len(st) > max_st or len(cd) > max_cd:
+    # 0 = sans limite (cf. jobs.py) : un plafond de clé peut vouloir dire
+    # « toutes », et l'écrire en nombre le ferait périmer avec le corpus.
+    depasse = (max_st > 0 and len(st) > max_st) or \
+              (max_cd > 0 and len(cd) > max_cd)
+    if depasse:
         hint = ("" if prio else
                 " ; besoin plus large : demandez une clé de priorité")
+        dit_st = max_st if max_st > 0 else "sans limite"
+        dit_cd = max_cd if max_cd > 0 else "sans limite"
         raise HTTPException(
-            422, f"au plus {max_st} stations et {max_cd} fiches par "
+            422, f"au plus {dit_st} stations et {dit_cd} fiches par "
                  f"demande (au-delà de {jobs.SYNC_STATIONS} stations ou "
                  f"{jobs.SYNC_CARDS} fiches, la demande devient un "
                  f"job){hint}")

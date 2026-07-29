@@ -68,20 +68,12 @@ vérification est une capture `chromium --headless --screenshot`, à faire
 **page dépliée et requête exécutée**, sans quoi on ne voit rien des
 défauts réels.
 
-## À surveiller : deux nombres figés
+## À surveiller : les décomptes écrits dans les textes
 
-Petits, sans urgence, mais ils périment en silence.
-
-- **`CARD_API_PRIORITY_CARDS=226`** (`.env.example`, `compose.yaml`,
-  `jobs.py`) vaut la taille du corpus au jour où il a été écrit. L'intention
-  est « pas de plafond pour un porteur de clé » ; le jour où card passe à
-  240 fiches, ce plafond redevient un plafond, sans que personne ne l'ait
-  décidé. Le faire dériver du corpus, ou documenter que 0 vaut « sans
-  limite ».
-- **Les décomptes de fiches dans les textes.** Retirés des descriptions
-  d'API le 2026-07-28 (un test le garantit désormais), mais il en reste
-  dans les entrées de `CHANGELOG.md`. Là c'est justifié : une entrée
-  datée décrit un état à une date, elle n'a pas à suivre le corpus.
+Retirés des descriptions d'API le 2026-07-28, et un test refuse
+désormais le motif. Il en reste dans les entrées de `CHANGELOG.md`, et
+c'est justifié : une entrée datée décrit un état à une date, elle n'a pas
+à suivre le corpus.
 
 ## Rendre le catalogue lisible, pas seulement exact
 
@@ -105,20 +97,28 @@ chaîne de traitement d'une fiche, que `method` décrit déjà en prose
 numérotée. À instruire avec le chantier documentation de card plutôt
 qu'en isolé, puisque la matière vient des fiches.
 
-## Intégration continue, et faut-il déployer depuis le CI
+## Intégration continue : le volet tests est livré, le déploiement reste manuel
 
-Ouvert le 2026-07-22, **toujours ouvert et devenu le principal écart
-entre les trois dépôts**. card-api n'a aucun workflow : ses 71 tests ne
-tournent que sur la machine de l'utilisateur, alors que card et stase
-lancent pytest et ruff à chaque push. Un test qui ne tourne que chez soi
-finit par ne plus tourner du tout.
+Ouvert le 2026-07-22, **volet tests livré le 2026-07-28**
+(`.github/workflows/tests.yml`) : pytest sur 3.11 et 3.12, ruff avec la
+version épinglée du `pyproject.toml`. card-api rejoint ainsi card et
+stase, et l'écart entre les trois dépôts est refermé.
 
-Le 2026-07-28 a montré que le sujet n'est pas théorique : le lint de
-stase était **rouge depuis une sortie de ruff**, sans qu'une ligne de
-code ait bougé, parce que le workflow installait `ruff` sans version. Les
-trois dépôts épinglent désormais la version et déclarent leur jeu de
-règles dans `pyproject.toml` ; un workflow pour card-api reprendrait
-celui de card presque tel quel, en installant `.[dev]`.
+Le sujet n'était pas théorique : le lint de stase était **rouge depuis
+une sortie de ruff**, sans qu'une ligne de code ait bougé, parce que le
+workflow installait `ruff` sans version. Les trois épinglent désormais la
+version et déclarent leur jeu de règles au même endroit.
+
+**Le déploiement depuis le CI reste écarté** (réserve explicite de
+l'utilisateur, 2026-07-22, non rediscutée) : `make update` sur la VM
+reste un geste conscient. La production suit `main`, mais c'est lui qui
+décide du moment. Ne pas le proposer comme une évidence.
+
+**Ce que le CI ne couvre pas, et qu'il faut savoir :** les tests `live`
+(Hub'Eau réel) restent derrière `CARD_API_LIVE`, volontairement. Un CI
+qui dépend d'un service tiers vire rouge un jour de maintenance, et
+personne ne regarde plus les rouges. Ces tests-là se lancent à la main
+avant un déploiement qui touche au client Hub'Eau.
 
 Deux niveaux à ne pas confondre, et l'utilisateur ne veut pas du second :
 

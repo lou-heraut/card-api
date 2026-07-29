@@ -9,6 +9,7 @@ import httpx
 import numpy as np
 import pandas as pd
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from card_api import hubeau, jobs, keys, usage
@@ -167,3 +168,24 @@ def test_hubeau_down_maps_to_504(monkeypatch):
                    params={"stations": "K0550010", "cards": "QA"})
     assert r.status_code == 504
     assert r.headers.get("retry-after") == "300"
+
+
+def test_le_plafond_zero_vaut_sans_limite(monkeypatch):
+    """« Toutes les fiches » est une intention ; l'écrire en nombre la
+    fait périmer. Le défaut valait 226, la taille du corpus au jour où il
+    a été écrit : il redevenait un vrai plafond dès que card gagnait une
+    fiche, sans que personne ne l'ait décidé."""
+    from card_api import jobs
+    from card_api.main import _parse_lists
+
+    monkeypatch.setattr(jobs, "PRIORITY_CARDS", 0)
+    monkeypatch.setattr(jobs, "PRIORITY_STATIONS", 2)
+    fiches = ",".join(f"F{i:03d}" for i in range(300))
+    _st, cd = _parse_lists("F700000103", fiches, prio={"prefix": "abcd"})
+    assert len(cd) == 300, "0 doit lever le plafond, pas le poser à zéro"
+
+    # un plafond non nul reste un plafond, et le message le dit
+    monkeypatch.setattr(jobs, "PRIORITY_CARDS", 5)
+    with pytest.raises(HTTPException) as e:
+        _parse_lists("F700000103", fiches, prio={"prefix": "abcd"})
+    assert "au plus 2 stations et 5 fiches" in e.value.detail

@@ -46,9 +46,16 @@ JOB_STATIONS = int(os.environ.get("CARD_API_JOB_STATIONS", 100))
 JOB_CARDS = int(os.environ.get("CARD_API_JOB_CARDS", 50))
 JOB_TTL_DAYS = float(os.environ.get("CARD_API_JOB_TTL_DAYS", 7))
 JOB_QUEUE_MAX = int(os.environ.get("CARD_API_JOB_QUEUE_MAX", 100))
-# Plafonds des porteurs de clé de priorité (tête de file en sus)
+# Plafonds des porteurs de clé de priorité (tête de file en sus).
+#
+# **0 vaut SANS LIMITE**, et c'est le défaut pour les fiches. Le défaut
+# était 226, c'est-à-dire la taille du corpus au jour où il a été écrit :
+# il voulait dire « toutes les fiches » mais redevenait un vrai plafond
+# dès que card gagnait une fiche, sans que personne ne l'ait décidé et
+# sans que rien ne le signale. Un plafond doit être un choix, pas une
+# coïncidence avec une donnée qui bouge ailleurs.
 PRIORITY_STATIONS = int(os.environ.get("CARD_API_PRIORITY_STATIONS", 1000))
-PRIORITY_CARDS = int(os.environ.get("CARD_API_PRIORITY_CARDS", 226))
+PRIORITY_CARDS = int(os.environ.get("CARD_API_PRIORITY_CARDS", 0))
 WORKERS = 2
 
 # Concurrence de calcul bornée, partagée entre synchrone et jobs

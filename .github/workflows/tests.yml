@@ -1,0 +1,57 @@
+name: tests
+
+# Exécuter les tests, rien d'autre. Le déploiement reste `make update`
+# sur la VM, un geste conscient : la production suit `main`, mais c'est
+# l'auteur qui décide du moment (arbitrage consigné dans
+# docs/dev/CHANTIERS.md, à ne pas rouvrir sans lui).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # card et stase ne sont pas sur PyPI : installés depuis GitHub, à
+  # `main`, comme le fait l'image Docker. Un test qui passerait ici
+  # contre une révision figée ne dirait rien de la production.
+  STASE_GIT: "stase @ git+https://github.com/lou-heraut/stase.git"
+  CARD_GIT: "card @ git+https://github.com/lou-heraut/card.git"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    name: pytest (py${{ matrix.python-version }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install "${{ env.STASE_GIT }}" "${{ env.CARD_GIT }}"
+          pip install -e .[dev]
+      # La suite est HORS-LIGNE : Hub'Eau est simulé par la fixture
+      # `hubeau_simule` de tests/conftest.py. Les tests qui appellent
+      # vraiment le réseau sont derrière CARD_API_LIVE, laissé absent :
+      # un CI qui dépend d'un service tiers vire rouge le jour d'une
+      # maintenance, et personne ne regarde plus les rouges.
+      - name: Run tests
+        run: pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # La version de ruff et son jeu de règles sont dans pyproject.toml,
+      # un seul endroit : « passe en local » doit impliquer « passe en
+      # CI ». Recopier le numéro ici recréerait l'écart qu'on répare.
+      - run: pip install -e .[dev]
+      - run: ruff check src tests scripts

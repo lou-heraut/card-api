@@ -24,6 +24,22 @@ des deux endroits.
 
 ### Ajouté
 
+- **card-api a enfin un CI (2026-07-29) :** pytest sur 3.11 et 3.12, ruff
+  à la version épinglée du `pyproject.toml`. Le dépôt rejoint card et
+  stase, et 73 tests cessent de ne tourner que sur une seule machine. Le
+  **déploiement reste manuel** (`make update` sur la VM), réserve
+  explicite et non rediscutée : la production suit `main`, mais le moment
+  se décide. Les tests réseau restent derrière `CARD_API_LIVE`, un CI qui
+  dépend d'un service tiers virant rouge un jour de maintenance.
+
+- **Le plafond « toutes les fiches » cesse de périmer (2026-07-29) :**
+  `CARD_API_PRIORITY_CARDS` vaut désormais **0 = sans limite**, au lieu
+  de `226`, qui était la taille du corpus au jour où la valeur a été
+  écrite. Elle voulait dire « toutes les fiches » mais redevenait un vrai
+  plafond dès que card en gagnait une, sans que personne ne l'ait décidé
+  et sans que rien ne le signale. Un plafond doit être un choix, pas une
+  coïncidence avec une donnée qui bouge ailleurs.
+
 - **Les listes se collent au lieu de se recopier (2026-07-28).**
   Enchaîner deux endpoints demandait de relever les identifiants un par
   un dans une réponse JSON puis de les rejoindre par des virgules à la
@@ -342,6 +358,16 @@ des deux endroits.
   preuve que le renommage n'a rien changé au calcul.
 
 ### Corrigé
+
+- **La suite « hors-ligne » ne l'était plus (2026-07-29).** `conftest`
+  place le cache des chroniques dans un dossier temporaire, donc toujours
+  vide : les tests ajoutés la veille, qui appellent `/v1/trend` et
+  `/v1/extract.csv` sans simuler Hub'Eau, partaient chercher la vraie
+  chronique sur le réseau. Une suite qui se dit hors-ligne et dépend d'un
+  service tiers est lente, et rouge le jour d'une maintenance. La
+  chronique simulée devient une fixture partagée (`hubeau_simule`) au
+  lieu d'être recopiée par fichier, et la suite passe désormais **réseau
+  coupé**, ce qui est la seule vérification qui vaut.
 
 - **`/v1` cachait une partie du service (2026-07-28).** Sa liste
   `endpoints` était recopiée à la main : les trois endpoints ajoutés le
