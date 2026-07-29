@@ -184,10 +184,19 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
         "fields": "code_station,date_obs_elab,resultat_obs_elab",
     })
     if not rows:
+        # DEUX causes, et le message ne doit pas trancher pour l'une.
+        # Il accusait la refonte Hydro et renvoyait vers /v1/stations,
+        # conseil qui tourne en rond quand le code est bon : U430003001
+        # est à jour, en service, et n'a simplement aucun débit publié
+        # (échelle limnimétrique, une hauteur sans courbe de tarage ne
+        # devient pas un débit). Vérifié le 2026-07-29.
         raise StationInconnue(
-            f"aucune chronique QmnJ pour {station!r} : les codes ont changé "
-            "depuis la refonte Hydro, cherchez le nouveau code via "
-            "/v1/stations"
+            f"aucune chronique de débit journalier (QmnJ) pour {station!r}. "
+            "Soit la station n'en publie pas, cas d'une échelle "
+            "limnimétrique, que ni type_station ni en_service n'annoncent ; "
+            "soit le code n'existe plus depuis la refonte Hydro. "
+            "/v1/stations dit lequel des deux : s'il rend la station, le "
+            "code est bon et c'est la série qui manque"
         )
     # Hub'Eau sert DEUX FOIS la même mesure quand le code demandé est un
     # code de SITE : une ligne étiquetée avec la station qui l'a produite,
