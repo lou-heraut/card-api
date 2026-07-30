@@ -13,3 +13,7 @@ examples/.env
 # brouillon personnel de l'utilisateur : hors git, et Claude ne l'ouvre pas
 note.txt
 notes.txt
+
+# bac à essais de l'utilisateur : y déposer ce qui doit disparaître du
+# `git status`. Rien de ce qui s'y trouve ne regarde qui que ce soit.
+bac/

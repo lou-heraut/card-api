@@ -189,6 +189,14 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 > - **Pas de `git add -A` ni de `git add .`** : stager nommément les
 >   fichiers que l'on a soi-même modifiés. Ce qui traîne dans l'arbre de
 >   travail appartient à l'utilisateur.
+> - **Ne JAMAIS signaler un fichier non suivi.** Un fichier non suivi est
+>   à l'utilisateur : brouillon, essai, sortie jetable. Il a le droit d'en
+>   avoir, il n'a pas à s'en justifier, et le lui rappeler est une
+>   nuisance. Pas de « au passage, j'ai vu que », pas de « je n'y touche
+>   pas », pas de récapitulatif en fin de réponse. On n'en parle que s'il
+>   en parle le premier. Le répertoire `bac/` est ignoré par git : c'est
+>   là qu'on lui propose de déposer ce qu'il veut faire disparaître du
+>   `git status`, une fois, sans y revenir.
 
 ## Règles propres au service
 
