@@ -22,6 +22,27 @@ des deux endroits.
 
 ## Non publié
 
+### Ce qui change en suivant `card`
+
+Le service suit `main`, donc ces changements arriveront en ligne au
+`make update` suivant sans geste ici. Ils sont notés parce qu'ils se
+voient dans les réponses, pas parce qu'il y aurait quelque chose à faire.
+Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
+2026-08-01).
+
+- **Six fiches rendent d'autres valeurs.** `fQ01A`, `fQ05A`, `fQ10A` et
+  leurs `delta-*_H` ne comptent plus les lacunes au dénominateur de leur
+  fréquence de dépassement. Une chronique trouée rendait jusque-là une
+  fréquence trop basse, exactement de sa part de lacunes. Un résultat
+  antérieur n'est donc pas comparable au même appel aujourd'hui : c'est
+  le commit de card publié dans chaque réponse qui les distingue.
+- **`/v1/cards/{id}/figure?lang=en` est entièrement en anglais.** Les
+  explications de fonctions y restaient en français, seul morceau de la
+  figure à ne pas être traduit.
+- **Une figure dit désormais ce qu'elle calcule** là où six fiches
+  annonçaient l'inverse, et les valeurs littérales d'un appel
+  (`ratio_longest_run(dQXA, 2)`) ne sont plus tues.
+
 ### Corrigé
 
 - **Une station muette n'annule plus un JOB non plus, et la chaîne

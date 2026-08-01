@@ -47,7 +47,7 @@ les droits qui vont avec.
 | `GET /v1` | point d'entrée : ce qu'est le service, ce qu'il relie, droits |
 | `GET /v1/cards` | catalogue des fiches CARD, filtrable par facettes ; `ids` rend la sélection prête à coller |
 | `GET /v1/cards/{id}` | détail d'une fiche (fr/en) et liens vers sa définition |
-| `GET /v1/cards/{id}/figure` | la fiche **dessinée** (texte) : sa chaîne de calcul |
+| `GET /v1/cards/{id}/figure` | la fiche **dessinée** (texte) : sa chaîne de calcul, `lang=fr` ou `en` |
 | `GET /v1/vocabulary` | valeurs valides des facettes, donc les filtres acceptés |
 | `GET /v1/stations` | recherche de stations ; `codes` rend la sélection prête à coller |
 | `GET /v1/extract` | chroniques Hub'Eau → variables CARD |
