@@ -1,7 +1,7 @@
 # Interface de déploiement. Usage : make <cible>
 # Prérequis : docker + docker compose, fichier .env (cf. .env.example).
 
-.PHONY: help env up apache update logs status stats watch key keys key-revoke down test lint
+.PHONY: help env refs up apache update logs status stats watch key keys key-revoke down test lint
 .ONESHELL:
 
 help:            ## liste des cibles
@@ -16,8 +16,31 @@ env:             ## crée .env depuis l'exemple (à éditer ensuite)
 	  && sed -i "s/changez-moi/$$(openssl rand -hex 16)/" .env \
 	  && echo ".env créé (sel généré), éditer DOMAIN puis: make up")
 
-up: env          ## construit et lance (première fois ou après modif locale)
+# `main` est une cible MOUVANTE, et Docker met une couche en cache
+# d'après le TEXTE de son instruction : `pip install .../main.tar.gz` ne
+# change jamais, donc la couche n'est jamais refaite et card reste à la
+# révision du tout premier build. Constaté le 2026-08-04, la prod servait
+# un corpus vieux de deux semaines en annonçant honnêtement son commit.
+#
+# On résout donc `main` en son commit ICI. L'ARG change dès que le dépôt
+# bouge, la couche s'invalide d'elle-même, et `build_refs.json` devient
+# vrai par construction puisque la ref installée EST le commit. Aucun
+# geste manuel : pour figer, il suffit de poser CARD_REF=<sha> dans .env,
+# qui reste prioritaire.
+refs:
+	@set -e
+	CARD_REF=$${CARD_REF:-$$(sed -n 's/^CARD_REF=//p' .env 2>/dev/null || true)}
+	STASE_REF=$${STASE_REF:-$$(sed -n 's/^STASE_REF=//p' .env 2>/dev/null || true)}
+	CARD_REF=$${CARD_REF:-$$(git ls-remote https://github.com/lou-heraut/card main | cut -f1)}
+	STASE_REF=$${STASE_REF:-$$(git ls-remote https://github.com/lou-heraut/stase main | cut -f1)}
+	test -n "$$CARD_REF" -a -n "$$STASE_REF" || { echo "refs non résolues (réseau ?)"; exit 1; }
+	echo "card  $$CARD_REF"
+	echo "stase $$STASE_REF"
+	export CARD_REF STASE_REF
 	docker compose up -d --build
+
+up: env          ## construit et lance (première fois ou après modif locale)
+	@$(MAKE) --no-print-directory refs
 
 apache:          ## génère et active le vhost Apache (DOMAIN lu dans .env)
 	@set -e
@@ -46,7 +69,7 @@ apache:          ## génère et active le vhost Apache (DOMAIN lu dans .env)
 
 update:          ## met à jour le code et redéploie
 	git pull --ff-only
-	docker compose up -d --build
+	@$(MAKE) --no-print-directory refs
 	@$(MAKE) --no-print-directory status
 
 logs:            ## suit les logs de l'API
