@@ -25,17 +25,32 @@ env:             ## crée .env depuis l'exemple (à éditer ensuite)
 # On résout donc `main` en son commit ICI. L'ARG change dès que le dépôt
 # bouge, la couche s'invalide d'elle-même, et `build_refs.json` devient
 # vrai par construction puisque la ref installée EST le commit. Aucun
-# geste manuel : pour figer, il suffit de poser CARD_REF=<sha> dans .env,
-# qui reste prioritaire.
+# CARD_REF nomme une REF, jamais une version installée : `main`, un tag
+# ou un SHA. On la RÉSOUT toujours, sauf si c'est déjà un SHA de 40
+# caractères. Poser `CARD_REF=main` dans .env ne fige donc rien, c'est le
+# défaut ; pour figer vraiment, on y met un SHA ou un tag.
 refs:
 	@set -e
+	resoudre() {
+	  depot=$$1; ref=$$2
+	  case "$$ref" in
+	    *[!0-9a-f]* | "" ) ;;
+	    ????????????????????????????????????????) echo "$$ref"; return ;;
+	  esac
+	  sha=$$(git ls-remote "https://github.com/lou-heraut/$$depot" "$$ref" \
+	         | grep -E "refs/(heads|tags)/$$ref(\^\{\})?$$" | tail -1 | cut -f1)
+	  test -n "$$sha" || { echo "ref '$$ref' introuvable dans $$depot" >&2; exit 1; }
+	  echo "$$sha"
+	}
 	CARD_REF=$${CARD_REF:-$$(sed -n 's/^CARD_REF=//p' .env 2>/dev/null || true)}
 	STASE_REF=$${STASE_REF:-$$(sed -n 's/^STASE_REF=//p' .env 2>/dev/null || true)}
-	CARD_REF=$${CARD_REF:-$$(git ls-remote https://github.com/lou-heraut/card main | cut -f1)}
-	STASE_REF=$${STASE_REF:-$$(git ls-remote https://github.com/lou-heraut/stase main | cut -f1)}
-	test -n "$$CARD_REF" -a -n "$$STASE_REF" || { echo "refs non résolues (réseau ?)"; exit 1; }
-	echo "card  $$CARD_REF"
-	echo "stase $$STASE_REF"
+	CARD_REF=$${CARD_REF:-main}; STASE_REF=$${STASE_REF:-main}
+	CARD_SHA=$$(resoudre card $$CARD_REF) || exit 1
+	STASE_SHA=$$(resoudre stase $$STASE_REF) || exit 1
+	test -n "$$CARD_SHA" -a -n "$$STASE_SHA" || exit 1
+	echo "card  $$CARD_REF -> $$CARD_SHA"
+	echo "stase $$STASE_REF -> $$STASE_SHA"
+	CARD_REF=$$CARD_SHA; STASE_REF=$$STASE_SHA
 	export CARD_REF STASE_REF
 	docker compose up -d --build
 
