@@ -10,6 +10,9 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
 - `docs/dev/API.md` : conception et arbitrages (accès public sans clé,
   quotas IP, journal anonymisé, aspect commercial écarté).
 - `docs/dev/CHANTIERS.md` : pistes ouvertes du service, seulement.
+- Ménage documentaire : la procédure est commune aux trois dépôts et vit
+  dans `../card/docs/dev/NETTOYAGE.md`, avec l'état de la campagne en
+  cours. Rien à en recopier ici.
 
 ## Structure
 
@@ -253,7 +256,7 @@ Doctrine complète : « Versions, en quatre phrases », en tête de
   utiles à card et stase, qui se citent.
 
 
-## État (2026-07-29)
+## État
 
 Le service est **déployé** depuis le 2026-07-17 sur la VM de
 l'utilisateur, derrière l'Apache qui y sert déjà d'autres services
@@ -270,14 +273,6 @@ Ce qui a été livré et quand se lit dans `CHANGELOG.md`, ce qui reste
 ouvert dans `docs/dev/CHANTIERS.md`. Ces deux fichiers font foi : ne pas
 les paraphraser ici, cette section ne doit pas regonfler à chaque
 chantier.
-
-**Passe de finalisation des 2026-07-28 et 29, avant diffusion.** Les
-trois dépôts sont verts, trois lints propres, ruff épinglé et jeu de
-règles déclaré dans les trois `pyproject.toml`. card-api a désormais un
-CI (pytest 3.11/3.12 + ruff) ; le déploiement reste manuel, réserve
-explicite de l'utilisateur. Le décompte des tests n'est pas écrit ici :
-il périme à chaque test ajouté, `pytest` le donne (même raison que la
-règle sur les décomptes plus haut).
 
 Trois points qui ne se déduisent pas du code :
 

@@ -43,6 +43,17 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   annonçaient l'inverse, et les valeurs littérales d'un appel
   (`ratio_longest_run(dQXA, 2)`) ne sont plus tues.
 
+### Modifié
+
+- **La section « État » du CLAUDE.md ne raconte plus une passe de
+  travail (2026-08-05).** Le paragraphe de finalisation des 2026-07-28
+  et 29 affirmait « les trois dépôts sont verts », phrase qui ne peut
+  que vieillir, et redisait ce que le CHANGELOG et le CI portent déjà.
+  Le déploiement resté manuel, seul point durable qu'il contenait, est
+  une décision consignée dans `CHANTIERS.md`. Le CLAUDE.md indique aussi
+  où lire la procédure de ménage documentaire commune aux trois dépôts
+  (`../card/docs/dev/NETTOYAGE.md`), qui n'était nommée que dans card.
+
 ### Corrigé
 
 - **Une station muette n'annule plus un JOB non plus, et la chaîne
