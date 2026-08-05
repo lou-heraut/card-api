@@ -382,6 +382,16 @@ Le service ne fournit que des débits journaliers (fiches à entrée
 `Q`) ; le diagnostic de tendance ne s'applique qu'aux fiches de forme
 `series` (la tendance d'un scalaire ou d'une courbe n'a pas de sens).
 
+## L'écosystème
+
+| | |
+|---|---|
+| [card](https://github.com/lou-heraut/card) | le recueil de fiches, en Python |
+| [stase](https://github.com/lou-heraut/stase) | le moteur d'agrégation et de tendance |
+| [card4r](https://github.com/lou-heraut/card4r) | le même recueil, appelé depuis R |
+| **card-api** | le service web, sur les débits Hub'Eau (vous êtes ici) |
+| [CARD-R](https://github.com/lou-heraut/CARD-R) · [EXstat](https://github.com/lou-heraut/EXstat) | les paquets R historiques, remplacés |
+
 ## Citer
 
 Les métadonnées de citation sont dans [CITATION.cff](CITATION.cff)
