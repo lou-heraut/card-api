@@ -235,8 +235,9 @@ dans `.python_env/` (cf. INSTALL.md), puis `uvicorn card_api.main:app
 
 ## Versions et citation
 
-Doctrine complète : « Versions, en quatre phrases », en tête de
-`CHANGELOG.md`. Ce qu'il ne faut pas rater :
+Doctrine complète : « Numérotation », en tête de `CHANGELOG.md` (card et
+stase ont la leur, plus exigeante, puisqu'on les installe). Ce qu'il ne
+faut pas rater :
 
 - **Au quotidien : rien.** La production suit `main`, le service publie
   le commit et le SWHID de card et de stase dans chaque réponse. Le seul
@@ -251,9 +252,15 @@ Doctrine complète : « Versions, en quatre phrases », en tête de
   Heritage d'une révision git, calculable sans aucun appel d'API. Il ne
   résout que si le dépôt est archivé : fait le 2026-07-22 pour les trois,
   et SWH revisite tout seul ensuite. Rien à refaire par version.
-- Le service n'a pas besoin d'être tagué : personne ne l'installe. Ce
-  qui l'identifie dans un résultat, c'est son commit. Les tags sont
-  utiles à card et stase, qui se citent.
+- Le service n'a pas besoin d'être tagué au rythme des correctifs :
+  personne ne l'installe, et ce qui l'identifie dans un résultat est son
+  commit. **Une exception, le contrat** : `api_version` part dans chaque
+  réponse et dans l'OpenAPI, donc un changement de ce qu'un client voit
+  (route, champ, empreinte, quota) se publie le jour où il est livré.
+  Sinon, laisser le numéro en place est le bon comportement.
+  `python scripts/set_version.py --etat` donne les faits. **Le proposer
+  soi-même** quand le contrat bouge : l'utilisateur ne le demandera pas,
+  il l'a dit explicitement le 2026-08-05.
 
 
 ## État

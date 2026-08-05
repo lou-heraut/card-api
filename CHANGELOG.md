@@ -16,6 +16,25 @@ Heritage depuis le 2026-07-22, donc ces identifiants résolvent. Publier
 une version tient en une commande : `python scripts/set_version.py
 0.3.0`, qui accorde `pyproject.toml`, `CITATION.cff` et
 `codemeta.json`.
+
+**Quand couper ?** Ici, presque jamais, et c'est délibéré : personne
+n'installe le service, si bien qu'un numéro qui suivrait le rythme des
+correctifs n'apporterait rien que le commit publié ne dise déjà mieux.
+
+Une exception, et une seule : **le numéro est un contrat.**
+`API_VERSION` le lit dans les métadonnées du paquet et le publie dans
+chaque réponse comme dans le document OpenAPI. Donc dès que ce qu'un
+client voit change (une route, un champ de réponse, le calcul
+d'empreinte, une règle de quota), on coupe le jour où c'est livré : sans
+numéro, un client n'a aucun moyen de désigner la rupture, ni de dire
+contre quelle forme du service il a écrit son code. Le reste du temps,
+laisser le numéro en place est le bon comportement, pas un oubli.
+
+`python scripts/set_version.py --etat` donne les faits (dernier tag,
+commits depuis, entrées non publiées) sans rien décider. La même commande
+existe dans card et dans stase, où la règle est plus exigeante puisqu'on
+les installe : leur cinquième phrase de CHANGELOG dit laquelle.
+
 Chaque entrée dit ce qui a changé et renvoie au document qui l'explique.
 Rien n'est recopié ici : une information recopiée finit par mentir à un
 des deux endroits.
@@ -42,6 +61,22 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
 - **Une figure dit désormais ce qu'elle calcule** là où six fiches
   annonçaient l'inverse, et les valeurs littérales d'un appel
   (`ratio_longest_run(dQXA, 2)`) ne sont plus tues.
+
+### Ajouté
+
+- **La règle de numérotation dit enfin QUAND couper, et pourquoi presque
+  jamais ici (2026-08-05).** « Le service n'a pas besoin d'être tagué »
+  restait une décision sans frontière : elle est vraie au rythme des
+  correctifs, fausse quand le contrat change, car `API_VERSION` part dans
+  chaque réponse et dans l'OpenAPI. La règle nomme donc l'exception (une
+  route, un champ, le calcul d'empreinte, une règle de quota se publient
+  le jour où ils sont livrés) et assume le reste : laisser le numéro en
+  place est le bon comportement, pas un oubli. `set_version.py --etat`
+  donne les faits (dernier tag, commits depuis, entrées non publiées)
+  sans rien décider. La même commande existe dans card et dans stase, où
+  la règle est plus exigeante puisqu'on les installe. Au passage, le
+  CLAUDE.md renvoyait à un « Versions, en quatre phrases » qui n'a jamais
+  existé dans ce dépôt : c'était celui de card, recopié.
 
 ### Modifié
 
