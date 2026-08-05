@@ -46,9 +46,24 @@ import re
 import pandas as pd
 
 import card
+from importlib.metadata import version as _pkg_version
 
 from . import hubeau
 from .serialize import serialize
+
+# La provenance de card ET du moteur vient de card, qui répond de
+# lui-même depuis sa 0.4.0. Le service ne déclare pas card en dépendance
+# (l'image l'installe depuis GitHub à une ref choisie), donc rien ne
+# vérifie la version à l'installation : autant que l'exigence soit dite
+# ici, en une phrase, plutôt que sous la forme d'un AttributeError.
+try:
+    _card_provenance = card.provenance
+except AttributeError as e:                             # card < 0.4.0
+    raise RuntimeError(
+        "card-api exige card >= 0.4.0, qui publie la provenance logicielle "
+        f"(card.provenance). Version installée : {card.__version__}. "
+        "Reconstruire l'image avec un CARD_REF plus récent."
+    ) from e
 
 SOURCE = "Hub'Eau hydrométrie (eaufrance, Licence Ouverte), QmnJ en m³/s"
 
@@ -86,30 +101,14 @@ ORIENT_DEFAUT = "records"
 
 # ── Identité du calcul ─────────────────────────────────────────────────
 
-try:
-    from importlib.metadata import version as _pkg_version
-    try:
-        CARD_VERSION = _pkg_version("card")
-    except Exception:       # distribution "card-stase" (PEP 541 en attente)
-        CARD_VERSION = _pkg_version("card-stase")
-except Exception:                                    # non installé
-    CARD_VERSION = "dev"
-
-try:
-    STASE_VERSION = _pkg_version("stase")
-except Exception:                                    # non installé
-    STASE_VERSION = "dev"
-
-try:
-    API_VERSION = _pkg_version("card-api")
-except Exception:                                    # exécution hors install
-    API_VERSION = "dev"
-
-
 # Commits résolus à la construction de l'image (scripts/resolve_refs.py).
-# Un numéro de version ne désigne un état unique que si la ref était un
-# tag ; le commit, lui, désigne toujours un état et un seul. Absent hors
-# Docker : le service annonce alors le seul numéro de version.
+# C'est la SEULE chose que card ne peut pas observer lui-même : l'image
+# installe des ARCHIVES (`.../archive/main.tar.gz`), qui ne portent aucune
+# trace de leur commit, là où une installation `git+…` l'enregistre (PEP
+# 610). Celui qui a construit l'image est donc le seul à le savoir, et il
+# le dit à card par `CARD_COMMIT` / `STASE_COMMIT`, que la résolution de
+# card lit en premier. Une seule règle de résolution existe donc, la
+# sienne, et le service n'apporte que ce que lui seul sait.
 def _build_refs():
     path = os.environ.get("CARD_API_BUILD_REFS", "/app/build_refs.json")
     try:
@@ -121,7 +120,27 @@ def _build_refs():
         return None, None
 
 
-CARD_COMMIT, STASE_COMMIT = _build_refs()
+for _cle, _commit in zip(("CARD", "STASE"), _build_refs()):
+    if _commit and not os.environ.get(f"{_cle}_COMMIT"):
+        os.environ[f"{_cle}_COMMIT"] = _commit
+
+# card répond de lui-même et du moteur depuis card 0.4.0 : versions ET
+# commits, quel que soit le mode d'installation (docstring de
+# `card/provenance.py`). Le service ne le refait donc pas, il consomme.
+# Deux méthodes divergentes pour le même fait finiraient par se
+# contredire, et c'était déjà à moitié le cas : le numéro lu ici venait
+# des métadonnées d'installation, qui périment en installation éditable.
+_CARD = _card_provenance()
+
+CARD_VERSION = _CARD.get("card_version") or "dev"
+STASE_VERSION = _CARD.get("stase_version") or "dev"
+CARD_COMMIT = _CARD.get("card_commit")
+STASE_COMMIT = _CARD.get("stase_commit")
+
+try:
+    API_VERSION = _pkg_version("card-api")
+except Exception:                                    # exécution hors install
+    API_VERSION = "dev"
 
 
 def versions():

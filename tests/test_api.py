@@ -102,6 +102,41 @@ def test_commit_publie_quand_l_image_le_connait(tmp_path, monkeypatch):
     assert v["stase_swhid"] == "swh:1:rev:789abc012def"
 
 
+def test_les_commits_du_build_traversent_vraiment_la_chaine(tmp_path):
+    """Le chemin de l'IMAGE, éprouvé de bout en bout.
+
+    Depuis card 0.4.0, le service ne résout plus les commits lui-même :
+    il pose `CARD_COMMIT` / `STASE_COMMIT` depuis `build_refs.json`, et
+    la résolution de card les lit en premier. Le test voisin force les
+    constantes et ne dit donc rien de cette chaîne ; celui-ci la parcourt
+    en entier.
+
+    En sous-processus parce que tout se joue à l'import du module, et
+    qu'un import déjà fait ne se rejoue pas.
+    """
+    import json
+    import os
+    import subprocess
+    import sys
+
+    card_sha, stase_sha = "a" * 40, "b" * 40
+    refs = tmp_path / "build_refs.json"
+    refs.write_text(json.dumps({"card": {"ref": "main", "commit": card_sha},
+                                "stase": {"ref": "main", "commit": stase_sha}}))
+
+    out = subprocess.run(
+        [sys.executable, "-c",
+         "import json; from card_api.pipeline import versions;"
+         " print(json.dumps(versions()))"],
+        capture_output=True, text=True, check=True,
+        env={**os.environ, "CARD_API_BUILD_REFS": str(refs)})
+    v = json.loads(out.stdout)
+
+    assert v["card_commit"] == card_sha
+    assert v["stase_commit"] == stase_sha
+    assert v["card_swhid"] == f"swh:1:rev:{card_sha}"
+
+
 def test_versions_des_fiches_arrivent_a_l_utilisateur():
     """Chaque fiche porte sa propre version : deux fiches d'une même
     réponse peuvent ne pas avoir la même, elle voyage donc par variable

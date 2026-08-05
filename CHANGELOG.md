@@ -41,7 +41,38 @@ des deux endroits.
 
 ## Non publié
 
-Rien depuis la 0.3.0.
+Rien depuis la 0.3.1.
+
+## 0.3.1 (2026-08-05)
+
+### Modifié
+
+- **Le service ne résout plus les versions ni les commits, il les
+  demande à card.** Depuis card 0.4.0, card répond de lui-même et du
+  moteur, quel que soit le mode d'installation. `pipeline.py` avait sa
+  propre méthode pour le même fait, et deux méthodes divergentes pour un
+  même fait finissent par se contredire : c'était déjà à moitié le cas,
+  le numéro lu ici venant des métadonnées d'installation, qui périment
+  en installation éditable.
+
+  Gain visible : **les commits sont désormais publiés hors Docker
+  aussi**. Ils ne l'étaient que dans l'image, seul endroit où
+  `build_refs.json` existe ; une instance lancée depuis une copie de
+  travail n'annonçait que des numéros. C'est card qui interroge git ou
+  la PEP 610 selon le cas.
+
+  `resolve_refs.py` et `build_refs.json` restent, et retrouvent leur
+  rôle exact : l'image installe des ARCHIVES, qui ne portent aucune trace
+  de leur commit, donc son constructeur est le seul à le savoir. Il le
+  dit maintenant à card par `CARD_COMMIT` / `STASE_COMMIT`, que la
+  résolution de card lit en premier. Un test parcourt cette chaîne en
+  entier, en sous-processus, là où l'ancien forçait les constantes et ne
+  disait donc rien du chemin réel.
+
+  Le service exige de ce fait **card >= 0.4.0**. Rien ne le vérifie à
+  l'installation, l'image posant la ref de son choix : l'exigence est
+  donc dite par une erreur explicite au démarrage plutôt que par un
+  `AttributeError`.
 
 ## 0.3.0 (2026-08-05)
 
