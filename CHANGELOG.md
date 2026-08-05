@@ -41,6 +41,10 @@ des deux endroits.
 
 ## Non publié
 
+Rien depuis la 0.3.0.
+
+## 0.3.0 (2026-08-05)
+
 ### Ce qui change en suivant `card`
 
 Le service suit `main`, donc ces changements arriveront en ligne au
@@ -77,225 +81,6 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   la règle est plus exigeante puisqu'on les installe. Au passage, le
   CLAUDE.md renvoyait à un « Versions, en quatre phrases » qui n'a jamais
   existé dans ce dépôt : c'était celui de card, recopié.
-
-### Modifié
-
-- **La section « État » du CLAUDE.md ne raconte plus une passe de
-  travail (2026-08-05).** Le paragraphe de finalisation des 2026-07-28
-  et 29 affirmait « les trois dépôts sont verts », phrase qui ne peut
-  que vieillir, et redisait ce que le CHANGELOG et le CI portent déjà.
-  Le déploiement resté manuel, seul point durable qu'il contenait, est
-  une décision consignée dans `CHANTIERS.md`. Le CLAUDE.md indique aussi
-  où lire la procédure de ménage documentaire commune aux trois dépôts
-  (`../card/docs/dev/NETTOYAGE.md`), qui n'était nommée que dans card.
-
-### Corrigé
-
-- **Une station muette n'annule plus un JOB non plus, et la chaîne
-  n'est plus écrite deux fois (2026-07-29).** La correction de la veille
-  ne portait que sur les réponses immédiates. `jobs.py::_execute`
-  réimplémentait la même chaîne, pour la seule raison d'afficher la
-  progression, si bien qu'une demande de vingt stations continuait de
-  mourir sur la première station sans série. Sa docstring affirmait
-  « Même chaîne que les endpoints synchrones » : elle ne l'était pas.
-
-  En mesurant les deux portes, **trois autres divergences** sont
-  apparues, toutes antérieures : `data_fetched_at` imbriqué côté job au
-  lieu d'être à la racine, `stations_omitted` et `stations_requested`
-  absents, et surtout **une fenêtre temporelle différente** :
-  `START_DEFAUT` n'était appliqué que dans les endpoints synchrones,
-  donc un `POST /v1/jobs` sans `start` calculait sur toute la chronique
-  là où `GET /v1/extract` partait de 1968. Sans rien dire. Celle-là est
-  la plus grave : une panne se voit, un résultat faux non.
-
-  La chaîne vit maintenant dans un module unique, `pipeline.py`, que les
-  deux portes appellent. Il ne connaît rien de HTTP et lève des
-  exceptions neutres, que `main.py` traduit en codes et que le worker
-  enregistre : c'est cette indépendance qui rend le partage possible. La
-  progression est devenue un paramètre, et non plus une raison de
-  recopier. `normalise()` applique défauts et validations **avant** que
-  la demande ne bifurque, ce qui règle la divergence de fenêtre sans la
-  traiter comme un cas particulier.
-
-  **Le vrai livrable est le garde-fou.** `test_job_trend_matches_sync`
-  comparait les deux portes depuis toujours, mais seulement `data` : les
-  quatre divergences vivaient dans son angle mort. Un nouveau test
-  compare les enveloppes entières, avec la liste explicite des champs
-  autorisés à ne vivre que côté job (`job`, `data_fingerprints`,
-  `ltp_seed`). Il aurait attrapé les quatre.
-
-  Et `test_failed_job_surfaces_error`, qui garantissait qu'un job sur
-  station inconnue échoue, est resté vert pendant tout le bug : il ne
-  décrivait plus le comportement voulu mais l'oubli de le porter. Il dit
-  désormais ce qu'il veut dire, un job dont **toutes** les stations sont
-  muettes échoue.
-
-- **Une demande trop grosse ne casse plus le CSV ni la figure
-  (2026-07-29).** Au-dessus des plafonds synchrones (10 stations, 20
-  fiches), la demande bascule en file de calcul. Cette bascule ne
-  fonctionnait qu'en JSON : `/v1/extract.csv`, `/v1/trend.csv` et
-  `/v1/trend/figure` rendaient un **500** au lieu du ticket, alors même
-  que le job partait bien en file. Le ticket était fabriqué directement
-  sous forme de réponse JSON, que ces trois représentations tentaient
-  ensuite de relire comme des données pour y prendre le numéro de job.
-
-  Le ticket est désormais construit en **données**, et chaque
-  représentation le rend dans son propre medium : JSON pour `/v1/extract`
-  et `/v1/trend`, lignes `#` pour les deux `.csv`, phrase en clair pour
-  la figure. Les trois portent maintenant l'en-tête `Location` comme la
-  réponse JSON, si bien qu'un ticket se suit de la même façon quel que
-  soit le point d'entrée. Couvert par un test paramétré sur les trois
-  chemins, pour que la prochaine représentation ajoutée hérite du cas.
-
-- **`make stats` ne comptait pas un job deux fois (2026-07-29).** Le
-  tableau de bord retenait comme requête toute entrée du journal portant
-  un `endpoint`. Or l'événement `job_done` en porte un, celui du
-  traitement exécuté : chaque job était donc compté au dépôt PUIS à sa
-  fin, et la famille calcul surestimait d'autant. Le filtre écarte
-  désormais les événements, qui ne sont pas des requêtes. Premiers tests
-  du tableau de bord au passage : ses chiffres servent de preuve d'impact
-  pour les financements, un chiffre faux n'y saute pas aux yeux.
-
-### Modifié
-
-- **Une station sans série est écartée, plus fatale (2026-07-29).** Une
-  demande de vingt stations échouait entièrement dès que l'une d'elles
-  n'avait rien à donner, le travail déjà fait compris. Cas rencontré :
-  `U430003001`, la Saône à Dracé, échelle aval de Mâcon. Le référentiel
-  Hub'Eau la donne en service, jamais fermée, fiche à jour, et ne publie
-  aucun QmnJ pour elle. C'est une échelle limnimétrique : elle mesure une
-  hauteur, et sans courbe de tarage une hauteur n'est pas un débit.
-
-  Rien ne permettait de l'éviter en amont. `/v1/stations` proxie un
-  registre administratif des stations qui EXISTENT, pas un catalogue des
-  séries disponibles, et ses deux champs plausibles n'en disent rien :
-  `type_station` vaut STD partout, et `en_service` est à contre-emploi,
-  une station fermée gardant l'historique qu'une étude de tendance veut.
-  Demander la série est le seul test.
-
-  Le résultat décrit donc maintenant ce qu'il CONTIENT : `stations` liste
-  les stations calculées, `stations_requested` celles demandées, et
-  `stations_omitted` les écartées avec un motif lisible par un programme
-  (`no_series`, `no_data_in_period`, `ambiguous_site`) et par un humain.
-  Le bloc est toujours présent, vide quand tout va bien. **`stations`
-  change de sens** : il recopiait la demande, il décrit les données. Une
-  jointure faite dessus porterait à faux autrement.
-
-  La ligne de partage retenue n'est pas la gravité mais la
-  reproductibilité : un fait stable de la station se rapporte, une panne
-  Hub'Eau reste une erreur `504`. Sauter la seconde produirait, les jours
-  d'incident, des résultats discrètement amputés que personne ne
-  remarquerait. Et si aucune station n'a de série, la demande est refusée
-  en `404` : un résultat sans lignes se laisse lire comme un résultat.
-
-  L'omission voyage dans toutes les représentations, lignes `#` du CSV et
-  figure comprises, comme le ticket de job la veille. Arbitrage complet
-  dans `docs/dev/API.md`, y compris la piste écartée d'un cache de
-  disponibilité qui deviendrait faux le jour où Hub'Eau publie la série.
-
-- **`make stats` garde la même forme, pleine ou vide (2026-07-29).** Les
-  lignes n'apparaissaient qu'au-dessus de zéro. Le tableau changeait donc
-  de forme d'un jour à l'autre, on cherchait des yeux une ligne qu'on
-  s'attendait à trouver, et on ne distinguait plus « personne n'a appelé
-  `/v1/vocabulary` » de « je ne sais pas ». Toutes les lignes sont
-  désormais là, zéro compris, depuis des listes fixes. Un zéro est une
-  information, souvent la plus utile : il dit qu'un endpoint qu'on
-  maintient ne sert à personne.
-
-  **La découverte est ventilée comme le calcul**, une courbe par
-  endpoint : savoir si les gens consultent `stations` ou `cards` demandait
-  un détail que seule la famille calcul avait. Le suivi de ses propres
-  jobs (`job_list`, `job_delete`) a sa ligne à part : il partage le quota
-  léger, donc la famille découverte, mais consulter ses tickets n'est pas
-  consulter le catalogue. Les trois familles partagent enfin une même
-  gouttière, l'alignement étant ce qui rend deux courbes comparables.
-
-  Au passage, une ligne trop longue était coupée en silence : « ✗ 5
-  échecs » se lisait « ✗ 5 éc », un chiffre amputé qu'on croit complet.
-  Les compteurs de la file sont maintenant mesurés avant d'être écrits, et
-  ce que le cadre coupe malgré tout porte un point de suspension.
-
-- **Quotas par IP relevés, de 10 à 60 requêtes de calcul par minute, et
-  de 60 à 300 pour le catalogue (2026-07-29).** Ils avaient été posés bas
-  par prudence, avant tout usage réel. Ce compteur n'est pas ce qui
-  protège la VM : le sémaphore de calcul sérialise les traitements lourds
-  et la bascule en job absorbe les grosses demandes, quel que soit le
-  rythme des appels. Il compte d'ailleurs des requêtes et non leur coût,
-  alors qu'une requête de 10 stations et 20 fiches pèse cent fois une
-  requête d'une station. Serré, il gênait surtout deux innocents : un
-  établissement entier derrière une seule IP publique, DREAL ou agence de
-  l'eau, où le plafond se partage entre collègues sans que personne
-  n'aille vite, et la boucle station par station, premier script que tout
-  le monde écrit. Les refus étant désormais mesurés, ces valeurs se
-  resserreront à la charge observée s'il le faut, et plus à l'intuition.
-  Raisonnement complet dans `docs/dev/API.md`.
-
-- **Le message du 429 enseigne la bonne forme d'appel (2026-07-29).** Il
-  n'offrait que « demandez une clé de priorité », c'est-à-dire une
-  attribution manuelle, comme seule issue à un service public par défaut.
-  Il rappelle maintenant que `stations` prend une LISTE et qu'une demande
-  trop grosse bascule d'elle-même en file, ce qui est la vraie réponse
-  dans la quasi-totalité des cas. Même conseil ajouté au README.
-
-- **Une clé de priorité se demande par courriel, plus par une issue
-  GitHub (2026-07-29).** Le gabarit d'issue est retiré. Il était
-  inutilisable, pour trois raisons qui se cumulaient et dont la première
-  suffisait :
-
-  - les issues d'un dépôt **public sont publiques**, et le réglage
-    n'existe pas : le jeton ne pouvait pas repartir par là sans être
-    divulgué à tous ;
-  - le formulaire **ne demandait aucune adresse**, donc il n'existait
-    aucun canal pour répondre en privé ;
-  - il fallait un **compte GitHub**, barrière rédhibitoire pour le
-    public visé, agences de l'eau, DREAL et bureaux d'études.
-
-  Le lien de l'en-tête est désormais un `mailto:` qui porte l'objet et le
-  canevas de la demande, ce qui donne la structure du formulaire sans le
-  formulaire. Rien n'a été mis à la place du gabarit dans le sélecteur
-  d'issues : le README et l'en-tête disent déjà où écrire, une entrée de
-  plus n'aurait fait qu'un détour supplémentaire. À l'échelle réelle, quelques demandes par an et une
-  attribution manuelle assumée, le courriel n'est pas un pis-aller :
-  c'est le bon outil. Un formulaire hébergé n'éviterait pas d'avoir à
-  répondre par courriel de toute façon.
-
-### Modifié
-
-- **Le ticket de job n'est plus pré-rempli dans `/docs` (2026-07-29).**
-  Il portait `3f2a9c1b7e4d8506`, qui a exactement la forme d'un vrai
-  ticket, seize hexadécimaux comme en produit `token_hex(8)` : rien ne le
-  distinguait d'une valeur prête à exécuter. Or **tous les autres
-  exemples de la page marchent** si on les exécute, alors que celui-ci ne
-  pouvait jamais marcher, un ticket n'appartenant qu'à la demande qui l'a
-  produit. Le champ semblait donc rempli et rendait un 404.
-
-  Vide, il se voit : Swagger signale un paramètre de chemin manquant et
-  refuse d'exécuter, ce qui est justement la consigne à transmettre. La
-  description dit maintenant où prendre son ticket, et le 404 le redit
-  pour qui colle un ticket périmé. La règle est consignée à côté des
-  autres exemples, avec le critère qui la justifie : un exemple qui ne
-  peut pas fonctionner n'est pas un exemple.
-
-- **Le sélecteur de serveur de `/docs` est masqué (2026-07-29).**
-  Swagger le rend dès qu'un bloc `servers` existe, même avec une seule
-  entrée : un menu déroulant qui ne sélectionne rien et répète l'adresse
-  de la page qu'on lit. Masqué et non retiré du contrat, parce que les
-  deux ne coûtent pas la même chose : `servers` donne au contrat une
-  adresse absolue, la seule dont dispose un générateur de client ou
-  quiconque lit `openapi.json` ailleurs que sur cette page. Le retirer
-  produirait des clients pointant sur `/` pour gagner trente pixels.
-  Même doctrine que les autres champs masqués, cf. `THEME_DOCS.md`, qui
-  note aussi la condition : le masque suppose un seul serveur.
-
-- **`CHANTIERS.md` ne garde qu'une piste ouverte (2026-07-29).** Le thème
-  de `/docs` est refermé, le déploiement depuis le CI est une décision
-  prise et non une piste, et la veille sur les décomptes est devenue une
-  règle. Chaque élément est parti dans le document qui en porte la
-  matière : `THEME_DOCS.md` pour la doctrine du thème, `CLAUDE.md` pour
-  les deux règles. Un registre de pistes ouvertes qui accumule des
-  décisions closes cesse de dire ce qui reste à faire.
-
-### Ajouté
 
 - **`/v1` publie les limites du service (2026-07-29) :** bloc `limits`,
   avec les seuils de bascule en job, les plafonds de job et les quotas
@@ -740,7 +525,172 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   pas : c'est le constat d'entrée de la session, et l'avoir éprouvé une
   seconde fois ne l'a pas changé.
 
+- **Empreinte des données d'entrée** (`data_fingerprint`), qui répond à
+  une question et une seule : deux résultats reposent-ils sur la même
+  donnée ? Hub'Eau révise ses chroniques, et sans elle un écart entre
+  deux calculs ne se distinguait pas d'un changement de code, il fallait
+  enquêter. Le résultat gelé d'un job porte en plus le détail par station
+  (`data_fingerprints`), la verbosité étant utile dans l'artefact qu'on
+  archive et déplacée dans une réponse immédiate.
+
+  Calculée sur les octets des colonnes et non sur le fichier de cache :
+  gzip inscrit un horodatage dans son en-tête, donc deux compressions
+  d'une même donnée donnent des octets différents. Passer par les
+  tableaux rend aussi l'empreinte indépendante du format CSV et des
+  versions de pandas. Prise sur la chronique entière, avant tout filtre
+  de période, puisque c'est la source qu'on identifie. Coût mesuré :
+  2 ms par station, soit un demi-dixième de seconde pour les 228 stations
+  du RRSE.
+
+- Les réponses **synchrones** portent `data_fetched_at`, qui n'existait
+  que dans les jobs. Un résultat immédiat est tout aussi archivable
+  qu'un résultat de job, il doit dire la même chose.
+
 ### Modifié
+
+- **La section « État » du CLAUDE.md ne raconte plus une passe de
+  travail (2026-08-05).** Le paragraphe de finalisation des 2026-07-28
+  et 29 affirmait « les trois dépôts sont verts », phrase qui ne peut
+  que vieillir, et redisait ce que le CHANGELOG et le CI portent déjà.
+  Le déploiement resté manuel, seul point durable qu'il contenait, est
+  une décision consignée dans `CHANTIERS.md`. Le CLAUDE.md indique aussi
+  où lire la procédure de ménage documentaire commune aux trois dépôts
+  (`../card/docs/dev/NETTOYAGE.md`), qui n'était nommée que dans card.
+
+- **Une station sans série est écartée, plus fatale (2026-07-29).** Une
+  demande de vingt stations échouait entièrement dès que l'une d'elles
+  n'avait rien à donner, le travail déjà fait compris. Cas rencontré :
+  `U430003001`, la Saône à Dracé, échelle aval de Mâcon. Le référentiel
+  Hub'Eau la donne en service, jamais fermée, fiche à jour, et ne publie
+  aucun QmnJ pour elle. C'est une échelle limnimétrique : elle mesure une
+  hauteur, et sans courbe de tarage une hauteur n'est pas un débit.
+
+  Rien ne permettait de l'éviter en amont. `/v1/stations` proxie un
+  registre administratif des stations qui EXISTENT, pas un catalogue des
+  séries disponibles, et ses deux champs plausibles n'en disent rien :
+  `type_station` vaut STD partout, et `en_service` est à contre-emploi,
+  une station fermée gardant l'historique qu'une étude de tendance veut.
+  Demander la série est le seul test.
+
+  Le résultat décrit donc maintenant ce qu'il CONTIENT : `stations` liste
+  les stations calculées, `stations_requested` celles demandées, et
+  `stations_omitted` les écartées avec un motif lisible par un programme
+  (`no_series`, `no_data_in_period`, `ambiguous_site`) et par un humain.
+  Le bloc est toujours présent, vide quand tout va bien. **`stations`
+  change de sens** : il recopiait la demande, il décrit les données. Une
+  jointure faite dessus porterait à faux autrement.
+
+  La ligne de partage retenue n'est pas la gravité mais la
+  reproductibilité : un fait stable de la station se rapporte, une panne
+  Hub'Eau reste une erreur `504`. Sauter la seconde produirait, les jours
+  d'incident, des résultats discrètement amputés que personne ne
+  remarquerait. Et si aucune station n'a de série, la demande est refusée
+  en `404` : un résultat sans lignes se laisse lire comme un résultat.
+
+  L'omission voyage dans toutes les représentations, lignes `#` du CSV et
+  figure comprises, comme le ticket de job la veille. Arbitrage complet
+  dans `docs/dev/API.md`, y compris la piste écartée d'un cache de
+  disponibilité qui deviendrait faux le jour où Hub'Eau publie la série.
+
+- **`make stats` garde la même forme, pleine ou vide (2026-07-29).** Les
+  lignes n'apparaissaient qu'au-dessus de zéro. Le tableau changeait donc
+  de forme d'un jour à l'autre, on cherchait des yeux une ligne qu'on
+  s'attendait à trouver, et on ne distinguait plus « personne n'a appelé
+  `/v1/vocabulary` » de « je ne sais pas ». Toutes les lignes sont
+  désormais là, zéro compris, depuis des listes fixes. Un zéro est une
+  information, souvent la plus utile : il dit qu'un endpoint qu'on
+  maintient ne sert à personne.
+
+  **La découverte est ventilée comme le calcul**, une courbe par
+  endpoint : savoir si les gens consultent `stations` ou `cards` demandait
+  un détail que seule la famille calcul avait. Le suivi de ses propres
+  jobs (`job_list`, `job_delete`) a sa ligne à part : il partage le quota
+  léger, donc la famille découverte, mais consulter ses tickets n'est pas
+  consulter le catalogue. Les trois familles partagent enfin une même
+  gouttière, l'alignement étant ce qui rend deux courbes comparables.
+
+  Au passage, une ligne trop longue était coupée en silence : « ✗ 5
+  échecs » se lisait « ✗ 5 éc », un chiffre amputé qu'on croit complet.
+  Les compteurs de la file sont maintenant mesurés avant d'être écrits, et
+  ce que le cadre coupe malgré tout porte un point de suspension.
+
+- **Quotas par IP relevés, de 10 à 60 requêtes de calcul par minute, et
+  de 60 à 300 pour le catalogue (2026-07-29).** Ils avaient été posés bas
+  par prudence, avant tout usage réel. Ce compteur n'est pas ce qui
+  protège la VM : le sémaphore de calcul sérialise les traitements lourds
+  et la bascule en job absorbe les grosses demandes, quel que soit le
+  rythme des appels. Il compte d'ailleurs des requêtes et non leur coût,
+  alors qu'une requête de 10 stations et 20 fiches pèse cent fois une
+  requête d'une station. Serré, il gênait surtout deux innocents : un
+  établissement entier derrière une seule IP publique, DREAL ou agence de
+  l'eau, où le plafond se partage entre collègues sans que personne
+  n'aille vite, et la boucle station par station, premier script que tout
+  le monde écrit. Les refus étant désormais mesurés, ces valeurs se
+  resserreront à la charge observée s'il le faut, et plus à l'intuition.
+  Raisonnement complet dans `docs/dev/API.md`.
+
+- **Le message du 429 enseigne la bonne forme d'appel (2026-07-29).** Il
+  n'offrait que « demandez une clé de priorité », c'est-à-dire une
+  attribution manuelle, comme seule issue à un service public par défaut.
+  Il rappelle maintenant que `stations` prend une LISTE et qu'une demande
+  trop grosse bascule d'elle-même en file, ce qui est la vraie réponse
+  dans la quasi-totalité des cas. Même conseil ajouté au README.
+
+- **Une clé de priorité se demande par courriel, plus par une issue
+  GitHub (2026-07-29).** Le gabarit d'issue est retiré. Il était
+  inutilisable, pour trois raisons qui se cumulaient et dont la première
+  suffisait :
+
+  - les issues d'un dépôt **public sont publiques**, et le réglage
+    n'existe pas : le jeton ne pouvait pas repartir par là sans être
+    divulgué à tous ;
+  - le formulaire **ne demandait aucune adresse**, donc il n'existait
+    aucun canal pour répondre en privé ;
+  - il fallait un **compte GitHub**, barrière rédhibitoire pour le
+    public visé, agences de l'eau, DREAL et bureaux d'études.
+
+  Le lien de l'en-tête est désormais un `mailto:` qui porte l'objet et le
+  canevas de la demande, ce qui donne la structure du formulaire sans le
+  formulaire. Rien n'a été mis à la place du gabarit dans le sélecteur
+  d'issues : le README et l'en-tête disent déjà où écrire, une entrée de
+  plus n'aurait fait qu'un détour supplémentaire. À l'échelle réelle, quelques demandes par an et une
+  attribution manuelle assumée, le courriel n'est pas un pis-aller :
+  c'est le bon outil. Un formulaire hébergé n'éviterait pas d'avoir à
+  répondre par courriel de toute façon.
+
+- **Le ticket de job n'est plus pré-rempli dans `/docs` (2026-07-29).**
+  Il portait `3f2a9c1b7e4d8506`, qui a exactement la forme d'un vrai
+  ticket, seize hexadécimaux comme en produit `token_hex(8)` : rien ne le
+  distinguait d'une valeur prête à exécuter. Or **tous les autres
+  exemples de la page marchent** si on les exécute, alors que celui-ci ne
+  pouvait jamais marcher, un ticket n'appartenant qu'à la demande qui l'a
+  produit. Le champ semblait donc rempli et rendait un 404.
+
+  Vide, il se voit : Swagger signale un paramètre de chemin manquant et
+  refuse d'exécuter, ce qui est justement la consigne à transmettre. La
+  description dit maintenant où prendre son ticket, et le 404 le redit
+  pour qui colle un ticket périmé. La règle est consignée à côté des
+  autres exemples, avec le critère qui la justifie : un exemple qui ne
+  peut pas fonctionner n'est pas un exemple.
+
+- **Le sélecteur de serveur de `/docs` est masqué (2026-07-29).**
+  Swagger le rend dès qu'un bloc `servers` existe, même avec une seule
+  entrée : un menu déroulant qui ne sélectionne rien et répète l'adresse
+  de la page qu'on lit. Masqué et non retiré du contrat, parce que les
+  deux ne coûtent pas la même chose : `servers` donne au contrat une
+  adresse absolue, la seule dont dispose un générateur de client ou
+  quiconque lit `openapi.json` ailleurs que sur cette page. Le retirer
+  produirait des clients pointant sur `/` pour gagner trente pixels.
+  Même doctrine que les autres champs masqués, cf. `THEME_DOCS.md`, qui
+  note aussi la condition : le masque suppose un seul serveur.
+
+- **`CHANTIERS.md` ne garde qu'une piste ouverte (2026-07-29).** Le thème
+  de `/docs` est refermé, le déploiement depuis le CI est une décision
+  prise et non une piste, et la veille sur les décomptes est devenue une
+  règle. Chaque élément est parti dans le document qui en porte la
+  matière : `THEME_DOCS.md` pour la doctrine du thème, `CLAUDE.md` pour
+  les deux règles. Un registre de pistes ouvertes qui accumule des
+  décisions closes cesse de dire ce qui reste à faire.
 
 - **La colonne de station devient `code_station` (2026-07-28),** et la
   colonne de valeurs d'`extract.csv` devient `value`. Avec la règle qui
@@ -783,7 +733,136 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   validation contre ces goldens passe donc à l'identique, ce qui est la
   preuve que le renommage n'a rien changé au calcul.
 
+- **Les facettes de `/v1/cards` filtrent par slug, et par lui seul**
+  (rupture assumée : `?phenomenon=basses eaux` renvoie désormais 422 avec
+  la liste des valeurs valides). Une requête désigne un concept, donc par
+  un identifiant neutre ; une réponse le présente, donc dans une langue.
+  Les libellés restent dans le résultat, dans `/v1/vocabulary` et sous
+  `lang=`. La bibliothèque `card.list_cards()` reste plus permissive et
+  accepte les libellés. Sans ce resserrement, un même concept avait trois
+  orthographes et le contrat ne pouvait plus annoncer ses valeurs.
+
+- **Revue FAIR (2026-07-24) et premiers correctifs.** Aucun changement
+  récent de card ne casse le service (les 41 tests hors-ligne passent
+  contre le card à jour : le rangement des fiches par régime et les
+  renommages remontent par l'API Python, jamais par des chemins). Livré
+  en phase 1 :
+  - **route d'accueil `GET /v1`** : décrit le service, relie l'écosystème
+    (card définit, stase calcule, Hub'Eau fournit) et pointe la
+    réutilisation (API ponctuelle, lib Python, citation par swhid) ;
+  - **bloc `rights`** dans les réponses de résultat et l'accueil : données
+    Hub'Eau en Licence Ouverte / Etalab 2.0, définitions en GPL-3.0,
+    résultat citable. Le trou FAIR-Reusable le plus réel (les droits sur
+    la sortie n'étaient énoncés nulle part) ;
+  - **CORS** ouvert (lecture) : un site web tiers peut appeler le service ;
+  - **OpenAPI enrichi** : description qui situe le projet, `contact`,
+    `license_info`, endpoints groupés par tags (service, cards, data,
+    stations, jobs).
+
+  Plan complet et phases suivantes : `docs/dev/PLAN_FAIR.md`.
+
+- **`/docs` : champs éditables d'emblée et exemples pré-remplis.** Il
+  fallait cliquer « Try it out » avant chaque essai, et les champs étaient
+  vides. On ouvre maintenant `/docs`, on déplie `/v1/extract` et on exécute
+  une vraie requête sans rien chercher (`F700000103`, `QA,VCN10`). Le pavé
+  « Schemas » est masqué, il noyait la page. Les endpoints sont groupés par
+  tags, le contact dit ce qu'il est (dépôt GitHub du service, il annonçait
+  « INRAE, UR RiverLy » en pointant un dépôt personnel).
+
+- **Thème sombre de `/docs`**, à la deuxième tentative. La première,
+  le matin même, posait une centaine de règles écrites à l'estime : elles
+  ne recouvraient qu'une fraction des 179 ko de CSS de Swagger, d'où un
+  fond sombre avec la moitié des composants restés clairs, pire que le
+  thème par défaut. Elle avait été « vérifiée » en constatant que le CSS
+  était *injecté*, jamais que la page *rendait*.
+
+  Le thème livré ne devine plus aucune classe : `scripts/build_theme.py`
+  relit le CSS réel de Swagger et ré-émet chacune de ses règles de
+  couleur transposée dans la gamme sombre, ce qui en couvre environ 420.
+  Il s'est jugé à la capture d'écran, page dépliée et requête exécutée,
+  ce qui a fait ressortir ce qu'aucun test n'aurait vu : « Request URL »
+  en sombre sur sombre, boutons copier/télécharger restés clairs, champ
+  invalide viré au saumon, et le coloriseur de Swagger qui barbouillait
+  la barre de calendrier de la fiche dessinée.
+
+  Gris neutres à gamme ouverte, couleur réservée aux méthodes HTTP et
+  jamais seule porteuse de l'information, hors axe rouge/vert. Conception,
+  palette et façon de vérifier : `docs/dev/THEME_DOCS.md`.
+
+- README : les cinq exemples Python et les quatre exemples R sont
+  rejoués contre une instance locale à Hub'Eau simulé, ce qui n'avait
+  plus été fait depuis leur écriture. Tous passent. Ajoutés :
+  `stations_meta=true`, qui rend un résultat autoportant et n'était pas
+  documenté, les deux liens vers la définition d'une fiche, et une
+  section « Citer » qui reflète la provenance réellement publiée plutôt
+  que la seule version de card.
+
 ### Corrigé
+
+- **Une station muette n'annule plus un JOB non plus, et la chaîne
+  n'est plus écrite deux fois (2026-07-29).** La correction de la veille
+  ne portait que sur les réponses immédiates. `jobs.py::_execute`
+  réimplémentait la même chaîne, pour la seule raison d'afficher la
+  progression, si bien qu'une demande de vingt stations continuait de
+  mourir sur la première station sans série. Sa docstring affirmait
+  « Même chaîne que les endpoints synchrones » : elle ne l'était pas.
+
+  En mesurant les deux portes, **trois autres divergences** sont
+  apparues, toutes antérieures : `data_fetched_at` imbriqué côté job au
+  lieu d'être à la racine, `stations_omitted` et `stations_requested`
+  absents, et surtout **une fenêtre temporelle différente** :
+  `START_DEFAUT` n'était appliqué que dans les endpoints synchrones,
+  donc un `POST /v1/jobs` sans `start` calculait sur toute la chronique
+  là où `GET /v1/extract` partait de 1968. Sans rien dire. Celle-là est
+  la plus grave : une panne se voit, un résultat faux non.
+
+  La chaîne vit maintenant dans un module unique, `pipeline.py`, que les
+  deux portes appellent. Il ne connaît rien de HTTP et lève des
+  exceptions neutres, que `main.py` traduit en codes et que le worker
+  enregistre : c'est cette indépendance qui rend le partage possible. La
+  progression est devenue un paramètre, et non plus une raison de
+  recopier. `normalise()` applique défauts et validations **avant** que
+  la demande ne bifurque, ce qui règle la divergence de fenêtre sans la
+  traiter comme un cas particulier.
+
+  **Le vrai livrable est le garde-fou.** `test_job_trend_matches_sync`
+  comparait les deux portes depuis toujours, mais seulement `data` : les
+  quatre divergences vivaient dans son angle mort. Un nouveau test
+  compare les enveloppes entières, avec la liste explicite des champs
+  autorisés à ne vivre que côté job (`job`, `data_fingerprints`,
+  `ltp_seed`). Il aurait attrapé les quatre.
+
+  Et `test_failed_job_surfaces_error`, qui garantissait qu'un job sur
+  station inconnue échoue, est resté vert pendant tout le bug : il ne
+  décrivait plus le comportement voulu mais l'oubli de le porter. Il dit
+  désormais ce qu'il veut dire, un job dont **toutes** les stations sont
+  muettes échoue.
+
+- **Une demande trop grosse ne casse plus le CSV ni la figure
+  (2026-07-29).** Au-dessus des plafonds synchrones (10 stations, 20
+  fiches), la demande bascule en file de calcul. Cette bascule ne
+  fonctionnait qu'en JSON : `/v1/extract.csv`, `/v1/trend.csv` et
+  `/v1/trend/figure` rendaient un **500** au lieu du ticket, alors même
+  que le job partait bien en file. Le ticket était fabriqué directement
+  sous forme de réponse JSON, que ces trois représentations tentaient
+  ensuite de relire comme des données pour y prendre le numéro de job.
+
+  Le ticket est désormais construit en **données**, et chaque
+  représentation le rend dans son propre medium : JSON pour `/v1/extract`
+  et `/v1/trend`, lignes `#` pour les deux `.csv`, phrase en clair pour
+  la figure. Les trois portent maintenant l'en-tête `Location` comme la
+  réponse JSON, si bien qu'un ticket se suit de la même façon quel que
+  soit le point d'entrée. Couvert par un test paramétré sur les trois
+  chemins, pour que la prochaine représentation ajoutée hérite du cas.
+
+- **`make stats` ne comptait pas un job deux fois (2026-07-29).** Le
+  tableau de bord retenait comme requête toute entrée du journal portant
+  un `endpoint`. Or l'événement `job_done` en porte un, celui du
+  traitement exécuté : chaque job était donc compté au dépôt PUIS à sa
+  fin, et la famille calcul surestimait d'autant. Le filtre écarte
+  désormais les événements, qui ne sont pas des requêtes. Premiers tests
+  du tableau de bord au passage : ses chiffres servent de preuve d'impact
+  pour les financements, un chiffre faux n'y saute pas aux yeux.
 
 - **Un code de site échouait sur un doublon de Hub'Eau (2026-07-29).**
   Interrogé avec un code de **site** (les anciens codes Banque Hydro en
@@ -883,95 +962,6 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   raté de juillet : constater qu'une chose est déclarée ne dit rien de
   ce qui rend, ça se regarde.
 
-### Modifié
-
-- **Les facettes de `/v1/cards` filtrent par slug, et par lui seul**
-  (rupture assumée : `?phenomenon=basses eaux` renvoie désormais 422 avec
-  la liste des valeurs valides). Une requête désigne un concept, donc par
-  un identifiant neutre ; une réponse le présente, donc dans une langue.
-  Les libellés restent dans le résultat, dans `/v1/vocabulary` et sous
-  `lang=`. La bibliothèque `card.list_cards()` reste plus permissive et
-  accepte les libellés. Sans ce resserrement, un même concept avait trois
-  orthographes et le contrat ne pouvait plus annoncer ses valeurs.
-
-- **Revue FAIR (2026-07-24) et premiers correctifs.** Aucun changement
-  récent de card ne casse le service (les 41 tests hors-ligne passent
-  contre le card à jour : le rangement des fiches par régime et les
-  renommages remontent par l'API Python, jamais par des chemins). Livré
-  en phase 1 :
-  - **route d'accueil `GET /v1`** : décrit le service, relie l'écosystème
-    (card définit, stase calcule, Hub'Eau fournit) et pointe la
-    réutilisation (API ponctuelle, lib Python, citation par swhid) ;
-  - **bloc `rights`** dans les réponses de résultat et l'accueil : données
-    Hub'Eau en Licence Ouverte / Etalab 2.0, définitions en GPL-3.0,
-    résultat citable. Le trou FAIR-Reusable le plus réel (les droits sur
-    la sortie n'étaient énoncés nulle part) ;
-  - **CORS** ouvert (lecture) : un site web tiers peut appeler le service ;
-  - **OpenAPI enrichi** : description qui situe le projet, `contact`,
-    `license_info`, endpoints groupés par tags (service, cards, data,
-    stations, jobs).
-
-  Plan complet et phases suivantes : `docs/dev/PLAN_FAIR.md`.
-
-- **`/docs` : champs éditables d'emblée et exemples pré-remplis.** Il
-  fallait cliquer « Try it out » avant chaque essai, et les champs étaient
-  vides. On ouvre maintenant `/docs`, on déplie `/v1/extract` et on exécute
-  une vraie requête sans rien chercher (`F700000103`, `QA,VCN10`). Le pavé
-  « Schemas » est masqué, il noyait la page. Les endpoints sont groupés par
-  tags, le contact dit ce qu'il est (dépôt GitHub du service, il annonçait
-  « INRAE, UR RiverLy » en pointant un dépôt personnel).
-
-- **Thème sombre de `/docs`**, à la deuxième tentative. La première,
-  le matin même, posait une centaine de règles écrites à l'estime : elles
-  ne recouvraient qu'une fraction des 179 ko de CSS de Swagger, d'où un
-  fond sombre avec la moitié des composants restés clairs, pire que le
-  thème par défaut. Elle avait été « vérifiée » en constatant que le CSS
-  était *injecté*, jamais que la page *rendait*.
-
-  Le thème livré ne devine plus aucune classe : `scripts/build_theme.py`
-  relit le CSS réel de Swagger et ré-émet chacune de ses règles de
-  couleur transposée dans la gamme sombre, ce qui en couvre environ 420.
-  Il s'est jugé à la capture d'écran, page dépliée et requête exécutée,
-  ce qui a fait ressortir ce qu'aucun test n'aurait vu : « Request URL »
-  en sombre sur sombre, boutons copier/télécharger restés clairs, champ
-  invalide viré au saumon, et le coloriseur de Swagger qui barbouillait
-  la barre de calendrier de la fiche dessinée.
-
-  Gris neutres à gamme ouverte, couleur réservée aux méthodes HTTP et
-  jamais seule porteuse de l'information, hors axe rouge/vert. Conception,
-  palette et façon de vérifier : `docs/dev/THEME_DOCS.md`.
-
-### Modifié
-
-- README : les cinq exemples Python et les quatre exemples R sont
-  rejoués contre une instance locale à Hub'Eau simulé, ce qui n'avait
-  plus été fait depuis leur écriture. Tous passent. Ajoutés :
-  `stations_meta=true`, qui rend un résultat autoportant et n'était pas
-  documenté, les deux liens vers la définition d'une fiche, et une
-  section « Citer » qui reflète la provenance réellement publiée plutôt
-  que la seule version de card.
-
-### Ajouté
-
-- **Empreinte des données d'entrée** (`data_fingerprint`), qui répond à
-  une question et une seule : deux résultats reposent-ils sur la même
-  donnée ? Hub'Eau révise ses chroniques, et sans elle un écart entre
-  deux calculs ne se distinguait pas d'un changement de code, il fallait
-  enquêter. Le résultat gelé d'un job porte en plus le détail par station
-  (`data_fingerprints`), la verbosité étant utile dans l'artefact qu'on
-  archive et déplacée dans une réponse immédiate.
-
-  Calculée sur les octets des colonnes et non sur le fichier de cache :
-  gzip inscrit un horodatage dans son en-tête, donc deux compressions
-  d'une même donnée donnent des octets différents. Passer par les
-  tableaux rend aussi l'empreinte indépendante du format CSV et des
-  versions de pandas. Prise sur la chronique entière, avant tout filtre
-  de période, puisque c'est la source qu'on identifie. Coût mesuré :
-  2 ms par station, soit un demi-dixième de seconde pour les 228 stations
-  du RRSE.
-
-### Corrigé
-
 - **Le LTP n'était pas reproductible.** Il départage les ex-æquo au
   hasard, choix documenté dans le `tools.R` d'origine, et `stase` permet
   de fixer la graine ; le service ne la passait pas. Deux appels
@@ -985,12 +975,6 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   qui rend deux résultats comparables. La date vient maintenant du cache
   lui-même, et à défaut d'information, de l'instant courant, qui reste
   une borne vraie.
-
-### Ajouté
-
-- Les réponses **synchrones** portent `data_fetched_at`, qui n'existait
-  que dans les jobs. Un résultat immédiat est tout aussi archivable
-  qu'un résultat de job, il doit dire la même chose.
 
 ## 0.2.0 (2026-07-22)
 
