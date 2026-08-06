@@ -33,11 +33,12 @@ les droits qui vont avec.
 |---|---|---|
 | Quelques stations, ponctuellement | ce service | [la doc interactive](https://card-api.riverly.inrae.fr/docs) |
 | Des milliers de stations, ou vos propres données | la bibliothèque Python, en local, sans quota | [dépôt card](https://github.com/lou-heraut/card) |
+| Les mêmes, mais en R | le paquet R, qui appelle card sans le réécrire | [dépôt card4r](https://github.com/lou-heraut/card4r) |
 | Comprendre ce qu'une fiche calcule | la fiche dessinée | [`VCN10` en figure](https://card-api.riverly.inrae.fr/v1/cards/VCN10/figure) |
 | Savoir quels filtres existent | le vocabulaire de classification | [`/v1/vocabulary`](https://card-api.riverly.inrae.fr/v1/vocabulary) |
 | Brancher un site web | l'API depuis le navigateur (CORS ouvert) | [les fiches d'étiage](https://card-api.riverly.inrae.fr/v1/cards?phenomenon=basses%20eaux) |
 | Publier un résultat | citer la fiche par son `swhid`, présent dans la réponse | [CITATION.cff](https://github.com/lou-heraut/card/blob/main/CITATION.cff) |
-| Une variable qui n'existe pas | copier une fiche, l'adapter, l'exécuter chez vous | [développer sa propre fiche](https://github.com/lou-heraut/card#développer-sa-propre-fiche) |
+| Une variable qui n'existe pas | copier une fiche, l'adapter, l'exécuter chez vous | [développer sa propre fiche](https://github.com/lou-heraut/card#writing-your-own) |
 
 ## Les endpoints
 
@@ -212,6 +213,15 @@ r = requests.get("https://card-api.riverly.inrae.fr/v1/extract", params={
     "start": "1990-01-01",
     "orient": "columns",              # directement ingérable par pandas
 }).json()
+
+r["data"]["VCN10"]
+# {"code_station": ["F700000103", "F700000103", ...],
+#  "date":         ["2005-02-01", "2006-02-01", ...],
+#  "VCN10":        [None, 104.6066, ...]}          # la 1re année est incomplète
+
+r["meta"][1]
+# {"variable_en": "VCN10", "unit_fr": "m^{3}.s^{-1}",
+#  "name_fr": "Minimum annuel de la moyenne sur 10 jours du débit journalier", ...}
 ```
 
 Figure, avec l'unité lue dans les métadonnées :
@@ -238,7 +248,16 @@ r = requests.get("https://card-api.riverly.inrae.fr/v1/trend", params={
 }).json()
 
 tr = pd.DataFrame(r["data"]["VCN10"]).iloc[0]
+# code_station    F700000103        h                False
+# level                  0.1        p             0.339880
+# a                -0.776973        b           150.192329
+# a_relative       -0.678864        mean_period 114.451837
 ```
+
+`h` est le verdict au seuil `level`, `p` la p-value, `a` la pente de Sen
+dans l'unité de la variable et par an, `a_relative` la même en pourcentage
+de la moyenne de la période. Ici la baisse apparente n'est pas
+significative, et le service le dit plutôt que de la laisser croire.
 
 Points et droite de Sen sur la même figure :
 
@@ -261,7 +280,18 @@ library(jsonlite)
 
 r <- fromJSON(paste0("https://card-api.riverly.inrae.fr/v1/extract?stations=F700000103",
                      "&cards=QA,VCN10&start=1990-01-01"))
+
+head(r$data$VCN10, 3)
+#   code_station       date    VCN10
+# 1   F700000103 2005-02-01       NA
+# 2   F700000103 2006-02-01 104.6066
+# 3   F700000103 2007-02-01 139.7335
 ```
+
+Ces exemples appellent le service par HTTP, ce qui est le bon geste pour
+quelques stations Hub'Eau. Pour vos propres données, ou pour du volume
+sans quota, [card4r](https://github.com/lou-heraut/card4r) appelle le
+même recueil en local depuis R.
 
 Figure, avec l'unité lue dans les métadonnées :
 
@@ -352,6 +382,7 @@ pourquoi il ne redonne pas la même chose :
 
 | Champ | Ce qu'il dit |
 |---|---|
+| `api_version` | la version du service qui a répondu |
 | `card_version`, `card_commit`, `card_swhid` | le corpus de fiches employé |
 | `stase_version`, `stase_commit`, `stase_swhid` | le moteur de calcul employé |
 | `meta[].version`, `meta[].swhid` | la définition de chaque variable, fiche par fiche |
