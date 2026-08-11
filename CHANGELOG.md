@@ -41,7 +41,28 @@ des deux endroits.
 
 ## Non publié
 
-Rien depuis la 0.3.1.
+Rien qui change ce qu'un client voit, donc aucun numéro coupé : le service
+tourne sur `main` et publie le commit qui a répondu.
+
+### Modifié
+
+- **Le README ne montrait jamais ce que le service répond (2026-08-06).**
+  Sur tous les blocs Python et R, une seule sortie était affichée dans
+  tout le fichier, celle du `curl` de recherche de station. Un lecteur
+  voyait `tr <- r$data$VCN10[1, ]` et devait appeler le service pour
+  savoir ce qu'il y avait dedans. Les réponses sont désormais montrées,
+  relevées sur la production, et sur cette station la baisse n'est pas
+  significative : le README le dit plutôt que de choisir un exemple qui
+  arrangerait la démonstration.
+
+  Deux dettes réparées au passage. Le lien vers la section « développer sa
+  propre fiche » de card était mort depuis que son README est passé à
+  l'anglais, et il vivait dans la table « Quelle porte prendre ». Et
+  `api_version`, que le service publie dans chaque réponse, manquait à la
+  table de provenance qui listait pourtant le corpus, le moteur, les
+  fiches, la date de lecture et l'empreinte. Enfin card4r entre dans la
+  table de décision : un utilisateur R qui veut calculer sur ses propres
+  données avait la réponse sous les yeux trop tard.
 
 ## 0.3.1 (2026-08-05)
 
