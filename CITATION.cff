@@ -14,8 +14,8 @@ authors:
     given-names: "Louis"
     email: "louis.heraut@inrae.fr"
     affiliation: "INRAE, UR RiverLy, Villeurbanne, France"
-version: "0.3.2"
-date-released: "2026-08-12"
+version: "0.4.0"
+date-released: "2026-08-13"
 repository-code: "https://github.com/lou-heraut/card-api"
 license: "GPL-3.0-or-later"
 keywords:

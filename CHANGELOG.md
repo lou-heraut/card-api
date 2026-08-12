@@ -41,6 +41,10 @@ des deux endroits.
 
 ## Non publié
 
+Rien depuis la 0.4.0.
+
+## 0.4.0 (2026-08-13)
+
 ### Modifié
 
 - **Un paramètre de requête inconnu est refusé (2026-08-13).** FastAPI
