@@ -115,6 +115,7 @@ def _facet_doc(facette, intro):
 _Domain = _facet_enum("domain")
 _Phenomenon = _facet_enum("phenomenon")
 _Aspect = _facet_enum("aspect")
+_Statistic = _facet_enum("statistic")
 _Season = _facet_enum("season")
 _Output = _facet_enum("output")
 _Purpose = _facet_enum("purpose")
@@ -657,6 +658,12 @@ def cards(
         None, description=_facet_doc("phenomenon", "Phénomène décrit.")),
     aspect: _Aspect | None = Query(
         None, description=_facet_doc("aspect", "Dimension IHA.")),
+    statistic: _Statistic | None = Query(
+        None, description=_facet_doc(
+            "statistic",
+            "Opération statistique qui produit la variable. Orthogonale "
+            "à aspect : VCN10 et tVCN10 sont tous deux un minimum, l'un "
+            "en magnitude, l'autre en timing.")),
     season: _Season | None = Query(
         None, description=_facet_doc("season", "Fenêtre d'échantillonnage.")),
     output: _Output | None = Query(
@@ -694,7 +701,8 @@ def cards(
     libre. Tous se combinent, et ce sont ceux de `card.list_cards()`.
     """
     df = card.list_cards(domain=domain, phenomenon=phenomenon,
-                         aspect=aspect, season=season, output=output,
+                         aspect=aspect, statistic=statistic,
+                         season=season, output=output,
                          purpose=purpose, operator=operator,
                          function=function, variable=variable,
                          search=search)

@@ -41,8 +41,27 @@ des deux endroits.
 
 ## Non publié
 
-Rien qui change ce qu'un client voit, donc aucun numéro coupé : le service
-tourne sur `main` et publie le commit qui a répondu.
+Rien depuis la 0.3.2.
+
+## 0.3.2 (2026-08-12)
+
+### Ajouté
+
+- **La recherche de fiches filtre par opération statistique
+  (2026-08-12).** `/v1/cards` gagne un paramètre `statistic`, et
+  `/v1/vocabulary` une septième facette avec ses dix-huit termes. Le
+  corpus a gagné cette classification en card 0.7.0, et le service
+  l'aurait de toute façon publiée dans son vocabulaire, qu'il lit chez
+  card : autant qu'elle soit aussi filtrable.
+
+  Elle est **orthogonale à `aspect`** : `VCN10` et `tVCN10` sont tous
+  deux un `minimum`, l'un en `magnitude`, l'autre en `timing`. Le
+  descriptif du paramètre le dit, parce qu'un client qui découvre deux
+  facettes voisines a besoin de savoir laquelle prendre.
+
+  Ajout pur : aucun paramètre existant ne change, aucune réponse ne perd
+  de champ. Le numéro bouge parce que **ce qu'un client voit change**,
+  et c'est la seule règle de coupe de ce dépôt.
 
 ### Modifié
 
