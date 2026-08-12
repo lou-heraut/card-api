@@ -59,7 +59,7 @@ Préfixe `/v1` dès le départ.
 - `GET /v1/cards` : le catalogue des fiches. Filtres = les facettes de
   la classification, désignées par leur **slug** (listes fermées
   annoncées dans l'OpenAPI, donc rendues en menus déroulants) :
-  `?phenomenon=low-flows&output=series`, `&operator=delta`,
+  `?phenomenon=low-flows&output=series`, `&statistic=change`,
   `&function=baseflow`, `&search=étiage`. La langue ne filtre pas, elle
   s'affiche : les libellés fr/en sont dans le résultat, dans
   `/v1/vocabulary`, et `lang=` choisit celle du rendu. La bibliothèque

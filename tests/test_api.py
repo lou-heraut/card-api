@@ -41,8 +41,10 @@ def test_cards_facet_filters():
     refus = client.get("/v1/cards", params={"phenomenon": "basses eaux"})
     assert refus.status_code == 422
     assert "low-flows" in refus.text
-    delta = client.get("/v1/cards", params={"operator": "delta"}).json()
-    assert all(c["operator"] == "delta" for c in delta["cards"])
+    # `operator` a été retiré au profit de la facette `statistic`, qui
+    # dit la même chose sans la déduire d'un préfixe de nom (card 0.9.0).
+    delta = client.get("/v1/cards", params={"statistic": "change"}).json()
+    assert all(c["statistic_en"] == "change" for c in delta["cards"])
 
 
 def test_card_detail_and_404():
@@ -569,3 +571,33 @@ def test_aucune_description_ne_fige_un_plafond():
     motif = re.compile(r"\b\d{2,4} (stations|fiches)\b")
     fautifs = [t for t in textes if motif.search(t)]
     assert not fautifs, fautifs
+
+
+def test_an_unknown_query_parameter_is_refused():
+    """Un filtre mal orthographié doit échouer, pas rendre tout.
+
+    FastAPI ignore par défaut ce qu'il ne connaît pas, si bien que
+    `?phenomen=low-flows` rendait le catalogue entier et l'appelant
+    croyait avoir filtré. Constaté le 2026-08-13 en retirant `operator` :
+    l'ancien appel continuait de répondre 200 avec toutes les lignes.
+    Les facettes étant des listes FERMÉES annoncées dans l'OpenAPI, le
+    service doit dire quand on sort de la liste, y compris quand c'est le
+    NOM du filtre qui est faux.
+    """
+    r = client.get("/v1/cards", params={"phenomen": "low-flows"})
+    assert r.status_code == 422
+    detail = r.json()["detail"][0]
+    assert "phenomen" in detail["msg"]
+    # la réponse suffit à corriger l'appel sans aller lire la doc
+    assert "phenomenon" in detail["acceptés"]
+
+    # `operator`, retiré le 2026-08-13, ne rend plus silencieusement tout
+    assert client.get("/v1/cards",
+                      params={"operator": "delta"}).status_code == 422
+
+    # et ce que le contrat déclare passe toujours, sur toutes les routes
+    for url, params in (("/v1/cards", {"phenomenon": "low-flows"}),
+                        ("/v1/cards/VCN10", {"lang": "fr"}),
+                        ("/v1/vocabulary", {}),
+                        ("/docs", {})):
+        assert client.get(url, params=params).status_code == 200, url

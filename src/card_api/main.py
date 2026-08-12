@@ -112,6 +112,63 @@ def _facet_doc(facette, intro):
     return f"{intro} {gloss}."
 
 
+def _params_declares(dependant):
+    """Noms de paramètres de requête qu'une route accepte.
+
+    Trois sources, et il faut les trois. Les paramètres écrits dans la
+    signature ; ceux des sous-dépendances (limitation de débit, clé d'API) ;
+    et surtout ceux d'un MODÈLE de paramètres, `p: Annotated[TrendParams,
+    Query()]`, dont FastAPI ne rapporte que le modèle, pas ses champs. Sans
+    ce dernier cas, `/v1/trend` n'accepterait plus que `p` et refuserait
+    ses propres paramètres.
+    """
+    noms = set()
+    for p in dependant.query_params:
+        annotation = p.field_info.annotation
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            noms |= {champ.alias or nom
+                     for nom, champ in annotation.model_fields.items()}
+        else:
+            noms.add(p.alias)
+    for sous in dependant.dependencies:
+        noms |= _params_declares(sous)
+    return noms
+
+
+async def _refuse_les_parametres_inconnus(request: Request):
+    """Un paramètre de requête non déclaré fait échouer l'appel.
+
+    Par défaut, FastAPI IGNORE en silence ce qu'il ne connaît pas : une
+    faute de frappe (`?phenomen=low-flows`) rend le catalogue entier et
+    l'appelant croit avoir filtré. Constaté le 2026-08-13 en retirant le
+    filtre `operator` : `?operator=delta` continuait de répondre 200 avec
+    les 472 lignes au lieu des 83 attendues, sans le moindre signal.
+
+    Le silence n'est pas tenable ici parce que les facettes sont des
+    listes FERMÉES, annoncées dans l'OpenAPI et rendues en menus : un
+    service qui promet des valeurs valides doit dire quand on sort de la
+    liste, y compris quand c'est le NOM du filtre qui est faux. Le refus
+    nomme les paramètres acceptés, de sorte que la réponse d'erreur
+    suffise à corriger l'appel sans aller lire la documentation.
+    """
+    route = request.scope.get("route")
+    dependant = getattr(route, "dependant", None)
+    if dependant is None:
+        return                      # route sans contrat déclaré (static)
+    connus = _params_declares(dependant)
+    inconnus = sorted(set(request.query_params) - connus)
+    if inconnus:
+        raise HTTPException(
+            status_code=422,
+            detail=[{
+                "type": "unexpected_query_parameter",
+                "loc": ["query", nom],
+                "msg": f"paramètre inconnu '{nom}'",
+                "acceptés": sorted(connus),
+            } for nom in inconnus],
+        )
+
+
 _Domain = _facet_enum("domain")
 _Phenomenon = _facet_enum("phenomenon")
 _Aspect = _facet_enum("aspect")
@@ -390,7 +447,11 @@ app = FastAPI(
                     "en tête de file et `GET /v1/jobs` liste les vôtres. "
                     "Elle se demande par une issue du dépôt, elle ne "
                     "s'achète pas. Coller le jeton tel quel, sans "
-                    "préfixe."))],
+                    "préfixe.")),
+        # Vaut pour TOUTES les routes : un contrat qui annonce ses
+        # paramètres doit refuser ceux qu'il n'annonce pas, sinon il
+        # n'annonce rien.
+        Depends(_refuse_les_parametres_inconnus)],
     # Réglages d'AFFICHAGE de Swagger. Ils ne touchent pas au contrat :
     # `openapi.json` reste complet, c'est la page qui décide de ce
     # qu'elle montre d'emblée.
@@ -670,11 +731,6 @@ def cards(
         None, description=_facet_doc("output", "Forme du résultat.")),
     purpose: _Purpose | None = Query(
         None, description=_facet_doc("purpose", "Finalité particulière.")),
-    operator: str | None = Query(
-        None,
-        description="Opérateur inter-annuel, lu sur le préfixe de l'id. "
-                    "Valeurs rencontrées : mean, median, delta, "
-                    "trend slope, trend test, count."),
     function: str | None = Query(
         None,
         description="Sous-chaîne d'un nom de fonction employée dans le "
@@ -703,7 +759,7 @@ def cards(
     df = card.list_cards(domain=domain, phenomenon=phenomenon,
                          aspect=aspect, statistic=statistic,
                          season=season, output=output,
-                         purpose=purpose, operator=operator,
+                         purpose=purpose,
                          function=function, variable=variable,
                          search=search)
     rows = clean(df.head(limit).to_dict(orient="records"))

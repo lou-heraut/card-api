@@ -98,7 +98,7 @@ filtre par facettes de classification (`domain`, `phenomenon`,
 
 ```bash
 curl "https://card-api.riverly.inrae.fr/v1/cards?phenomenon=basses%20eaux&output=série"
-curl "https://card-api.riverly.inrae.fr/v1/cards?operator=delta&search=VCN"
+curl "https://card-api.riverly.inrae.fr/v1/cards?statistic=change&search=VCN"
 curl "https://card-api.riverly.inrae.fr/v1/cards/VCN10?lang=fr"      # détail d'une fiche
 ```
 

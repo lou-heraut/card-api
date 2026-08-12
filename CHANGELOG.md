@@ -41,7 +41,32 @@ des deux endroits.
 
 ## Non publié
 
-Rien depuis la 0.3.2.
+### Modifié
+
+- **Un paramètre de requête inconnu est refusé (2026-08-13).** FastAPI
+  les ignore en silence par défaut, si bien qu'une faute de frappe
+  (`?phenomen=low-flows`) rendait le catalogue ENTIER et l'appelant
+  croyait avoir filtré. Constaté en retirant `operator` : l'ancien appel
+  continuait de répondre 200 avec les 472 lignes au lieu des 83
+  attendues, sans le moindre signal. Le silence n'est pas tenable pour un
+  service dont les facettes sont des listes fermées annoncées dans
+  l'OpenAPI : il doit dire quand on sort de la liste, y compris quand
+  c'est le NOM du filtre qui est faux. Le refus nomme les paramètres
+  acceptés, de sorte que la réponse suffise à corriger l'appel.
+
+  Conséquence trouvée en chemin : `?key=` était lu par `priority_of`
+  sans être déclaré nulle part, exactement le trou déjà bouché côté
+  en-tête. Il est désormais déclaré, mais **hors du schéma** : une clé
+  dans une URL se retrouve dans les journaux et l'historique du
+  navigateur, donc le contrat l'accepte sans que /docs la propose.
+
+### Retiré
+
+- **Le filtre `?operator=` de `/v1/cards` (2026-08-13).** La colonne
+  disparaît de card, où elle était déduite d'un préfixe d'identifiant au
+  lieu d'être déclarée. `?statistic=change` la remplace, table de
+  conversion dans `RENAMING.md` de card. L'ancien appel répond 422 et dit
+  quels paramètres existent.
 
 ## 0.3.2 (2026-08-12)
 

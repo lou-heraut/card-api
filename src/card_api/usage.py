@@ -32,7 +32,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Query, Request
 
 from . import keys as keys_mod
 from .hubeau import data_dir
@@ -88,6 +88,17 @@ def priority_of(request: Request) -> dict | None:
     return info
 
 
+# `?key=` est une alternative à l'en-tête `X-API-Key`, et `priority_of`
+# la lit depuis toujours. Elle est DÉCLARÉE ici pour deux raisons : sans
+# déclaration, le refus des paramètres inconnus (main.py) la rejetterait
+# comme une faute de frappe ; et un paramètre que le service lit sans
+# l'annoncer est un trou dans le contrat, celui-là même qui avait été
+# bouché côté en-tête. Elle reste HORS du schéma : une clé dans une URL
+# se retrouve dans les journaux, l'historique du navigateur et les
+# référents, donc le contrat l'accepte sans que /docs la propose.
+_CLE_EN_URL = Query(None, include_in_schema=False)
+
+
 def check_rate(request: Request, limit: int, famille: str):
     """Fenêtre glissante : au plus `limit` requêtes par IP et par minute.
 
@@ -119,7 +130,7 @@ def check_rate(request: Request, limit: int, famille: str):
         headers={"Retry-After": str(retry)})
 
 
-def rate_compute(request: Request):
+def rate_compute(request: Request, key: str | None = _CLE_EN_URL):
     if priority_of(request) is None:
         check_rate(request, RATE_COMPUTE, "calcul")
 
@@ -133,7 +144,7 @@ def rate_compute(request: Request):
 _MUET = {"health", "job_status", "job_result", "landing", "root"}
 
 
-def rate_light(request: Request):
+def rate_light(request: Request, key: str | None = _CLE_EN_URL):
     """Quota des endpoints légers, ET journal de consultation.
 
     La consultation du catalogue est un usage aussi réel qu'un calcul :
