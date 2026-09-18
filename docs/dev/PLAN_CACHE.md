@@ -455,22 +455,19 @@ Le contrat gagne un champ, donc `api_version`, et l'OpenAPI le dit.
 ## Les chantiers des autres dépôts
 
 Ils ne sont pas décrits ici, seulement nommés, avec le renvoi vers le
-dépôt qui les exécute.
+dépôt qui les exécute. **Les trois sont livrés le 2026-09-18**, donc A8
+n'attend plus rien.
 
-- **S1, dans `stase`** : ajouter à la sortie de la tendance le nombre de
-  points réellement utilisés par le test. Nom de colonne `n` : la table
-  porte déjà `h`, `p`, `a`, `b`, et le nom est libre, aucune clé du
-  Mann-Kendall ne l'occupe. À ne pas oublier : le cadre de sortie vide
-  (`_empty_trend_frame`) énumère ses colonnes, donc il faut l'y ajouter
-  aussi. Un test sur une série **trouée**, sans quoi il ne prouve rien.
-  La sortie change, donc version de `stase`, et `card` remonte son
-  `stase>=` dans la foulée.
-- **C1, dans `card`** : consigner pourquoi `card` refuse une fenêtre
-  intra-annuelle que CARD-R acceptait. Sa place est la section
-  « Divergences assumées avec le R » de `docs/dev/ORIGINE_R.md`, dont les
-  entrées ont déjà cette forme.
-- **C2, dans `card`** : un test qui constate que `n` traverse
-  `card.trend`.
+- **S1, dans `stase`** : livré par `stase` 0.6.5. La tendance rend une
+  colonne `n`, le nombre de valeurs sur lesquelles le test a réellement
+  porté, mesurée sur une série trouée et sur deux fenêtres. Le journal du
+  moteur porte le détail et la raison.
+- **C1, dans `card`** : livré. Le refus d'une fenêtre intra-annuelle que
+  CARD-R acceptait est consigné, avec sa raison et sa mesure sur les 228
+  chroniques du RRSE, dans la section « Divergences assumées avec le R »
+  de son `docs/dev/ORIGINE_R.md`.
+- **C2, dans `card`** : livré. Un test constate que `n` traverse
+  `card.trend`, et le plancher du paquet passe à `stase>=0.6.5`.
 
 ## Ce qu'il ne faut pas faire
 
@@ -502,8 +499,9 @@ dépôt qui les exécute.
   A6   le plafond                          après mesure, donc en dernier
 ```
 
-`S1`, `C1` et `C2` peuvent partir à tout moment : ils ne dépendent de
-rien de ce qui précède, et `A8` attend `S1`.
+`S1`, `C1` et `C2` sont livrés (cf. plus haut). `A8` ne dépend donc plus
+de rien, mais il change le contrat : il part avec la prochaine coupe
+d'`api_version` plutôt que seul.
 
 **Versions.** Le service se coupe une version le jour où ce qu'un client
 voit change. Ici : A1 et A3 (un paramètre), A7 (une route), A8 (un
