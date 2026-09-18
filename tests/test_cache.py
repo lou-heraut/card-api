@@ -31,10 +31,29 @@ def test_la_fraicheur_respecte_la_duree_de_vie(monkeypatch, tmp_path):
     monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
     f = _copie(tmp_path)
     assert cache.is_fresh("K0550010")
-    vieux = time.time() - cache.MAX_AGE - 10
+    vieux = time.time() - cache.MAX_AGE_DAYS * 86400 - 10
     os.utime(f, (vieux, vieux))
     assert not cache.is_fresh("K0550010")
     assert not cache.is_fresh("K9999999")           # jamais téléchargée
+
+
+def test_la_requete_peut_exiger_plus_frais(monkeypatch, tmp_path):
+    """`max_age` est un nombre de JOURS, et `0` n'est pas l'absence.
+
+    Confondre les deux servirait une copie à qui demande explicitement une
+    lecture neuve, ce qui est exactement le contraire de ce qu'il demande.
+    """
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    f = _copie(tmp_path)
+    vieux = time.time() - 10 * 86400                # copie de dix jours
+    os.utime(f, (vieux, vieux))
+    assert cache.is_fresh("K0550010")               # défaut : plus large
+    assert cache.is_fresh("K0550010", max_age=30)
+    assert not cache.is_fresh("K0550010", max_age=2)
+
+    os.utime(f, None)                               # copie de l'instant
+    assert cache.is_fresh("K0550010", max_age=1)
+    assert not cache.is_fresh("K0550010", max_age=0)
 
 
 def test_la_date_de_collecte_est_celle_du_fichier(monkeypatch, tmp_path):

@@ -115,13 +115,19 @@ en tracer un, puis diagnostiquer sa tendance et superposer points et
 droite de Sen. Les indicateurs annuels se tracent en points (une
 valeur par an), pas en ligne continue.
 
-Deux paramètres méritent un mot :
+Quelques paramètres méritent un mot :
 
 - `sampling=preferred` fige la fenêtre annuelle de calcul sur celle
   que chaque fiche déclare (par exemple l'année hydrologique 09-01
   pour les crues). Par défaut, les fiches d'étiage et de crue adaptent
   leur fenêtre à chaque station ; `preferred` rend les résultats
   directement comparables entre stations et reproductibles.
+- `max_age=<jours>` dit ce que **vous** acceptez de lire : le service
+  garde une copie locale de chaque chronique Hub'Eau, et ce paramètre
+  borne son âge (`0` exige une lecture neuve). Le défaut se lit dans
+  `/v1`, bloc `limits.cache`. Plus la valeur est basse, plus la demande
+  risque de partir en file de calcul, puisqu'elle compte alors des
+  stations à télécharger.
 - `series=true` sur `/v1/trend` joint à la réponse, sous `series`,
   les séries extraites sur lesquelles la tendance a été calculée :
   points et diagnostic issus du même calcul, sans second appel.

@@ -20,7 +20,7 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def fake_hubeau(monkeypatch):
-    def fake_fetch(station, refresh=False):
+    def fake_fetch(station, refresh=False, max_age=None):
         dates = pd.date_range("1990-01-01", "2019-12-31", freq="D")
         rng = np.random.default_rng(abs(hash(station)) % 2**32)
         q = 10 + rng.lognormal(0, 0.3, len(dates))
@@ -161,7 +161,7 @@ def test_hubeau_retry_then_clean_failure(monkeypatch):
 
 
 def test_hubeau_down_maps_to_504(monkeypatch):
-    def down(station, refresh=False):
+    def down(station, refresh=False, max_age=None):
         raise hubeau.HubEauIndisponible("Hub'Eau ne répond pas : réessayez")
     monkeypatch.setattr(hubeau, "fetch_chronicle", down)
     r = client.get("/v1/extract",

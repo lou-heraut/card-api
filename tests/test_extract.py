@@ -14,7 +14,7 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def fake_hubeau(monkeypatch):
     """Chronique synthétique de 30 ans, saisonnière, pour 2 stations."""
-    def fake_fetch(station, refresh=False):
+    def fake_fetch(station, refresh=False, max_age=None):
         if station.startswith("X"):
             raise hubeau.StationInconnue(f"aucune chronique QmnJ pour {station!r}")
         dates = pd.date_range("1990-01-01", "2019-12-31", freq="D")
@@ -59,7 +59,7 @@ def test_la_periode_part_au_moteur_sans_pre_coupe(monkeypatch):
     """
     import card
 
-    def longue(station, refresh=False):
+    def longue(station, refresh=False, max_age=None):
         dates = pd.date_range("1950-01-01", "2019-12-31", freq="D")
         doy = dates.dayofyear.to_numpy()
         rng = np.random.default_rng(0)

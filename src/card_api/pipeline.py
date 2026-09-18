@@ -223,6 +223,20 @@ def normalise(params: dict) -> dict:
     p["start"] = p.get("start") or START_DEFAUT
     p.setdefault("end", None)
     p.setdefault("sampling", None)
+    # L'âge accepté d'une copie : la requête décide, la configuration donne
+    # le défaut. Résolu ICI, donc le routage et le calcul lisent la même
+    # valeur et ne peuvent plus se contredire, et un job gèle celle de la
+    # demande qui l'a créé. `0` est légitime, « rien que du frais », donc
+    # on teste l'absence et non la fausseté.
+    if p.get("max_age") is None:
+        p["max_age"] = cache.MAX_AGE_DAYS
+    else:
+        p["max_age"] = float(p["max_age"])
+        if p["max_age"] < 0:
+            raise ParametresInvalides(
+                f"max_age invalide : {p['max_age']}. C'est un nombre de "
+                "jours, donc positif ou nul ; 0 exige une lecture neuve "
+                "chez Hub'Eau")
     p["orient"] = p.get("orient") or ORIENT_DEFAUT
     if p.get("endpoint") == "trend":
         p["mk"] = p.get("mk") or MK_DEFAUT
@@ -252,7 +266,7 @@ class RienACalculer(ValueError):
     """Toutes les stations écartées. `main.py` en fait un 404."""
 
 
-def chroniques(stations, start, end, progress=None):
+def chroniques(stations, start, end, progress=None, max_age=None):
     """Les chroniques utilisables, et le compte rendu de ce qui a sauté.
 
     Rend (data, empreintes, retenues, omises). Les chroniques sont
@@ -284,7 +298,7 @@ def chroniques(stations, start, end, progress=None):
         if progress:
             progress(i, total, f"chronique {s}")
         try:
-            df = hubeau.fetch_chronicle(s)
+            df = hubeau.fetch_chronicle(s, max_age=max_age)
         except hubeau.StationInconnue as e:
             omises.append(_omission(s, "no_series", e))
             continue
@@ -338,7 +352,8 @@ def compute(params: dict, progress=None, verrou=None) -> dict:
     """
     st, cd = params["stations"], params["cards"]
     data, empreintes, retenues, omises = chroniques(
-        st, params["start"], params["end"], progress)
+        st, params["start"], params["end"], progress,
+        max_age=params.get("max_age"))
 
     total = len(st)
     if progress:

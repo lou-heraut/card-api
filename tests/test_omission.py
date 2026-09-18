@@ -80,7 +80,7 @@ def test_hubeau_injoignable_n_est_jamais_une_omission(monkeypatch):
     panne Hub'Eau est transitoire : la sauter fabriquerait des résultats
     silencieusement plus petits les jours de panne, ce que personne ne
     remarquerait au milieu d'un bloc d'omissions."""
-    def indisponible(station, refresh=False):
+    def indisponible(station, refresh=False, max_age=None):
         raise hubeau.HubEauIndisponible("Hub'Eau ne répond pas")
 
     monkeypatch.setattr(hubeau, "fetch_chronicle", indisponible)
@@ -95,7 +95,7 @@ def test_periode_sans_mesure_est_une_omission(monkeypatch, hubeau_simule):
     fait stable de la station, il se rapporte comme les autres plutôt que
     d'annuler les stations qui, elles, couvrent la période. Cas réel des
     stations récentes dans une étude qui remonte à 1968."""
-    def recente_pour_une(station, refresh=False):
+    def recente_pour_une(station, refresh=False, max_age=None):
         df = hubeau_simule(station)
         if station == "F7000001":                  # ouverte en 2010
             df = df[df["date"] >= "2010-01-01"]

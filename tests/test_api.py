@@ -340,6 +340,26 @@ def test_la_tendance_se_lit_aussi_dessinee(hubeau_simule):
                     spec["/v1/trend/figure"]["get"]["parameters"]]
 
 
+def test_la_tendance_dit_sur_combien_de_points_elle_porte(hubeau_simule):
+    """`n` vient du moteur et traverse card, le service et la
+    sérialisation sans qu'une seule ligne de code ne le nomme : c'est
+    précisément pour cela qu'il faut un test, une future mise en forme de
+    la table le ferait disparaître en silence.
+
+    Il ne se déduit pas des bornes de période, qui viennent de la colonne
+    de dates sans regarder les valeurs manquantes : une pente sur douze
+    points ne se lit pas comme une pente sur cinquante-cinq, et rien
+    d'autre dans la réponse ne fait la différence.
+    """
+    j = client.get("/v1/trend", params={"stations": "F700000103",
+                                        "cards": "QA"}).json()
+    ligne = j["data"]["QA"][0]
+    assert isinstance(ligne["n"], int)
+    assert 0 < ligne["n"] <= 60
+    etendue = (int(ligne["period_end"][:4]) - int(ligne["period_start"][:4])) + 1
+    assert ligne["n"] <= etendue
+
+
 def test_le_csv_porte_sa_provenance(hubeau_simule):
     """Un CSV ne sait pas porter de bloc `versions` : livré nu, il devient
     en trois copies un tableau de chiffres dont plus personne ne sait d'où

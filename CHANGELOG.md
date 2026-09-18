@@ -41,6 +41,59 @@ des deux endroits.
 
 ## Non publié
 
+## 0.6.0 (2026-09-18)
+
+### Ajouté
+
+- **La fraîcheur acceptée devient un paramètre de requête (2026-09-18).**
+  `max_age`, un nombre de jours, sur `/v1/extract`, `/v1/trend`, leurs
+  jumeaux `.csv`, la figure et le dépôt de job : « je n'accepte pas une
+  copie plus vieille que N jours ». `0` exige une lecture neuve chez
+  Hub'Eau. Le défaut est dans `.env` et sa valeur se lit dans `/v1`, bloc
+  `limits.cache`, jamais recopiée dans une description.
+
+  Dire le BESOIN et non l'action est ce qui rend le paramètre sûr : un
+  `refresh=true` aurait dit au service quoi faire, et aurait fini dans une
+  boucle qui tape sur Hub'Eau à travers lui. `max_age` dit ce que
+  l'appelant accepte de lire, ce qui se satisfait avec le cache quand
+  c'est possible. C'est aussi la sémantique de `Cache-Control: max-age`.
+
+  **Le paramètre referme un bug de routage.** Le service décide avant de
+  calculer si une demande part en réponse immédiate ou en file, en
+  comptant les stations à télécharger. Cette décision jugeait la
+  fraîcheur avec la durée de vie du service quand le calcul la jugeait
+  avec ce que la requête accepte : une demande annoncée immédiate pouvait
+  partir pour une minute de téléchargements, derrière le sémaphore, en
+  bloquant tous ceux qui attendaient. Les deux appellent désormais
+  `cache.is_fresh` avec la même valeur, résolue une fois par
+  `pipeline.normalise`, et un job gèle celle de la demande qui l'a créé.
+  Un test confronte les deux chemins sur des copies de dix jours.
+
+  **Ce qu'un client voit changer**, et c'est à savoir : le défaut passe de
+  24 heures à un mois. Une chronique Hub'Eau est de la donnée VALIDÉE, ce
+  qui bouge est une révision ponctuelle et non un flux ; qui a besoin de
+  frais le demande maintenant ; et le rafraîchissement périodique à venir
+  repassera de toute façon plus souvent que ce défaut. En échange, une
+  demande qui exige du frais compte des stations à télécharger, donc
+  bascule plus volontiers en file : ce n'est pas un effet de bord, c'est
+  le coût réel qui redevient visible. Règle et raisons dans
+  `docs/dev/API.md`.
+
+- **La tendance dit sur combien de points elle a porté (2026-09-18).** La
+  colonne `n` apparaît dans chaque ligne de `/v1/trend` et de
+  `/v1/trend.csv` : le nombre de valeurs sur lesquelles le test a
+  réellement porté. Elle vient du moteur (`stase` 0.6.5) et traverse
+  `card` puis le service sans qu'une seule ligne de code ne la nomme, ce
+  qui est précisément la raison d'un test : une future mise en forme de la
+  table la ferait disparaître en silence.
+
+  Elle ne se déduit pas des bornes de période, qui viennent de la colonne
+  de dates sans regarder les valeurs manquantes : une série trouée annonce
+  la même période qu'une série pleine, et une pente sur douze points ne se
+  lit pas comme une pente sur cinquante-cinq. Demandé par l'audit de
+  migration de MAKAHO, qui marque les chroniques trop courtes : le seuil
+  reste son choix éditorial, l'ingrédient manquait.
+
 ### Modifié
 
 - **Le disque du service a un seul propriétaire (2026-09-18).** Un module
@@ -93,6 +146,24 @@ des deux endroits.
   C'est la fondation de la fraîcheur réglable par requête, du pool qui se
   garde chaud et du second étage de cache : détail et suite dans
   `docs/dev/PLAN_CACHE.md`.
+
+### Documentation
+
+- **Une chronique se télécharge entière, et c'est écrit (2026-09-18).**
+  Jamais par morceaux recollés. Hub'Eau révise n'importe quel point de
+  l'historique, pas seulement la queue récente : un rafraîchissement
+  partiel ne donnerait pas une donnée « un peu périmée » mais une
+  chronique qui n'a jamais existé chez Hub'Eau, un corps historique d'une
+  révision recollé à une queue d'une autre. Et `data_fingerprint`,
+  calculée sur les octets des colonnes, signerait cet assemblage : une
+  empreinte stable, reproductible, qui ne désigne aucun état réel de la
+  source, soit le contraire de ce à quoi elle sert.
+
+  Le code ne permettait déjà pas de faire autrement. Ce qui manquait est
+  la règle écrite, dans `docs/dev/API.md`, et un test qui vérifie que la
+  demande envoyée à Hub'Eau ne porte aucune borne de date : l'idée de ne
+  rafraîchir que la queue revient dès qu'on regarde une facture de bande
+  passante.
 
 ## 0.5.0 (2026-09-18)
 

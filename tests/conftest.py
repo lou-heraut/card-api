@@ -50,7 +50,7 @@ def hubeau_simule(monkeypatch):
 
     from card_api import hubeau
 
-    def fake_fetch(station, refresh=False):
+    def fake_fetch(station, refresh=False, max_age=None):
         if station.startswith("X"):
             raise hubeau.StationInconnue(
                 f"aucune chronique QmnJ pour {station!r}")

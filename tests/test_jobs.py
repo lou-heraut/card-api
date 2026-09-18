@@ -2,6 +2,7 @@
 dépôt, statut, résultat avec provenance, bascule automatique des
 demandes trop grosses, échecs, plafonds."""
 
+import os
 import time
 
 import numpy as np
@@ -18,7 +19,7 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def fake_hubeau(monkeypatch):
     """Chronique synthétique de 30 ans, saisonnière (cf. test_extract)."""
-    def fake_fetch(station, refresh=False):
+    def fake_fetch(station, refresh=False, max_age=None):
         if station.startswith("X"):
             raise hubeau.StationInconnue(f"aucune chronique QmnJ pour {station!r}")
         dates = pd.date_range("1990-01-01", "2019-12-31", freq="D")
@@ -275,7 +276,7 @@ def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
     file, avec ticket et aller-retour, une demande qui tenait en une
     seconde. C'est la friction signalée.
     """
-    monkeypatch.setattr(cache, "is_fresh", lambda s: True)
+    monkeypatch.setattr(cache, "is_fresh", lambda s, max_age=None: True)
     r = client.get("/v1/extract", params={"stations": _stations(20),
                                           "cards": "QA"})
     assert r.status_code == 200
@@ -285,7 +286,7 @@ def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
 def test_stations_a_telecharger_partent_en_file(monkeypatch, sans_calcul):
     """Les mêmes vingt stations à froid, c'est une vingtaine de secondes :
     le ticket est alors le bon service à rendre."""
-    monkeypatch.setattr(cache, "is_fresh", lambda s: False)
+    monkeypatch.setattr(cache, "is_fresh", lambda s, max_age=None: False)
     r = client.get("/v1/extract", params={"stations": _stations(20),
                                           "cards": "QA"})
     assert r.status_code == 202
@@ -294,16 +295,44 @@ def test_stations_a_telecharger_partent_en_file(monkeypatch, sans_calcul):
 def test_seul_le_froid_compte(monkeypatch):
     """Vingt stations dont cinq à télécharger : c'est le coût de cinq."""
     froides = {f"K{i:07d}" for i in range(5)}
-    monkeypatch.setattr(cache, "is_fresh", lambda s: s not in froides)
+    monkeypatch.setattr(cache, "is_fresh",
+                        lambda s, max_age=None: s not in froides)
     r = client.get("/v1/extract", params={"stations": _stations(20),
                                           "cards": "QA"})
     assert r.status_code == 200
 
 
+def test_l_age_accepte_par_la_requete_decide_aussi_du_routage(tmp_path,
+                                                             sans_calcul):
+    """Le bug que `max_age` referme, et la raison d'une seule question.
+
+    Vingt copies de dix jours. Avec le défaut du service elles sont
+    fraîches : rien à télécharger, donc réponse immédiate. Avec
+    `max_age=2`, la MÊME demande compte vingt téléchargements et doit
+    partir en file. Quand le routage jugeait avec la durée de vie du
+    service pendant que le calcul jugeait avec ce que la requête accepte,
+    elle était annoncée immédiate puis partait pour vingt téléchargements
+    derrière le sémaphore, en bloquant tous ceux qui attendaient.
+    """
+    st = _stations(20)
+    vieux = time.time() - 10 * 86400
+    for s in st.split(","):
+        f = cache.chronicle_path(s)
+        f.write_bytes(b"x")
+        os.utime(f, (vieux, vieux))
+
+    direct = client.get("/v1/extract", params={"stations": st, "cards": "QA"})
+    assert direct.status_code == 200
+
+    en_file = client.get("/v1/extract",
+                         params={"stations": st, "cards": "QA", "max_age": 2})
+    assert en_file.status_code == 202
+
+
 def test_le_plafond_haut_borne_quand_meme(monkeypatch, sans_calcul):
     """Tout en cache ne veut pas dire gratuit : le calcul reste petit mais
     pas nul, et un worker ne doit pas être monopolisé."""
-    monkeypatch.setattr(cache, "is_fresh", lambda s: True)
+    monkeypatch.setattr(cache, "is_fresh", lambda s, max_age=None: True)
     trop = jobs.SYNC_STATIONS_CACHED + 1
     r = client.get("/v1/extract", params={"stations": _stations(trop),
                                           "cards": "QA"})

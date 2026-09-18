@@ -144,16 +144,18 @@ def combine_fingerprints(par_station: dict) -> str:
     return f"{FINGERPRINT_VERSION}:{h.hexdigest()}"
 
 
-def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
+def fetch_chronicle(station: str, refresh: bool = False,
+                    max_age: float | None = None) -> pd.DataFrame:
     """Chronique journalière complète (id, date, Q en m3/s) d'une station,
     téléchargée si la copie locale manque ou n'est plus assez fraîche.
 
     La fraîcheur n'est pas jugée ici : `cache.is_fresh` répond, et le
-    routage des demandes l'interroge avec le même critère.
+    routage des demandes l'interroge avec le même critère et la même
+    valeur de `max_age`, en jours.
     """
     if not _STATION_RE.match(station):
         raise StationInconnue(f"code de station invalide : {station!r}")
-    if not refresh and cache.is_fresh(station):
+    if not refresh and cache.is_fresh(station, max_age):
         cache.mark_read(station)
         return cache.load_chronicle(station)
 

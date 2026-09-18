@@ -78,9 +78,13 @@ from pathlib import Path
 
 import pandas as pd
 
-# Durée de vie d'une copie de chronique. Les séries Hub'Eau sont de la
-# donnée VALIDÉE : ce qui bouge est une révision ponctuelle, pas un flux.
-MAX_AGE = 24 * 3600
+# Âge maximal accepté par défaut pour une copie, en JOURS, comme le
+# paramètre de requête qui peut l'écraser : une seule unité sur tout le
+# chemin, donc aucune conversion à retenir. Les séries Hub'Eau sont de la
+# donnée VALIDÉE, ce qui bouge est une révision ponctuelle et non un flux ;
+# qui a besoin de frais le demande, et le pool repassera de toute façon
+# plus souvent que ce défaut.
+MAX_AGE_DAYS = float(os.environ.get("CARD_API_MAX_AGE_DAYS", 30))
 
 # Préfixe de clé du registre. Le second étage de cache aura le sien, si
 # bien que les deux familles cohabiteront dans la même table sans pouvoir
@@ -134,19 +138,29 @@ def collected_at(station: str) -> str | None:
             .replace(microsecond=0).isoformat())
 
 
-def is_fresh(station: str) -> bool:
-    """La chronique est-elle déjà là, et assez fraîche pour servir ?
+def is_fresh(station: str, max_age: float | None = None) -> bool:
+    """Cette copie est-elle assez fraîche POUR CE QUI EST DEMANDÉ ?
+
+    `max_age` est un nombre de JOURS, celui que la requête accepte ;
+    `None` prend le défaut de la configuration. `0` est une valeur
+    légitime et veut dire « rien d'autre que du frais », donc il ne doit
+    jamais être confondu avec l'absence.
 
     Lecture d'une date de fichier, aucun réseau : la question doit rester
     assez peu coûteuse pour qu'on la pose avant CHAQUE demande, afin de
     décider si elle tient dans une réponse immédiate.
 
-    C'est LA question de fraîcheur du service, écrite une fois : le
-    routage et le téléchargement l'appellent tous les deux, donc ne
-    peuvent pas se contredire.
+    C'est LA question de fraîcheur du service, écrite une fois. Elle
+    était posée à deux endroits avec deux critères, et les deux pouvaient
+    se contredire : le routage comparait l'âge à la durée de vie du
+    service pendant que le calcul le comparait à ce que la requête
+    acceptait. Une demande annoncée immédiate partait alors pour une
+    minute de téléchargements, derrière le sémaphore, en bloquant tous
+    ceux qui attendaient.
     """
+    jours = MAX_AGE_DAYS if max_age is None else max_age
     p = chronicle_path(station)
-    return p.exists() and time.time() - p.stat().st_mtime < MAX_AGE
+    return p.exists() and time.time() - p.stat().st_mtime < jours * 86400
 
 
 # ── Le registre des lectures ─────────────────────────────────────────────────

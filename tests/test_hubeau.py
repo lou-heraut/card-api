@@ -36,6 +36,38 @@ def test_le_doublon_de_site_de_hubeau_est_ecarte(monkeypatch):
     assert df["Q"].tolist() == [272.0, 261.0]
 
 
+def test_la_chronique_se_telecharge_entiere(monkeypatch):
+    """Une chronique se télécharge ENTIÈRE, jamais par morceaux recollés.
+
+    Hub'Eau révise n'importe quel point de l'historique, pas seulement la
+    queue récente. Un rafraîchissement partiel ne donnerait donc pas une
+    donnée « un peu périmée » : il donnerait une chronique qui n'a jamais
+    existé chez Hub'Eau, un corps historique d'une révision recollé à une
+    queue d'une autre. Et `data_fingerprint`, calculée sur les octets,
+    signerait cet assemblage : une empreinte stable, reproductible, et qui
+    ne désigne aucun état réel de la source, soit le contraire de ce à
+    quoi elle sert.
+
+    Le code ne permet déjà pas de faire autrement. Ce test est là pour que
+    ça reste vrai, parce que l'idée de ne rafraîchir que la queue revient
+    dès qu'on regarde une facture de bande passante.
+    """
+    from card_api import hubeau
+
+    vus = {}
+
+    def capture(url, params):
+        vus.update(params)
+        return [{"code_station": "K0114020", "date_obs_elab": "1990-01-01",
+                 "resultat_obs_elab": 272000.0}]
+
+    monkeypatch.setattr(hubeau, "_fetch_all", capture)
+    hubeau.fetch_chronicle("K0114020", refresh=True)
+    assert vus, "la requête n'a pas été capturée"
+    bornes = [k for k in vus if "date" in k.lower()]
+    assert not bornes, f"la demande porte des bornes de date : {bornes}"
+
+
 def test_repli_si_aucune_ligne_n_est_etiquetee(monkeypatch):
     """Mieux vaut la chronique telle quelle qu'une station soudainement
     introuvable : le filtre ne doit jamais tout retirer."""

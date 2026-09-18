@@ -114,7 +114,9 @@ dans `/v1` comme les autres. Jamais recopiée dans une description.
 
 Le contrat gagne un paramètre, donc `api_version`.
 
-*État : accepté.*
+*État : **livré le 2026-09-18**, card-api 0.6.0. Le défaut est passé de 24
+heures à un mois, un test confronte le routage et le calcul sur des copies
+de dix jours, et la règle est écrite dans `API.md`.*
 
 ## A2. La chronique se télécharge entière
 
@@ -141,7 +143,8 @@ La règle et son raisonnement complet vont dans `API.md`. Le code ne
 permet déjà pas de faire autrement ; un test le tient, en vérifiant que
 la demande envoyée à Hub'Eau ne porte aucune borne de date.
 
-*État : accepté, sans réserve.*
+*État : **livré le 2026-09-18**. La règle est dans `API.md`, le test dans
+`test_hubeau.py`.*
 
 ## A4. Le pool qui se garde chaud tout seul
 
@@ -486,7 +489,9 @@ bornes de dates sans regarder les lacunes.
 
 Le contrat gagne un champ, donc `api_version`, et l'OpenAPI le dit.
 
-*État : accepté, sans réserve.*
+*État : **livré le 2026-09-18**, card-api 0.6.0. La colonne traversait
+déjà : ce qui manquait est le test qui l'empêche de disparaître, et la
+phrase du contrat qui dit que `n` n'est pas l'étendue de la période.*
 
 ## Les chantiers des autres dépôts
 
@@ -526,18 +531,20 @@ n'attend plus rien.
 ## Ordre de livraison
 
 ```
-  A4a  le module cache.py                  fondation de tout le reste
-  A1+A3  l'âge accepté                     contrat : api_version
-  A2   la règle de la chronique entière    du pur écrit
-  A5   le second étage                     le gros morceau
-  A4b  le pool et l'éviction               dépend de la forme de A5
-  A7   la chronique exposée                contrat : api_version
-  A6   le plafond                          après mesure, donc en dernier
+  fait  A4a    le module cache.py            sans effet sur le contrat
+  fait  A1+A3  l'âge accepté                 0.6.0
+  fait  A2     la chronique entière          du pur écrit, plus un test
+  fait  A8     le nombre de points           0.6.0
+        A5     le second étage               le gros morceau
+        A4b    le pool et l'éviction         dépend de la forme de A5
+        A7     la chronique exposée          contrat : api_version
+        A6     le plafond                    après mesure, en dernier
 ```
 
-`S1`, `C1` et `C2` sont livrés (cf. plus haut). `A8` ne dépend donc plus
-de rien, mais il change le contrat : il part avec la prochaine coupe
-d'`api_version` plutôt que seul.
+`S1`, `C1` et `C2` sont livrés eux aussi (cf. plus haut). **Il reste donc
+A5, puis A4b, A7 et A6**, dans cet ordre : A5 commande la forme du
+registre que A4b évince, et A6 ne se règle qu'une fois mesuré le coût
+d'une demande toute en cache.
 
 **Versions.** Le service se coupe une version le jour où ce qu'un client
 voit change. Ici : A1 et A3 (un paramètre), A7 (une route), A8 (un

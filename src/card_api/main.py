@@ -225,6 +225,14 @@ _D_SAMPLING = (
     "déclare, ce qui rend les stations comparables entre elles et "
     "reproductibles (protocole MAKAHO). `MM-JJ` (ex. `09-01`) : impose "
     "le même départ à toutes les fiches.")
+_D_MAX_AGE = (
+    "Âge maximal accepté, EN JOURS, pour la copie locale d'une chronique. "
+    "Le service garde une copie de chaque chronique Hub'Eau ; ce paramètre "
+    "dit ce que **vous** acceptez de lire. `0` exige une lecture neuve chez "
+    "Hub'Eau. Plus la valeur est basse, plus la demande risque de partir en "
+    "file de calcul, puisqu'elle compte alors des stations à télécharger. "
+    "Le défaut est publié par `/v1`, bloc `limits.cache`.")
+
 _D_STATIONS_META = (
     "Joint sous `stations_meta` les fiches du référentiel Hub'Eau des "
     "stations demandées (libellé, longitude, latitude...). Le résultat "
@@ -604,6 +612,14 @@ def _limits():
         },
         "job": {"stations": jobs.JOB_STATIONS, "cards": jobs.JOB_CARDS,
                 "result_ttl_days": jobs.JOB_TTL_DAYS},
+        "cache": {
+            "max_age_days": cache.MAX_AGE_DAYS,
+            "note": "âge accepté par défaut pour la copie locale d'une "
+                    "chronique. Une requête peut exiger plus frais avec "
+                    "max_age, au risque de basculer en file : ce qui "
+                    "compte pour le routage est le nombre de stations à "
+                    "télécharger.",
+        },
         "rate_per_minute": {"compute": usage.RATE_COMPUTE,
                             "light": usage.RATE_LIGHT,
                             "note": "par adresse IP, sans clé de priorité. "
@@ -991,7 +1007,7 @@ def _job_response(envelope: dict) -> JSONResponse:
         content=envelope)
 
 
-def _tient_en_direct(st, cd) -> bool:
+def _tient_en_direct(st, cd, max_age) -> bool:
     """La demande peut-elle être servie sans passer par la file ?
 
     Ce n'est pas le nombre de stations qui décide, c'est le nombre de
@@ -1014,7 +1030,7 @@ def _tient_en_direct(st, cd) -> bool:
     """
     if len(cd) > jobs.SYNC_CARDS or len(st) > jobs.SYNC_STATIONS_CACHED:
         return False
-    a_telecharger = sum(1 for s in st if not cache.is_fresh(s))
+    a_telecharger = sum(1 for s in st if not cache.is_fresh(s, max_age))
     return a_telecharger <= jobs.SYNC_STATIONS
 
 
@@ -1027,7 +1043,7 @@ def _maybe_job(request, params, prio=None):
     lesquelles la réponse immédiate aurait porté."""
     st, cd = params["stations"], params["cards"]
     endpoint = params["endpoint"]
-    if _tient_en_direct(st, cd):
+    if _tient_en_direct(st, cd, params.get("max_age")):
         return None
     job_params = {k: v for k, v in params.items() if v is not None}
     try:
@@ -1432,6 +1448,7 @@ class ExtractParams(BaseModel):
                               description=_D_START)
     end: str | None = Field(None, description=_D_END)
     sampling: str | None = Field(None, description=_D_SAMPLING)
+    max_age: float | None = Field(None, ge=0, description=_D_MAX_AGE)
     stations_meta: bool = Field(False, description=_D_STATIONS_META)
     orient: _Orient = Field("records", description=_D_ORIENT)
 
@@ -1451,6 +1468,7 @@ def _params_partages(request, p, endpoint):
         _check_cards_series(cd)
     brut = {"endpoint": endpoint, "stations": st, "cards": cd,
             "start": p.start, "end": p.end, "sampling": p.sampling,
+            "max_age": p.max_age,
             "stations_meta": p.stations_meta or None, "orient": p.orient}
     if endpoint == "trend":
         brut.update(mk=p.mk, level=p.level, series=p.series or None)
@@ -1565,6 +1583,7 @@ class TrendParams(BaseModel):
                               description=_D_START)
     end: str | None = Field(None, description=_D_END)
     sampling: str | None = Field(None, description=_D_SAMPLING)
+    max_age: float | None = Field(None, ge=0, description=_D_MAX_AGE)
     mk: _Mk = Field("AR1", description=_D_MK)
     level: float = Field(0.1, gt=0, lt=1, description=_D_LEVEL)
     series: bool = Field(False, description=_D_SERIES)
@@ -1607,6 +1626,13 @@ def trend(request: Request, p: Annotated[TrendParams, Query()]):
     Comme `/v1/extract`, une station sans série exploitable est écartée et
     non fatale : `stations` liste les stations calculées et
     `stations_omitted` dit lesquelles ont sauté et pourquoi.
+
+    Chaque ligne dit sur combien de points le test a porté (`n`), et ce
+    n'est pas l'étendue entre `period_start` et `period_end` : ces bornes
+    viennent des dates sans regarder les valeurs manquantes, si bien
+    qu'une série trouée annonce la même période qu'une série pleine. Une
+    pente sur douze points ne se lit pas comme une pente sur
+    cinquante-cinq.
 
     Pour lire le résultat sans traverser le JSON : `/v1/trend/figure`,
     mêmes paramètres.
@@ -1672,6 +1698,7 @@ class JobRequest(BaseModel):
     start: str | None = Field(None, description=_D_START)
     end: str | None = Field(None, description=_D_END)
     sampling: str | None = Field(None, description=_D_SAMPLING)
+    max_age: float | None = Field(None, ge=0, description=_D_MAX_AGE)
     mk: _Mk = Field("AR1", description=_D_MK)
     level: float = Field(0.1, gt=0, lt=1, description=_D_LEVEL)
     series: bool = Field(False, description=_D_SERIES)

@@ -135,6 +135,52 @@ trop bas. Les valeurs se règlent désormais sur cette observation.
   via le patron OGC API-EDR (le standard des séries temporelles
   environnementales) : non prioritaire.
 
+## La fraîcheur est un besoin du client (arbitré 2026-09-18)
+
+Le service garde une copie locale de chaque chronique Hub'Eau. La question
+« cette copie est-elle assez fraîche ? » **se pose à un seul endroit**,
+`cache.is_fresh`, et la réponse dépend de ce que la REQUÊTE accepte :
+`max_age`, un nombre de jours, dont le défaut est dans `.env` et la valeur
+publiée par `/v1` sous `limits.cache`.
+
+Pourquoi le besoin plutôt que l'action. Un `refresh=true` dirait à quoi le
+service doit s'occuper et finirait dans une boucle qui tape sur Hub'Eau à
+travers lui ; `max_age` dit ce que l'appelant accepte de lire, ce qui est
+une information vraie, stable, et qui se satisfait avec le cache quand
+c'est possible. C'est aussi la sémantique de `Cache-Control: max-age`,
+donc rien à inventer.
+
+Pourquoi un seul endroit. Le service décide AVANT de calculer si une
+demande part en réponse immédiate ou en file, en comptant les stations à
+télécharger. Quand cette décision jugeait la fraîcheur avec la durée de
+vie du service pendant que le calcul la jugeait avec ce que la requête
+accepte, les deux pouvaient se contredire : une demande annoncée immédiate
+partait pour une minute de téléchargements, derrière le sémaphore, en
+bloquant tous ceux qui attendaient. Les deux appellent désormais la même
+fonction avec la même valeur, résolue une fois par `pipeline.normalise`,
+et un job gèle celle de la demande qui l'a créé.
+
+Conséquence à connaître : abaisser `max_age` fait basculer plus de
+demandes en file, puisqu'elles comptent alors des stations à télécharger.
+Ce n'est pas un effet de bord, c'est le coût réel qui redevient visible.
+
+## Une chronique se télécharge entière (arbitré 2026-09-18)
+
+**Jamais par morceaux recollés.** Hub'Eau révise n'importe quel point de
+l'historique, pas seulement la queue récente. Un rafraîchissement partiel
+ne donnerait donc pas une donnée « un peu périmée » : il donnerait une
+chronique qui n'a jamais existé chez Hub'Eau, un corps historique d'une
+révision recollé à une queue d'une autre. Et `data_fingerprint`, calculée
+sur les octets des colonnes, signerait cet assemblage : une empreinte
+stable, reproductible, qui ne désigne aucun état réel de la source. C'est
+le contraire de ce à quoi elle sert.
+
+Ce n'est pas une optimisation à instruire plus tard, c'est une règle
+écrite **pour que personne ne la retrouve** : l'idée de ne rafraîchir que
+la queue revient dès qu'on regarde une facture de bande passante. Le code
+ne permet déjà pas de faire autrement, et un test le tient, en vérifiant
+que la demande envoyée à Hub'Eau ne porte aucune borne de date.
+
 ## Une station muette n'annule pas le lot (arbitré 2026-07-29)
 
 Une demande de vingt stations échouait entièrement dès que l'une d'elles
