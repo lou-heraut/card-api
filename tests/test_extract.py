@@ -48,6 +48,45 @@ def test_extract_period_filter():
     assert len(r.json()["data"]["QA"]) == 11   # années hydro 1999..2009
 
 
+def test_la_periode_part_au_moteur_sans_pre_coupe(monkeypatch):
+    """Le service ne découpe plus ce qu'il transmet.
+
+    La période est un paramètre du moteur, qui l'applique dans SON ordre :
+    grille, `max_na_years`, coupe, puis fenêtre adaptative. Découper en
+    amont privait `max_na_years` de la chronique entière, donc de ce sur
+    quoi il est censé travailler, et le service ne peut pas rejouer cet
+    ordre depuis l'extérieur.
+    """
+    import card
+
+    def longue(station, refresh=False):
+        dates = pd.date_range("1950-01-01", "2019-12-31", freq="D")
+        doy = dates.dayofyear.to_numpy()
+        rng = np.random.default_rng(0)
+        q = 10 + 8 * np.sin(2 * np.pi * (doy - 30) / 365.25) \
+            + rng.lognormal(0, 0.3, len(dates))
+        return pd.DataFrame({"code_station": station, "date": dates, "Q": q})
+
+    monkeypatch.setattr(hubeau, "fetch_chronicle", longue)
+    vu = {}
+    vrai = card.extract
+
+    def espion(data, **kw):
+        vu["debut"] = data["date"].min()
+        vu["periode"] = kw.get("default_period")
+        return vrai(data, **kw)
+
+    monkeypatch.setattr(card, "extract", espion)
+    r = client.get("/v1/extract", params={
+        "stations": "K0550010", "cards": "QA", "start": "1980-01-01"})
+    assert r.status_code == 200
+    assert vu["debut"] == pd.Timestamp("1950-01-01")   # chronique entière
+    assert str(vu["periode"][0])[:10] == "1980-01-01"  # période transmise
+    # et c'est bien la période qui borne la sortie, pas la chronique
+    annees = sorted({row["date"][:4] for row in r.json()["data"]["QA"]})
+    assert annees[0] == "1979"      # année hydro ouverte le 1979-09-01
+
+
 def test_extract_errors():
     assert client.get("/v1/extract", params={
         "stations": "X0000000", "cards": "QA"}).status_code == 404

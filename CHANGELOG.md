@@ -41,7 +41,52 @@ des deux endroits.
 
 ## Non publié
 
-Rien depuis la 0.4.0.
+## 0.5.0 (2026-09-18)
+
+### Modifié
+
+- **La période va au moteur, la pré-coupe disparaît (2026-09-18).**
+  `pipeline.chroniques` tronquait la chronique journalière avec `start`
+  et `end` avant de la passer à `card.extract`, sans dire au moteur
+  quelle période était demandée. Or la période est un paramètre du
+  moteur, qui l'applique dans son ordre : grille, `max_na_years`, coupe,
+  puis fenêtre d'échantillonnage adaptative. Couper en amont privait
+  `max_na_years` de la chronique entière, c'est-à-dire de ce sur quoi il
+  est censé travailler, et le service ne pouvait pas rejouer cet ordre
+  depuis l'extérieur. La période ne sert plus ici qu'à écarter une
+  station qui n'a rien à dire dans la fenêtre demandée
+  (`no_data_in_period`, inchangé), et l'empreinte porte toujours sur la
+  chronique entière.
+
+  Cette pré-coupe protégeait aussi, par accident, d'un défaut du moteur
+  corrigé le même jour (`stase` 0.6.4) : la retirer avant lui aurait
+  importé ce défaut dans le service. Les deux vont donc ensemble.
+
+  **Ce qu'un client voit changer**, mesuré sur les 233 chroniques du
+  cache, neuf fiches, période 1968 à 2026-07-27 : aucune valeur ne
+  change, aucune ligne ne disparaît, et onze lignes apparaissent, sur
+  quatre stations, toutes entièrement vides. Ce sont des années sans
+  aucune mesure, que la pré-coupe faisait disparaître avant qu'elles
+  soient comptées. Conséquence à connaître : les bornes de période de la
+  tendance prennent les dates extrêmes sans regarder les valeurs
+  manquantes, si bien qu'une station peut annoncer une période plus large
+  que celle qui a réellement servi.
+
+### Ajouté
+
+- **Le plan de ce qui manque pour qu'un client puisse dépendre du
+  service (2026-09-18).** Instruit à partir de l'audit de migration de
+  MAKAHO : la période transmise au moteur, la fraîcheur réglable par
+  requête, la règle de la chronique entière, le pool qui se garde
+  chaud, le second étage de cache, le plafond synchrone, la chronique
+  journalière exposée, le nombre de points de la tendance. Rien n'est
+  implémenté. Le plan, les décisions retenues et les mesures qui les
+  fondent sont dans `docs/dev/PLAN_CACHE.md`, y compris les deux
+  affirmations de l'audit qui se sont révélées fausses à la
+  vérification, et un défaut de `stase` trouvé en mesurant : la fenêtre
+  d'échantillonnage adaptative s'y calculait avant le filtre de période,
+  contrairement au R. Ce défaut et le premier chantier du plan ont été
+  livrés le jour même (entrée ci-dessus) ; le reste attend.
 
 ## 0.4.0 (2026-08-13)
 

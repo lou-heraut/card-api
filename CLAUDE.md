@@ -10,6 +10,13 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
 - `docs/dev/API.md` : conception et arbitrages (accès public sans clé,
   quotas IP, journal anonymisé, aspect commercial écarté).
 - `docs/dev/CHANTIERS.md` : pistes ouvertes du service, seulement.
+- `docs/dev/PLAN_CACHE.md` : ce qui manque pour qu'un client puisse
+  dépendre du service, chantier par chantier, avec la décision retenue et
+  la mesure qui la fonde. Porte aussi la règle de la clé de cache (une
+  clé trop complète ne coûte que des recalculs, une clé incomplète rend
+  des résultats faux en silence) et ce qui a été vérifié dans le moteur
+  pour l'écrire. **Seul le premier chantier est livré** (la période va au
+  moteur, cf. `CHANGELOG.md`) ; le plan ne porte que ce qui reste.
 - Ménage documentaire : la procédure est commune aux trois dépôts et vit
   dans `../card/docs/dev/NETTOYAGE.md`, avec l'état de la campagne en
   cours. Rien à en recopier ici.

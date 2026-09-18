@@ -255,10 +255,11 @@ class RienACalculer(ValueError):
 def chroniques(stations, start, end, progress=None):
     """Les chroniques utilisables, et le compte rendu de ce qui a sauté.
 
-    Rend (data, empreintes, retenues, omises). L'empreinte est prise sur
-    la chronique ENTIÈRE, avant filtre de période : la période demandée
-    figure déjà dans la provenance, et ce qu'on identifie ici c'est la
-    source.
+    Rend (data, empreintes, retenues, omises). Les chroniques sont
+    transmises ENTIÈRES : la période est un paramètre du moteur, pas un
+    découpage du service (cf. `compute`). L'empreinte porte donc, elle
+    aussi, sur la chronique entière : la période demandée figure déjà
+    dans la provenance, et ce qu'on identifie ici c'est la source.
 
     Une station sans série exploitable est OMISE, pas fatale. Le contraire
     a longtemps été vrai et c'était trop raide : une seule station muette
@@ -291,11 +292,15 @@ def chroniques(stations, start, end, progress=None):
             omises.append(_omission(s, "ambiguous_site", e))
             continue
         empreintes[s] = hubeau.fingerprint(df)
-        if start:
-            df = df[df["date"] >= start]
-        if end:
-            df = df[df["date"] <= end]
-        if df.empty:
+        # La période ne SERT PAS à découper ici : elle est un paramètre du
+        # moteur, qui l'applique dans son ordre (grille, max_na_years,
+        # coupe, fenêtre adaptative). Découper en amont privait
+        # max_na_years de la chronique entière, c'est-à-dire de ce sur
+        # quoi il est censé travailler. Elle ne sert donc qu'à écarter
+        # proprement une station qui n'a rien à dire dans la fenêtre.
+        dedans = df["date"].between(start or df["date"].min(),
+                                    end or df["date"].max())
+        if not dedans.any():
             del empreintes[s]        # rien n'a servi, rien n'est à identifier
             omises.append(_omission(
                 s, "no_data_in_period",
@@ -340,7 +345,13 @@ def compute(params: dict, progress=None, verrou=None) -> dict:
         progress(total, total, "extraction")
     ctx = verrou if verrou is not None else _sans_verrou()
     with ctx:
+        # La période va au moteur, qui la fait passer à chaque process.
+        # Borne haute absente : la dernière date disponible, sans effet
+        # puisque le filtre est `date <= fin`, mais `stase` veut deux
+        # bornes et une date inventée se lirait dans les traces.
         res = card.extract(data, cards=cd,
+                           default_period=[params["start"],
+                                           params["end"] or data["date"].max()],
                            sampling_period=params.get("sampling"),
                            verbose=False)
         extracted = res["data"]

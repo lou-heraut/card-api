@@ -25,6 +25,16 @@ dans le document qui en porte la matière, pas à la corbeille :
   chaque écriture n'est pas un chantier qu'on finira un jour : c'est une
   règle, et sa place est là où on lit les règles.
 
+## Ce qui manque pour qu'un client puisse dépendre du service
+
+Instruit le 2026-09-18 depuis l'audit de migration de MAKAHO : la période
+transmise au moteur, la fraîcheur réglable par requête, la règle de la
+chronique entière, le pool qui se garde chaud, le second étage de
+cache, le plafond synchrone, la chronique journalière exposée, le nombre
+de points de la tendance.
+
+Tout est dans `PLAN_CACHE.md`, et rien n'en est recopié ici.
+
 ## Rendre le catalogue lisible, pas seulement exact
 
 Objectif de fond, formulé par l'utilisateur le 2026-07-20 : faire de la
