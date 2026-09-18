@@ -127,16 +127,20 @@ src/card_api/
                 #   confondre : la COLLECTE (le mtime du fichier, publiée
                 #   sous data_fetched_at, seule à dire si une copie est
                 #   périmée) et la dernière LECTURE, portée par un fichier
-                #   témoin vide `<entrée>.lu` dont la DATE est
+                #   témoin VIDE dans data/lectures/ dont la DATE est
                 #   l'information, et que l'éviction attend. La seconde ne
                 #   se déduit pas de la première : un rafraîchissement
                 #   écrase la date de collecte, après quoi plus rien ne
                 #   distingue la copie que personne ne relit. D'où la
                 #   règle : une DEMANDE marque la lecture, un
                 #   rafraîchissement JAMAIS, sinon l'éviction devient
-                #   aveugle. Base de données écartée le 2026-09-18, le
-                #   taux de succès ayant sa place dans le journal
-                #   d'usage : cf. PLAN_CACHE.md (A4)
+                #   aveugle. Un fichier par entrée et non un registre :
+                #   rien à coordonner, donc ni verrou ni corruption
+                #   possible ; un registre unique serait une base écrite à
+                #   la main. SQLite écartée le 2026-09-18 (le taux de
+                #   succès a sa place dans le journal d'usage), à
+                #   reconsidérer seulement pour des statistiques PAR
+                #   entrée : cf. PLAN_CACHE.md (A4)
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After) ;
                 #   plafonds LARGES à dessein : ce compteur compte des
                 #   requêtes, pas leur coût, et la charge est tenue par

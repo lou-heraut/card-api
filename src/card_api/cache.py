@@ -29,9 +29,11 @@ appel, un seul critère, une seule valeur.
   que le service publie sous `data_fetched_at`, et elle seule dit si une
   copie est périmée ;
 - la date de **dernière lecture** dit quand quelqu'un a demandé cette
-  entrée pour la dernière fois. Elle vit dans un fichier témoin vide, à
-  côté de la copie, dont le nom ajoute `.lu` et dont la date EST
-  l'information.
+  entrée pour la dernière fois. Elle vit dans un fichier témoin vide, dans
+  `lectures/`, dont la date EST l'information. Les témoins sont à part
+  pour que `chroniques/` reste ce qu'il annonce, une entrée un fichier, et
+  `ls -lt lectures/` donne alors le classement des entrées les plus
+  récemment consultées, c'est-à-dire la question même de l'éviction.
 
 La seconde ne peut pas se déduire de la première : un rafraîchissement
 écrit le fichier, donc écrase sa date de collecte. Après un passage du
@@ -39,16 +41,27 @@ rafraîchissement périodique, toutes les copies ont le même âge et plus
 rien ne distingue celle que personne ne relit jamais de celle qu'on
 consulte tous les jours. C'est cette distinction que l'éviction attend.
 
-**Pourquoi un témoin plutôt qu'une base.** Il fallait ranger une date par
-entrée, et une date de fichier en est déjà une : le témoin ne demande ni
-schéma, ni migration, ni dépendance, et un `ls -l` répond à la question
-sans outil. Un registre unique, JSON ou SQLite, aurait été le réflexe,
-mais le JSON se réécrit en ENTIER à chaque lecture, et une base serait un
-mécanisme de comptage de plus dans un service qui n'en a aucun : le taux
-de succès du cache a sa place dans le journal d'usage, déjà écrit une
-ligne par requête. SQLite ne redeviendrait le bon choix que le jour où il
-faudrait des statistiques PAR entrée, ce que personne ne demande
-aujourd'hui (décidé le 2026-09-18, cf. `docs/dev/PLAN_CACHE.md`).
+**Pourquoi un fichier par entrée, et non un registre.** Le choix n'est
+pas entre deux rangements, il est entre **rien à coordonner** et un
+magasin partagé. Un témoin par entrée : chaque écriture touche son propre
+fichier, `touch` est un appel système atomique, aucune lecture préalable,
+aucun verrou, et rien qu'une autre lecture puisse écraser. Le pire qui
+puisse arriver est de perdre une date, donc d'évincer trop tôt, donc de
+retélécharger.
+
+Un registre unique, lui, demanderait un verrou (deux lectures simultanées
+ne doivent pas s'écraser), une écriture atomique (une coupure au mauvais
+moment perd TOUT le registre, pas une entrée) et un cycle
+lire-modifier-réécrire à chaque lecture servie. C'est exactement ce qu'une
+base fait, si bien qu'un registre JSON écrit à la main est le plus mauvais
+des choix : il a le problème de coordination sans aucune des garanties.
+
+SQLite, donc, ou des fichiers. Elle ne redeviendrait le bon choix que le
+jour où il faudrait des statistiques PAR entrée (quelles entrées sont les
+plus consultées, combien de fois), que le témoin ne sait pas porter, et
+non pour le taux de succès du cache : celui-là a sa place dans le journal
+d'usage, déjà écrit une ligne par requête (décidé le 2026-09-18, cf.
+`docs/dev/PLAN_CACHE.md`).
 
 **L'écriture est atomique** : fichier temporaire puis renommage. Deux
 demandes simultanées sur la même station peuvent télécharger deux fois,
@@ -118,10 +131,16 @@ def is_fresh(station: str) -> bool:
     return p.exists() and time.time() - p.stat().st_mtime < MAX_AGE
 
 
+def reads_dir() -> Path:
+    """Dossier des témoins de lecture."""
+    d = data_dir() / "lectures"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def read_marker(station: str) -> Path:
-    """Fichier témoin de dernière lecture d'une chronique."""
-    p = chronicle_path(station)
-    return p.with_name(p.name + ".lu")
+    """Témoin de dernière lecture d'une chronique (fichier vide)."""
+    return reads_dir() / station
 
 
 def mark_read(station: str) -> None:

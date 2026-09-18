@@ -132,6 +132,10 @@ def test_une_demande_marque_la_lecture_un_rafraichissement_non(monkeypatch,
 
     hubeau.fetch_chronicle("K0550010")                # servie depuis le cache
     assert cache.last_read("K0550010") is not None
+    # Et la comptabilité ne salit pas les données : `chroniques/` garde une
+    # entrée par fichier, les témoins vivent dans `lectures/`.
+    assert [p.name for p in cache.chronicles_dir().iterdir()] \
+        == ["K0550010.csv.gz"]
 
     # Une demande qui doit télécharger marque aussi : on vient de la
     # payer, elle ne doit pas passer pour jamais lue.

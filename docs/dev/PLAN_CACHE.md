@@ -176,20 +176,31 @@ n'a pas un seul propriétaire, chacun de ces chantiers pose son bout de
 politique dans un coin différent, et c'est ainsi qu'on fabrique une boîte
 noire.
 
-La dernière lecture est portée par un **fichier témoin** vide, posé à côté
-de chaque copie (`<entrée>.lu`), dont la DATE est l'information. Ni
-schéma, ni migration, ni dépendance ; un `ls -l` le lit ; et écrire une
-date revient à toucher un fichier, ce qui ne peut pas laisser un état à
-moitié écrit.
+La dernière lecture est portée par un **fichier témoin** vide, un par
+entrée, dans `data/lectures/`. Sa DATE est l'information. Les témoins sont
+à part pour que `data/chroniques/` reste ce qu'il annonce, une entrée un
+fichier ; en prime, `ls -lt data/lectures/` donne le classement des
+entrées les plus récemment consultées, c'est-à-dire la question même de
+l'éviction.
 
-SQLite était la proposition initiale, **écartée le 2026-09-18**, et
-l'argument qui la portait est tombé en regardant l'existant : le taux de
-succès du cache n'a pas besoin d'une base, puisque `usage.py` écrit déjà
-une ligne par requête dans `usage-AAAA.jsonl` et que `stats.py` la relit.
-Un champ de plus sur cette ligne le donne. C'était donc un second
-mécanisme de comptage dans un service qui n'en a aucun. Le registre JSON
-unique reste écarté pour sa raison d'origine, qui tient toujours : il se
-réécrirait en ENTIER à chaque lecture.
+**Le choix n'est pas entre deux rangements, il est entre rien à coordonner
+et un magasin partagé.** Un témoin par entrée ne demande aucun verrou :
+chaque écriture touche son propre fichier, `touch` est un appel système
+atomique, il n'y a ni lecture préalable ni état commun qu'une autre
+lecture puisse écraser. Le pire qui puisse arriver est de perdre une date,
+donc d'évincer trop tôt, donc de retélécharger. Un registre unique
+demanderait au contraire un verrou, une écriture atomique (une coupure au
+mauvais moment perd TOUT le registre, pas une entrée) et un cycle
+lire-modifier-réécrire à chaque lecture servie : c'est ce qu'une base
+fait, si bien qu'un registre JSON écrit à la main est le plus mauvais des
+trois choix, ayant le problème de coordination sans aucune des garanties.
+
+SQLite était la proposition initiale, **écartée le 2026-09-18** : son
+argument est tombé en regardant l'existant. Le taux de succès du cache n'a
+pas besoin d'une base, `usage.py` écrivant déjà une ligne par requête dans
+`usage-AAAA.jsonl` que `stats.py` relit ; un champ de plus sur cette ligne
+le donne. C'était donc un second mécanisme de comptage dans un service qui
+n'en a aucun.
 
 **L'idée de la base reste valable pour un besoin qui n'existe pas
 encore.** Le témoin ne porte qu'une date : le jour où il faudrait des
