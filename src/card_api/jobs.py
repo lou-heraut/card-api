@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from . import hubeau, usage
+from . import cache, hubeau, usage
 
 # Plafonds et réglages d'exploitation (surchager dans .env)
 # DEUX seuils de stations, parce que deux coûts très différents se
@@ -84,7 +84,7 @@ def _now() -> str:
 
 
 def jobs_dir():
-    d = hubeau.data_dir() / "jobs"
+    d = cache.data_dir() / "jobs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

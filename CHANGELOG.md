@@ -41,6 +41,50 @@ des deux endroits.
 
 ## Non publié
 
+### Modifié
+
+- **Le disque du service a un seul propriétaire (2026-09-18).** Un module
+  `cache.py` prend les chemins, l'âge des copies, la question de
+  fraîcheur, la lecture et l'écriture ; `hubeau.py` redevient un client
+  Hub'Eau. **Rien ne change pour un client** : ni route, ni champ, ni
+  valeur, ni durée de vie.
+
+  « Cette copie est-elle assez fraîche ? » est une question de politique,
+  et elle se pose à trois endroits : la décision d'envoyer une demande en
+  réponse immédiate ou en file, le téléchargement lui-même, et le
+  rafraîchissement périodique à venir. Tant qu'ils la posent chacun de
+  leur côté, ils peuvent se contredire, et c'est déjà arrivé en
+  raisonnement : une demande annoncée immédiate parce que les copies sont
+  « en cache » peut partir pour une minute de téléchargements si le
+  critère du calcul n'est pas celui du routage. Un seul appel,
+  `cache.is_fresh`, et la contradiction n'a plus d'endroit où naître.
+
+  **Deux dates par entrée, désormais distinctes.** La date de collecte est
+  celle du fichier, publiée sous `data_fetched_at` et seule à dire si une
+  copie est périmée. La date de dernière lecture dit quand quelqu'un a
+  demandé cette entrée, et elle vit dans un fichier témoin vide,
+  `<entrée>.lu`, dont la date EST l'information. Elle ne pouvait pas se
+  déduire de la première : le rafraîchissement périodique réécrit les
+  copies, donc écrase leur date de collecte, et après son premier passage
+  plus rien ne distinguerait la station que personne ne redemande jamais.
+  D'où la règle, tenue par un test : une DEMANDE marque la lecture, un
+  rafraîchissement forcé jamais. C'est ce que l'éviction attend.
+
+  Une base SQLite était prévue pour ce registre ; elle est écartée, le
+  taux de succès du cache ayant sa place dans le journal d'usage déjà
+  écrit à chaque requête. Le raisonnement complet est dans
+  `docs/dev/PLAN_CACHE.md` (A4), qui dit aussi ce qui la ferait
+  reconsidérer.
+
+  **L'écriture devient atomique** (temporaire puis renommage). Deux
+  demandes simultanées sur la même station peuvent télécharger deux fois,
+  c'est du gaspillage acceptable ; rien n'empêchait jusqu'ici une lecture
+  de tomber sur un fichier à moitié écrit.
+
+  C'est la fondation de la fraîcheur réglable par requête, du pool qui se
+  garde chaud et du second étage de cache : détail et suite dans
+  `docs/dev/PLAN_CACHE.md`.
+
 ## 0.5.0 (2026-09-18)
 
 ### Modifié

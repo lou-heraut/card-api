@@ -2,7 +2,6 @@
 dépôt, statut, résultat avec provenance, bascule automatique des
 demandes trop grosses, échecs, plafonds."""
 
-import os
 import time
 
 import numpy as np
@@ -10,7 +9,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from card_api import hubeau, jobs
+from card_api import cache, hubeau, jobs
 from card_api.main import app
 
 client = TestClient(app)
@@ -276,7 +275,7 @@ def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
     file, avec ticket et aller-retour, une demande qui tenait en une
     seconde. C'est la friction signalée.
     """
-    monkeypatch.setattr(hubeau, "en_cache", lambda s: True)
+    monkeypatch.setattr(cache, "is_fresh", lambda s: True)
     r = client.get("/v1/extract", params={"stations": _stations(20),
                                           "cards": "QA"})
     assert r.status_code == 200
@@ -286,7 +285,7 @@ def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
 def test_stations_a_telecharger_partent_en_file(monkeypatch, sans_calcul):
     """Les mêmes vingt stations à froid, c'est une vingtaine de secondes :
     le ticket est alors le bon service à rendre."""
-    monkeypatch.setattr(hubeau, "en_cache", lambda s: False)
+    monkeypatch.setattr(cache, "is_fresh", lambda s: False)
     r = client.get("/v1/extract", params={"stations": _stations(20),
                                           "cards": "QA"})
     assert r.status_code == 202
@@ -295,7 +294,7 @@ def test_stations_a_telecharger_partent_en_file(monkeypatch, sans_calcul):
 def test_seul_le_froid_compte(monkeypatch):
     """Vingt stations dont cinq à télécharger : c'est le coût de cinq."""
     froides = {f"K{i:07d}" for i in range(5)}
-    monkeypatch.setattr(hubeau, "en_cache", lambda s: s not in froides)
+    monkeypatch.setattr(cache, "is_fresh", lambda s: s not in froides)
     r = client.get("/v1/extract", params={"stations": _stations(20),
                                           "cards": "QA"})
     assert r.status_code == 200
@@ -304,24 +303,8 @@ def test_seul_le_froid_compte(monkeypatch):
 def test_le_plafond_haut_borne_quand_meme(monkeypatch, sans_calcul):
     """Tout en cache ne veut pas dire gratuit : le calcul reste petit mais
     pas nul, et un worker ne doit pas être monopolisé."""
-    monkeypatch.setattr(hubeau, "en_cache", lambda s: True)
+    monkeypatch.setattr(cache, "is_fresh", lambda s: True)
     trop = jobs.SYNC_STATIONS_CACHED + 1
     r = client.get("/v1/extract", params={"stations": _stations(trop),
                                           "cards": "QA"})
     assert r.status_code == 202
-
-
-def test_en_cache_respecte_le_ttl(monkeypatch, tmp_path):
-    """Même critère de fraîcheur que `fetch_chronicle`, écrit une fois :
-    une chronique périmée est une chronique à retélécharger."""
-    import time as _t
-    d = tmp_path / "chroniques"
-    d.mkdir(parents=True)
-    f = d / "K0550010.csv.gz"
-    f.write_bytes(b"x")
-    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
-    assert hubeau.en_cache("K0550010")
-    vieux = _t.time() - hubeau.CACHE_TTL - 10
-    os.utime(f, (vieux, vieux))
-    assert not hubeau.en_cache("K0550010")
-    assert not hubeau.en_cache("K9999999")          # jamais téléchargée

@@ -7,7 +7,11 @@
 # card-api is free software: you can redistribute it and/or modify it
 # under the terms of the license in the LICENSE file of this repository.
 
-"""Client Hub'Eau hydrométrie (API v2) avec cache local des chroniques.
+"""Client Hub'Eau hydrométrie (API v2).
+
+Le cache local n'est plus ici : le disque appartient à `cache.py`, qui
+possède les chemins, l'âge des copies et la question de fraîcheur. Ce
+module sait parler à l'API et signer ce qu'elle a rendu, rien de plus.
 
 Points vérifiés sur l'API réelle (2026-07-16) :
 - endpoint obs_elab v2, grandeur QmnJ (débit moyen journalier) ;
@@ -17,15 +21,14 @@ Points vérifiés sur l'API réelle (2026-07-16) :
   F700000103) : le référentiel sert à retrouver les nouveaux codes.
 """
 
-import os
 import re
-import datetime as dt
 import hashlib
 import time
-from pathlib import Path
 
 import httpx
 import pandas as pd
+
+from . import cache
 
 BASE = "https://hubeau.eaufrance.fr/api/v2/hydrometrie"
 PAGE_SIZE = 20000
@@ -37,14 +40,7 @@ PAGE_SIZE = 20000
 # brûler un numéro sur un changement que personne ne peut observer aurait
 # affaibli le signal pour le jour où il servira vraiment.
 FINGERPRINT_VERSION = "v1"               # cf. fingerprint()
-CACHE_TTL = 24 * 3600                    # les séries validées bougent peu
 _STATION_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
-
-
-def data_dir() -> Path:
-    d = Path(os.environ.get("CARD_API_DATA", "./data"))
-    (d / "chroniques").mkdir(parents=True, exist_ok=True)
-    return d
 
 
 class StationInconnue(ValueError):
@@ -148,47 +144,18 @@ def combine_fingerprints(par_station: dict) -> str:
     return f"{FINGERPRINT_VERSION}:{h.hexdigest()}"
 
 
-def chronicle_fetched_at(station: str) -> str | None:
-    """Date de récupération RÉELLE de la chronique en cache (UTC ISO).
-
-    Hub'Eau révise ses données : deux appels identiques à quelques
-    semaines d'écart ne donnent pas les mêmes nombres. Un résultat doit
-    donc dire quand la donnée a été lue, et pas quand le calcul a
-    tourné : avec un cache de 24 h, les deux diffèrent d'autant.
-    """
-    cache = data_dir() / "chroniques" / f"{station}.csv.gz"
-    if not cache.exists():
-        return None
-    return (dt.datetime.fromtimestamp(cache.stat().st_mtime, dt.timezone.utc)
-            .replace(microsecond=0).isoformat())
-
-
-def en_cache(station: str) -> bool:
-    """La chronique est-elle déjà là et encore fraîche ?
-
-    Lecture d'une date de fichier, aucun réseau : la question doit rester
-    assez peu coûteuse pour qu'on la pose avant CHAQUE demande, afin de
-    décider si elle tient dans une réponse immédiate. Même critère de
-    fraîcheur que `fetch_chronicle`, écrit ici une fois pour que les deux
-    ne puissent pas diverger.
-    """
-    cache = data_dir() / "chroniques" / f"{station}.csv.gz"
-    return (cache.exists()
-            and time.time() - cache.stat().st_mtime < CACHE_TTL)
-
-
 def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
     """Chronique journalière complète (id, date, Q en m3/s) d'une station,
-    téléchargée puis mise en cache local (TTL 24 h)."""
+    téléchargée si la copie locale manque ou n'est plus assez fraîche.
+
+    La fraîcheur n'est pas jugée ici : `cache.is_fresh` répond, et le
+    routage des demandes l'interroge avec le même critère.
+    """
     if not _STATION_RE.match(station):
         raise StationInconnue(f"code de station invalide : {station!r}")
-    cache = data_dir() / "chroniques" / f"{station}.csv.gz"
-    if not refresh and cache.exists() \
-            and time.time() - cache.stat().st_mtime < CACHE_TTL:
-        # dtype id : un code tout-numérique relu en int64 ne serait plus
-        # détecté comme identifiant de série (détection par type)
-        return pd.read_csv(cache, parse_dates=["date"],
-                           dtype={"code_station": str})
+    if not refresh and cache.is_fresh(station):
+        cache.mark_read(station)
+        return cache.load_chronicle(station)
 
     rows = _fetch_all(f"{BASE}/obs_elab", {
         "code_entite": station,
@@ -259,7 +226,14 @@ def fetch_chronicle(station: str, refresh: bool = False) -> pd.DataFrame:
             f"{jours.max():%Y-%m-%d}. Choisir pour vous serait un "
             f"arbitrage. Donnez un code de station : "
             f"/v1/stations?code={station}")
-    df.to_csv(cache, index=False)
+    cache.store_chronicle(station, df)
+    if not refresh:
+        # Une entrée téléchargée POUR quelqu'un vient d'être demandée :
+        # sans ce marquage elle passerait pour jamais lue et sortirait du
+        # cache alors qu'on vient de la payer. `refresh=True` est le chemin
+        # du rafraîchissement périodique, qui ne demande rien pour
+        # personne : lui marquer une lecture rendrait l'éviction aveugle.
+        cache.mark_read(station)
     return df
 
 

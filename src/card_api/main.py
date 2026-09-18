@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field
 
 import card
 
-from . import hubeau, jobs, pipeline, usage
+from . import cache, hubeau, jobs, pipeline, usage
 # Réexportés : l'identité du calcul vit dans pipeline.py, mais elle
 # reste lisible ici, où l'on écrit les réponses. `LTP_SEED` et
 # `_fetched_at` ne servent plus à main lui-même, ils restent exposés
@@ -1014,7 +1014,7 @@ def _tient_en_direct(st, cd) -> bool:
     """
     if len(cd) > jobs.SYNC_CARDS or len(st) > jobs.SYNC_STATIONS_CACHED:
         return False
-    a_telecharger = sum(1 for s in st if not hubeau.en_cache(s))
+    a_telecharger = sum(1 for s in st if not cache.is_fresh(s))
     return a_telecharger <= jobs.SYNC_STATIONS
 
 
@@ -1911,7 +1911,7 @@ def health():
     restante qui borne les jobs, pas notre consommation) ; `data` est
     l'empreinte propre de card-api (cache des chroniques, jobs,
     journal)."""
-    d = hubeau.data_dir()
+    d = cache.data_dir()
     du = shutil.disk_usage(d)
     return {
         "status": "ok",
@@ -1920,6 +1920,6 @@ def health():
         "disk": {"used_pct": round(du.used / du.total * 100, 1),
                  "free_gb": round(du.free / 1e9, 1)},
         "data": {"total_mb": _tree_mb(d),
-                 "cache_mb": _tree_mb(d / "chroniques"),
+                 "cache_mb": _tree_mb(cache.chronicles_dir()),
                  "jobs_mb": _tree_mb(d / "jobs")},
     }

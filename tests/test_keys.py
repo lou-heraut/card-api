@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from card_api import hubeau, jobs, keys, usage
+from card_api import cache, hubeau, jobs, keys, usage
 from card_api.main import app
 
 client = TestClient(app)
@@ -78,7 +78,7 @@ def test_key_raises_job_caps_and_priority(token):
 def test_token_never_stored_in_clear(token):
     """Le jeton n'existe qu'à l'affichage de création : sur disque,
     seul son hachage (sous le préfixe) ; perdu = réémettre."""
-    stored = (hubeau.data_dir() / "keys.json").read_text()
+    stored = (cache.data_dir() / "keys.json").read_text()
     assert token not in stored
     assert token[:keys.PREFIX] in stored
     info = keys.lookup(token)

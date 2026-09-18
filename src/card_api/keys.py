@@ -31,7 +31,7 @@ import secrets
 import sys
 from datetime import datetime, timezone
 
-from .hubeau import data_dir
+from .cache import data_dir
 
 PREFIX = 8
 

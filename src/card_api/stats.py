@@ -25,7 +25,7 @@ from collections import Counter
 from datetime import date, timedelta
 
 from . import jobs
-from .hubeau import data_dir
+from .cache import chronicles_dir, data_dir
 
 SPARK = "▁▂▃▄▅▆▇█"
 SHADE = "·░▒▓█"
@@ -300,7 +300,7 @@ def _jobs_box(entries):
     du = shutil.disk_usage(data_dir())
     lines.append(
         f"disque {du.used / du.total:.0%} ({du.free / 1e9:.0f} Go libres)"
-        f" · cache {_fmt_size(_dir_size(data_dir() / 'chroniques'))}"
+        f" · cache {_fmt_size(_dir_size(chronicles_dir()))}"
         f" · résultats {_fmt_size(_dir_size(jobs.jobs_dir()))}")
     return _box("file de calcul", lines)
 

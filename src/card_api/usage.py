@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, Query, Request
 
 from . import keys as keys_mod
-from .hubeau import data_dir
+from .cache import data_dir
 
 WINDOW = 60.0                                   # secondes
 # Plafonds LARGES, et assumés comme tels (relevés le 2026-07-29 depuis

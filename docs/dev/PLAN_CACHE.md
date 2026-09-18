@@ -176,9 +176,26 @@ n'a pas un seul propriétaire, chacun de ces chantiers pose son bout de
 politique dans un coin différent, et c'est ainsi qu'on fabrique une boîte
 noire.
 
-Le registre des lectures est une base SQLite (module standard, écriture
-atomique, et il sert aussi à publier le taux de succès). Un fichier JSON
-réécrit à chaque lecture serait un point de contention.
+La dernière lecture est portée par un **fichier témoin** vide, posé à côté
+de chaque copie (`<entrée>.lu`), dont la DATE est l'information. Ni
+schéma, ni migration, ni dépendance ; un `ls -l` le lit ; et écrire une
+date revient à toucher un fichier, ce qui ne peut pas laisser un état à
+moitié écrit.
+
+SQLite était la proposition initiale, **écartée le 2026-09-18**, et
+l'argument qui la portait est tombé en regardant l'existant : le taux de
+succès du cache n'a pas besoin d'une base, puisque `usage.py` écrit déjà
+une ligne par requête dans `usage-AAAA.jsonl` et que `stats.py` la relit.
+Un champ de plus sur cette ligne le donne. C'était donc un second
+mécanisme de comptage dans un service qui n'en a aucun. Le registre JSON
+unique reste écarté pour sa raison d'origine, qui tient toujours : il se
+réécrirait en ENTIER à chaque lecture.
+
+**L'idée de la base reste valable pour un besoin qui n'existe pas
+encore.** Le témoin ne porte qu'une date : le jour où il faudrait des
+statistiques PAR entrée (quelles stations sont les plus consultées,
+combien de fois, avec quel historique), il ne saurait pas répondre. C'est
+ce besoin-là, et lui seul, qui ferait reconsidérer une base.
 
 ### Deux garde-fous
 
@@ -191,7 +208,10 @@ réécrit à chaque lecture serait un point de contention.
 Le pool tourne, l'éviction est testée, `make stats` montre sa taille et
 `/v1/health` la place occupée.
 
-*État : accepté, avec le registre de lectures en plus.*
+*État : **A4a livré le 2026-09-18** (le module, les deux dates, l'écriture
+atomique) ; le pool et l'éviction restent, cf. A4b dans l'ordre de
+livraison. Le registre de lectures est un ajout à la passation, en
+fichiers témoins plutôt qu'en base.*
 
 ## A5. Le second étage du cache
 

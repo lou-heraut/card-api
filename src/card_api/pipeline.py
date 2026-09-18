@@ -48,7 +48,7 @@ import pandas as pd
 import card
 from importlib.metadata import version as _pkg_version
 
-from . import hubeau
+from . import cache, hubeau
 from .serialize import serialize
 
 # La provenance de card ET du moteur vient de card, qui répond de
@@ -195,7 +195,7 @@ def fetched_at(stations):
     l'instant courant : la donnée a forcément été lue au plus tard
     maintenant, c'est une borne vraie, simplement moins précise.
     """
-    dates = [d for d in (hubeau.chronicle_fetched_at(s) for s in stations) if d]
+    dates = [d for d in (cache.collected_at(s) for s in stations) if d]
     if dates:
         return min(dates)
     return (dt.datetime.now(dt.timezone.utc)
