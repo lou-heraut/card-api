@@ -176,37 +176,41 @@ n'a pas un seul propriétaire, chacun de ces chantiers pose son bout de
 politique dans un coin différent, et c'est ainsi qu'on fabrique une boîte
 noire.
 
-La dernière lecture est portée par un **fichier témoin** vide, un par
-entrée, dans `data/lectures/`. Sa DATE est l'information. Les témoins sont
-à part pour que `data/chroniques/` reste ce qu'il annonce, une entrée un
-fichier ; en prime, `ls -lt data/lectures/` donne le classement des
-entrées les plus récemment consultées, c'est-à-dire la question même de
-l'éviction.
+La dernière lecture vit dans une **table SQLite**, `data/cache.db`, une
+ligne par entrée : sa clé, la date de sa dernière lecture, le nombre de
+fois qu'elle a été demandée. La clé porte un préfixe de famille
+(`chronique:`), si bien que le second étage de A5 y logera ses propres
+entrées sans pouvoir les confondre.
 
-**Le choix n'est pas entre deux rangements, il est entre rien à coordonner
-et un magasin partagé.** Un témoin par entrée ne demande aucun verrou :
-chaque écriture touche son propre fichier, `touch` est un appel système
-atomique, il n'y a ni lecture préalable ni état commun qu'une autre
-lecture puisse écraser. Le pire qui puisse arriver est de perdre une date,
-donc d'évincer trop tôt, donc de retélécharger. Un registre unique
-demanderait au contraire un verrou, une écriture atomique (une coupure au
-mauvais moment perd TOUT le registre, pas une entrée) et un cycle
-lire-modifier-réécrire à chaque lecture servie : c'est ce qu'une base
-fait, si bien qu'un registre JSON écrit à la main est le plus mauvais des
-trois choix, ayant le problème de coordination sans aucune des garanties.
+**L'arbitrage était binaire : plusieurs fichiers indépendants, ou un
+magasin coordonné.** Un fichier témoin vide par entrée, dont la DATE
+aurait porté l'information, ne demandait aucun verrou : chaque écriture
+touche son propre fichier, `touch` est atomique, il n'y a ni lecture
+préalable ni état commun qu'une autre écriture puisse écraser. Sur la
+robustesse de CETTE donnée les deux se valent donc, et le témoin est plus
+simple. Un registre JSON, lui, est le plus mauvais des trois choix dans
+tous les cas : il a le problème de coordination d'un magasin partagé sans
+aucune de ses garanties, se réécrivant en entier à chaque lecture, et une
+coupure au mauvais moment le perd tout entier au lieu d'une ligne.
 
-SQLite était la proposition initiale, **écartée le 2026-09-18** : son
-argument est tombé en regardant l'existant. Le taux de succès du cache n'a
-pas besoin d'une base, `usage.py` écrivant déjà une ligne par requête dans
-`usage-AAAA.jsonl` que `stats.py` relit ; un champ de plus sur cette ligne
-le donne. C'était donc un second mécanisme de comptage dans un service qui
-n'en a aucun.
+**Ce qui a tranché est la pérennité, et un fait vérifié le 2026-09-18** :
+un témoin ne peut porter qu'UN fait, et il en manquait déjà un. Le journal
+d'usage enregistre le NOMBRE de stations d'une requête et non leurs codes
+(`main.py`, appels à `log_usage`), si bien que « quelles entrées sont les
+plus consultées » ne se dérive de rien, ni du journal ni des témoins. La
+table le donne sans rien ajouter, et la question suivante s'y répondra par
+une colonne plutôt que par un second mécanisme. C'est ce qui a fait
+revenir sur le choix des témoins, écrits puis remplacés le même jour.
 
-**L'idée de la base reste valable pour un besoin qui n'existe pas
-encore.** Le témoin ne porte qu'une date : le jour où il faudrait des
-statistiques PAR entrée (quelles stations sont les plus consultées,
-combien de fois, avec quel historique), il ne saurait pas répondre. C'est
-ce besoin-là, et lui seul, qui ferait reconsidérer une base.
+**Ce que la base coûte, dit franchement** : un schéma, donc une discipline
+de migration le jour où il bouge, et un mode de panne qui n'existait pas,
+l'écriture concurrente refusée (`database is locked`). Il est contenu par
+trois choses : le registre est en WAL, une transaction porte une ligne, et
+`mark_read` avale son échec. La direction de l'erreur reste la bonne : une
+date perdue fait évincer trop tôt, donc retélécharger, jamais rendre un
+résultat faux. `synchronous=NORMAL` complète le compromis, un arrêt brutal
+de la machine pouvant perdre les dernières lectures notées, jamais la
+base.
 
 ### Deux garde-fous
 
@@ -222,7 +226,8 @@ Le pool tourne, l'éviction est testée, `make stats` montre sa taille et
 *État : **A4a livré le 2026-09-18** (le module, les deux dates, l'écriture
 atomique) ; le pool et l'éviction restent, cf. A4b dans l'ordre de
 livraison. Le registre de lectures est un ajout à la passation, en
-fichiers témoins plutôt qu'en base.*
+table SQLite, le choix étant
+arbitré sur la pérennité plutôt que sur la simplicité.*
 
 ## A5. Le second étage du cache
 

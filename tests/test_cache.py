@@ -92,21 +92,36 @@ def test_l_ecriture_est_atomique_et_compressee(monkeypatch, tmp_path):
         == ["K0550010.csv.gz"]
 
 
-def test_le_temoin_de_lecture_se_met_a_jour(monkeypatch, tmp_path):
-    """La date du témoin EST l'information : elle doit avancer à chaque
-    lecture, sinon l'éviction jugerait sur la première."""
+def test_le_registre_avance_la_date_et_compte_les_lectures(monkeypatch,
+                                                          tmp_path):
+    """Trois faits par entrée, dont deux qu'un fichier seul ne porterait pas.
+
+    Le compte est la raison d'être de la table : le journal d'usage
+    enregistre le NOMBRE de stations d'une requête, jamais leurs codes,
+    donc « quelles entrées sont les plus consultées » ne se dérive de rien
+    d'autre.
+    """
     monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
-    _copie(tmp_path)
     assert cache.last_read("K0550010") is None
+    assert cache.read_age("K0550010") is None
+    assert cache.read_count("K0550010") == 0
 
     cache.mark_read("K0550010")
-    temoin = cache.read_marker("K0550010")
-    vieux = temoin.stat().st_mtime - 86400
-    os.utime(temoin, (vieux, vieux))
-
-    cache.mark_read("K0550010")
-    assert temoin.stat().st_mtime > vieux
+    date1, n1 = cache._ligne("K0550010")
+    assert n1 == 1
+    assert cache.read_age("K0550010") < 5
     assert cache.last_read("K0550010").endswith("+00:00")
+    assert (tmp_path / "cache.db").exists()
+
+    time.sleep(0.01)                                # horloge, pas patience
+    cache.mark_read("K0550010")
+    date2, n2 = cache._ligne("K0550010")
+    assert date2 > date1                            # la date avance
+    assert n2 == 2                                  # et le compte monte
+
+    cache.forget("K0550010")                        # la copie est évincée
+    assert cache.last_read("K0550010") is None      # le registre la suit
+    assert cache.read_count("K0550010") == 0
 
 
 def test_une_demande_marque_la_lecture_un_rafraichissement_non(monkeypatch,
@@ -133,13 +148,13 @@ def test_une_demande_marque_la_lecture_un_rafraichissement_non(monkeypatch,
     hubeau.fetch_chronicle("K0550010")                # servie depuis le cache
     assert cache.last_read("K0550010") is not None
     # Et la comptabilité ne salit pas les données : `chroniques/` garde une
-    # entrée par fichier, les témoins vivent dans `lectures/`.
+    # entrée par fichier, le registre vit dans `cache.db`.
     assert [p.name for p in cache.chronicles_dir().iterdir()] \
         == ["K0550010.csv.gz"]
 
     # Une demande qui doit télécharger marque aussi : on vient de la
     # payer, elle ne doit pas passer pour jamais lue.
     cache.chronicle_path("K0550010").unlink()
-    cache.read_marker("K0550010").unlink()
+    cache.forget("K0550010")
     hubeau.fetch_chronicle("K0550010")
     assert cache.last_read("K0550010") is not None

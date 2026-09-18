@@ -62,27 +62,28 @@ des deux endroits.
   **Deux dates par entrée, désormais distinctes.** La date de collecte est
   celle du fichier, publiée sous `data_fetched_at` et seule à dire si une
   copie est périmée. La date de dernière lecture dit quand quelqu'un a
-  demandé cette entrée, et elle vit dans un fichier témoin vide, un par
-  entrée, dans `data/lectures/`, dont la date EST l'information. Elle
-  laisse donc `data/chroniques/` tel qu'il s'annonce, une entrée un
-  fichier, et `ls -lt data/lectures/` se lit comme le classement des
-  entrées les plus récemment consultées. Elle ne pouvait pas se
-  déduire de la première : le rafraîchissement périodique réécrit les
+  demandé cette entrée, et elle vit dans un registre, `data/cache.db`,
+  une ligne par entrée : sa clé, sa dernière lecture, et le nombre de fois
+  qu'elle a été demandée. Elle ne pouvait pas se déduire de la première : le rafraîchissement périodique réécrit les
   copies, donc écrase leur date de collecte, et après son premier passage
   plus rien ne distinguerait la station que personne ne redemande jamais.
   D'où la règle, tenue par un test : une DEMANDE marque la lecture, un
   rafraîchissement forcé jamais. C'est ce que l'éviction attend.
 
-  Une base SQLite était prévue pour ce registre ; elle est écartée. Le
-  choix n'était pas entre deux rangements mais entre **rien à coordonner**
-  et un magasin partagé : un témoin par entrée ne demande aucun verrou,
-  `touch` étant atomique et sans état commun, quand un registre unique
-  exigerait verrou, écriture atomique et cycle lire-modifier-réécrire à
-  chaque lecture, c'est-à-dire une base écrite à la main. Et le taux de
-  succès du cache, seul argument qui portait la base, a sa place dans le
-  journal d'usage déjà écrit à chaque requête. Le raisonnement complet est
-  dans `docs/dev/PLAN_CACHE.md` (A4), qui dit aussi ce qui la ferait
-  reconsidérer : des statistiques PAR entrée.
+  **Le registre est une table SQLite**, et l'arbitrage était binaire :
+  plusieurs fichiers indépendants, ou un magasin coordonné. Un fichier
+  témoin vide par entrée, dont la date aurait porté l'information, ne
+  demande aucun verrou et vaut la table sur la robustesse de cette
+  donnée-là ; ce qui a tranché est la pérennité. Un témoin ne porte qu'UN
+  fait, et il en manquait déjà un : le journal d'usage enregistre le
+  NOMBRE de stations d'une requête, jamais leurs codes, si bien que
+  « quelles entrées sont les plus consultées » ne se dérivait de rien. La
+  table le donne sans rien ajouter, et la question suivante s'y répondra
+  par une colonne. Ce que la base coûte est dit aussi franchement : un
+  schéma à migrer le jour où il bouge, et une écriture concurrente qui
+  peut être refusée, contenue par le WAL, des transactions d'une ligne et
+  un échec avalé. Raisonnement complet dans `docs/dev/PLAN_CACHE.md`
+  (A4).
 
   **L'écriture devient atomique** (temporaire puis renommage). Deux
   demandes simultanées sur la même station peuvent télécharger deux fois,
