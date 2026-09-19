@@ -180,16 +180,18 @@ def chronicles_dir() -> Path:
 # « dates dupliquées » que rien ne rattache à sa cause. Tant que les copies
 # vivaient un jour, le cas s'effaçait de lui-même ; l'âge accepté étant passé
 # au mois, il peut durer des semaines.
-_FORMAT = "v2"
+_FORMAT = "v3"
 
 
 def chronicle_path(station: str) -> Path:
     """Emplacement de la copie locale d'une chronique.
 
     Le nom porte la marque de format : une copie écrite par un client plus
-    ancien n'est donc même pas trouvée, ce qui la rend inoffensive.
+    ancien n'est donc même pas trouvée, ce qui la rend inoffensive. Les
+    codes de station n'ont pas de point, si bien que ce qui précède le
+    premier point est toujours la station, quel que soit le format.
     """
-    return chronicles_dir() / f"{station}.{_FORMAT}.csv.gz"
+    return chronicles_dir() / f"{station}.{_FORMAT}.parquet"
 
 
 def collected_at(station: str) -> str | None:
@@ -483,11 +485,7 @@ def load_chronicle(station: str) -> pd.DataFrame | None:
     """
     p = chronicle_path(station)
     try:
-        # dtype code_station : un code tout-numérique relu en int64 ne
-        # serait plus détecté comme identifiant de série (détection par
-        # type).
-        df = pd.read_csv(p, parse_dates=["date"],
-                         dtype={"code_station": str})
+        df = pd.read_parquet(p)
     except Exception:
         p.unlink(missing_ok=True)
         return None
@@ -522,9 +520,21 @@ def cached_stations() -> list[str]:
     """
     # Les copies d'un format périmé comptent : la station EST dans
     # l'ensemble de travail, et le rafraîchissement la réécrira au format
-    # courant, ce qui la soigne.
-    return sorted({p.name.removesuffix(".csv.gz").removesuffix(f".{_FORMAT}")
-                   for p in chronicles_dir().glob("*.csv.gz")})
+    # courant, ce qui la soigne. D'où un balayage de TOUT le dossier plutôt
+    # que d'un motif : un motif ne connaîtrait qu'un format à la fois, et
+    # c'est exactement la copie d'un autre format qu'il faut voir ici.
+    return sorted({_station_du_fichier(p)
+                   for p in chronicles_dir().iterdir()
+                   if not p.name.startswith(".")})
+
+
+def _station_du_fichier(chemin: Path) -> str:
+    """La station d'un fichier de chronique, quel que soit son format.
+
+    Un code de station est alphanumérique, sans point : ce qui précède le
+    premier point est donc la station, hier comme demain.
+    """
+    return chemin.name.split(".")[0]
 
 
 def store_chronicle(station: str, df: pd.DataFrame) -> None:
@@ -539,7 +549,7 @@ def store_chronicle(station: str, df: pd.DataFrame) -> None:
     try:
         cible = chronicle_path(station)
         tmp = _temporaire(cible)
-        df.to_csv(tmp, index=False, compression="gzip")
+        df.to_parquet(tmp, index=False)
         os.replace(tmp, cible)
     except Exception:
         # Même règle que pour les séries : ne pas pouvoir garder la copie
@@ -583,14 +593,15 @@ def evict(jours: float) -> dict:
 
     seuil = jours * 86400
     bilan = {"chroniques": 0, "series": 0, "place": 0}
-    familles = (("chroniques", chronicles_dir(), "*.csv.gz", ".csv.gz",
-                 _CHRONIQUE),
+    familles = (("chroniques", chronicles_dir(), "*", ".parquet", _CHRONIQUE),
                 ("series", series_dir(), "*.parquet", ".parquet", _SERIE))
     for nom, dossier, motif, suffixe, prefixe in familles:
         for fichier in sorted(dossier.glob(motif)):
+            if fichier.name.startswith("."):       # un temporaire en cours
+                continue
             entree = fichier.name.removesuffix(suffixe)
             if prefixe == _CHRONIQUE:
-                station = entree.removesuffix(f".{_FORMAT}")
+                station = _station_du_fichier(fichier)
                 if fichier != chronicle_path(station):
                     # Format périmé : cette copie ne peut plus être servie,
                     # donc la garder ne fait que prendre de la place. Elle
@@ -621,12 +632,14 @@ def _entrees() -> list[tuple[float, int, pathlib.Path, str]]:
     """
     out = []
     for dossier, motif, suffixe, prefixe in (
-            (chronicles_dir(), "*.csv.gz", ".csv.gz", _CHRONIQUE),
+            (chronicles_dir(), "*", ".parquet", _CHRONIQUE),
             (series_dir(), "*.parquet", ".parquet", _SERIE)):
         for fichier in dossier.glob(motif):
+            if fichier.name.startswith("."):
+                continue
             entree = fichier.name.removesuffix(suffixe)
             if prefixe == _CHRONIQUE:
-                entree = entree.removesuffix(f".{_FORMAT}")
+                entree = _station_du_fichier(fichier)
             ligne = _ligne_cle(prefixe + entree)
             try:
                 taille = fichier.stat().st_size

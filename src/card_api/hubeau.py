@@ -39,7 +39,18 @@ PAGE_SIZE = 20000
 # publiée à qui que ce soit, donc il n'y avait rien à départager, et
 # brûler un numéro sur un changement que personne ne peut observer aurait
 # affaibli le signal pour le jour où il servira vraiment.
-FINGERPRINT_VERSION = "v1"               # cf. fingerprint()
+#
+# Il passe à v2 le 2026-09-19, et ce jour-là est arrivé. Les empreintes
+# publiées jusqu'ici décrivaient la donnée telle que le CACHE la rendait,
+# et l'aller-retour par un CSV perdait le dernier bit de 16 % des valeurs
+# (1 ulp, 2,5e-16) : la même chronique portait donc deux empreintes selon
+# qu'elle venait du réseau ou du disque. Les copies étant désormais en
+# Parquet, l'aller-retour est exact et l'empreinte ne dépend plus du
+# chemin. Vu du dehors, l'effet est celui d'un changement de règle, une
+# donnée identique changeant de signature : c'est exactement ce que ce
+# préfixe sert à départager, faute de quoi un client croirait que SA
+# donnée a changé.
+FINGERPRINT_VERSION = "v2"               # cf. fingerprint()
 _STATION_RE = re.compile(r"^[A-Za-z0-9]{4,12}$")
 
 

@@ -4,11 +4,11 @@ Ces tests ne touchent pas au réseau : `cache.py` ne connaît que des
 fichiers.
 """
 
-import gzip
 import os
 import threading
 import time
 
+import numpy as np
 import pandas as pd
 
 from card_api import cache
@@ -93,16 +93,15 @@ def test_l_aller_retour_garde_les_types(monkeypatch, tmp_path):
     assert relu["Q"].tolist() == df["Q"].tolist()
 
 
-def test_l_ecriture_est_atomique_et_compressee(monkeypatch, tmp_path):
+def test_l_ecriture_est_atomique_et_dans_le_bon_format(monkeypatch, tmp_path):
     """Deux demandes simultanées sur la même station peuvent télécharger
     deux fois, c'est du gaspillage acceptable ; lire un fichier à moitié
     écrit ne l'est pas. D'où le temporaire puis le renommage, et la
     vérification qu'il ne reste rien derrière.
 
-    La compression est vérifiée parce qu'elle est FRAGILE : pandas la
-    déduit du suffixe, que le nom temporaire n'a pas. Demandée
-    explicitement, mais rien ne le dirait si elle sautait, sinon un cache
-    dix fois plus gros.
+    La signature du fichier est vérifiée parce qu'un format qui change sans
+    que la marque du nom change serait une régression invisible : les copies
+    resteraient trouvées, et relues de travers.
     """
     monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
     df = pd.DataFrame({"code_station": "K0550010",
@@ -110,11 +109,40 @@ def test_l_ecriture_est_atomique_et_compressee(monkeypatch, tmp_path):
                        "Q": [1.0, 2.0, 3.0]})
     cache.store_chronicle("K0550010", df)
 
-    octets = cache.chronicle_path("K0550010").read_bytes()
-    assert octets[:2] == b"\x1f\x8b"                  # en-tête gzip
-    assert b"K0550010" in gzip.decompress(octets)
+    assert cache.chronicle_path("K0550010").read_bytes()[:4] == b"PAR1"
     assert sorted(p.name for p in cache.chronicles_dir().iterdir()) \
         == [cache.chronicle_path("K0550010").name]
+
+
+def test_l_empreinte_survit_a_l_aller_retour_par_le_cache(monkeypatch,
+                                                          tmp_path):
+    """**Le défaut que le passage en Parquet corrige**, trouvé le
+    2026-09-19.
+
+    L'empreinte hache les octets des colonnes : elle identifie l'état de la
+    source, et c'est sur elle que reposent la citabilité d'un export et la
+    clé du second étage. Or l'aller-retour par un CSV perdait le dernier
+    bit de 16 % des valeurs (1 ulp, 2,5e-16), si bien que la MÊME chronique
+    portait deux empreintes selon qu'elle venait du réseau ou du disque.
+    Trois conséquences : un client voyait deux empreintes pour une donnée
+    identique, la clé du second étage changeait après chaque
+    rafraîchissement, et un résultat n'était pas reproductible au bit près
+    selon l'état du cache.
+    """
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    from card_api import hubeau
+
+    rng = np.random.default_rng(0)
+    dates = pd.date_range("1990-01-01", periods=3000, freq="D")
+    frais = pd.DataFrame({"code_station": "K0550010", "date": dates,
+                          "Q": rng.lognormal(2, 0.4, len(dates))})
+
+    cache.store_chronicle("K0550010", frais)
+    relu = cache.load_chronicle("K0550010")
+
+    assert hubeau.fingerprint(relu) == hubeau.fingerprint(frais)
+    assert relu["Q"].to_numpy().tobytes() == frais["Q"].to_numpy().tobytes()
+    assert relu.equals(frais)
 
 
 def test_le_registre_avance_la_date_et_compte_les_lectures(monkeypatch,

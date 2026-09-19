@@ -167,8 +167,15 @@ src/card_api/
                 #   partagé sans ses garanties. WAL + transactions d'une
                 #   ligne + échec avalé, la perte d'une date ne coûtant
                 #   qu'un téléchargement : cf. PLAN_CACHE.md (A4)
-                #   DEUX étages : les chroniques (CSV gz) et les séries
-                #   déjà agrégées (Parquet, data/series/<clé>.parquet).
+                #   DEUX étages, tous deux en PARQUET : les chroniques
+                #   (data/chroniques/<station>.v3.parquet) et les séries
+                #   déjà agrégées (data/series/<clé>.parquet). Les
+                #   chroniques étaient en CSV gzippé jusqu'au 2026-09-19,
+                #   et c'est une correction et pas une optimisation qui
+                #   les a fait changer : l'aller-retour CSV perdait le
+                #   dernier bit de 16 % des valeurs, donc la même
+                #   chronique portait DEUX empreintes selon qu'elle venait
+                #   du réseau ou du disque. D'où FINGERPRINT_VERSION=v2.
                 #   Parquet parce que c'est le seul format qui rende le
                 #   cadre IDENTIQUE, types compris : un CSV ne sait pas
                 #   qu'une variable de DATE est une date, et tQJXA

@@ -85,42 +85,61 @@ posée à l'endroit qu'il fallait est : pourquoi une relecture coûte-t-elle
 
 Plus l'empreinte, 3,7 ms, qui ne dépend pas du format.
 
-### Deux portes, et elles ne se valent pas
+### B2a, le format : livré le 2026-09-19, et c'était une correction
 
-**B2a, le format.** Passer les chroniques en Parquet ferait tomber le
-plancher de 200 stations de ~5,1 s à ~1,4 s. Aucune comptabilité nouvelle,
-aucun risque de cohérence, et l'écriture devient dix-huit fois plus rapide,
-ce qui compte pour le pool qui réécrit tout le cache chaque semaine. Le prix
-est 2,5 fois plus de place (100 Kio contre 253 Kio par chronique, soit
-~59 Mo au lieu de ~24 Mo pour 233 stations) et un retéléchargement unique,
-la marque de format du nom changeant. Parquet plutôt que feather parce que
-le second étage l'emploie déjà : un format pour les deux étages, et pas deux
-formats à connaître pour un gain de 2 ms.
+Passer les chroniques en Parquet a été fait, et la mesure a montré en chemin
+que ce n'était pas une optimisation mais **une correction de justesse**.
 
-**B2b, ne plus relire du tout.** Enregistrer l'empreinte et les bornes de
-dates au moment d'écrire une chronique. Le gain restant après B2a serait de
-1,4 s à ~0,7 s, la moitié venant de l'empreinte. Mais il introduit un état
-qui peut mentir : une empreinte enregistrée qui ne correspond plus au
-fichier ferait servir une série périmée, en silence, ce qui est la seule
-faute que ce chantier ne doit pas commettre. Elle se ferme en enregistrant
-aussi taille et date du fichier et en recalculant si elles ne correspondent
-plus, mais c'est de la machinerie pour un facteur deux.
+**Le défaut trouvé.** L'aller-retour par un CSV perdait le dernier bit de
+16 % des valeurs (1 ulp, 2,5e-16), assez pour changer l'empreinte : la MÊME
+chronique portait donc deux empreintes selon qu'elle venait du réseau ou du
+disque. Trois conséquences, toutes silencieuses. Un client voyait deux
+`data_fingerprint` pour une donnée identique, alors que ce champ existe
+précisément pour identifier l'état de la source. La clé du second étage
+contenant l'empreinte, elle changeait après chaque rafraîchissement, donc
+une série était recalculée pour rien. Et un résultat n'était pas
+reproductible au bit près selon l'état du cache.
 
-**Ordre retenu : B2a, puis on regarde.** B2a est un changement de format
-mesuré, sans état nouveau. B2b ne se justifie que si 1,4 s gêne encore, et il
-se décidera alors sur des chiffres de production.
+Parquet restitue le cadre exactement, empreinte comprise : vérifié, zéro
+valeur modifiée. `FINGERPRINT_VERSION` passe donc à `v2`, parce que les
+empreintes publiées jusqu'ici décrivaient la donnée telle que le cache la
+rendait : vu du dehors, une donnée identique change de signature, et c'est
+exactement ce que ce préfixe sert à départager.
 
-### Ce qu'il faudra vérifier en faisant B2a
+**Le gain de temps, mesuré sur la vue MAKAHO réelle** (200 stations) : un
+rechargement passe de 5,7 s à 3,1 s, le curseur alpha de 5,7 s à 2,9 s, la
+première ouverture de 11,8 s à 8,9 s. La place passe de 21 à 54 Mo pour 200
+chroniques, et l'écriture est dix-huit fois plus rapide, ce qui allège le
+pool.
 
-- **l'empreinte ne doit pas changer de valeur** pour une même chronique
-  (elle hache les octets des colonnes, or Parquet restitue les types
-  exactement là où le CSV les reconstruit) ; si elle change, toutes les clés
-  du second étage changent une fois, ce qui est acceptable mais doit être
-  dit et non découvert ;
-- la marque de format `_FORMAT` de `cache.py` passe à `v3`, donc les copies
-  actuelles ne sont plus trouvées et sont retéléchargées une fois ;
-- `_COLONNES` garde son rôle : un fichier du bon format mais du mauvais
-  contenu reste traité comme absent.
+### B2b, ne plus relire du tout : le profil dit ce qu'il reste à gagner
+
+Une demande de 200 stations tout en cache, une fiche, se décompose ainsi
+(mesuré le 2026-09-19, après B2a) :
+
+| ce qui prend le temps | durée | part |
+|---|---|---|
+| lire les chroniques et les signer | 1,84 s | 61 % |
+| relire les 200 séries du second étage | 0,71 s | 23 % |
+| la tendance (Mann-Kendall et Sen) | 0,46 s | 15 % |
+| sérialiser | 0,02 s | 0 % |
+
+B2b (enregistrer l'empreinte et les bornes de dates à l'écriture) viserait
+donc les 61 %, et ferait tomber la demande vers ~1,2 s. Le risque reste
+celui dit plus haut : un état dérivé qui peut mentir, à fermer en
+enregistrant aussi taille et date du fichier.
+
+Deux remarques que le profil apporte :
+
+- **la tendance et la relecture des séries sont maintenant du même ordre**
+  que ce qu'on chercherait à supprimer ; passé B2b, le plancher serait à
+  ~1,2 s et il n'y aurait plus de gros terme à retirer ;
+- les 0,71 s de relecture des séries sont **deux cents petits fichiers**,
+  dont le coût est surtout de l'ouverture. Les regrouper par fiche ferait
+  gagner, mais casserait le modèle de clé par station qui permet les
+  succès partiels. À ne pas faire pour un gain de cet ordre.
+
+**Rien n'est décidé sur B2b** : à juger sur des durées de production.
 
 ## B3. Faire surveiller le pool
 

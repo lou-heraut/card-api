@@ -41,6 +41,54 @@ des deux endroits.
 
 ## Non publié
 
+## 0.8.0 (2026-09-19)
+
+### Corrigé
+
+- **La même chronique portait deux empreintes selon son chemin
+  (2026-09-19).** Les copies locales étaient en CSV gzippé, et
+  l'aller-retour perdait le dernier bit de 16 % des valeurs (1 ulp,
+  2,5e-16 en relatif) : assez pour changer `data_fingerprint`, qui hache
+  les octets des colonnes. La même donnée Hub'Eau portait donc une
+  empreinte différente selon qu'elle venait du réseau ou du disque.
+
+  Trois conséquences, toutes silencieuses. Un client voyait deux empreintes
+  pour une donnée identique, alors que ce champ existe précisément pour
+  identifier l'état de la source et rendre un export citable. La clé du
+  second étage de cache contenant l'empreinte, elle changeait après chaque
+  rafraîchissement, donc une série était recalculée pour rien. Et un
+  résultat n'était pas reproductible au bit près selon l'état du cache.
+
+  **Les chroniques sont désormais en Parquet**, comme les séries : le cadre
+  est restitué exactement, empreinte comprise, et un test le tient. Le
+  défaut était pré-existant, il a été trouvé en instruisant tout autre
+  chose, à savoir pourquoi une relecture coûtait 18 ms.
+
+  `FINGERPRINT_VERSION` passe donc à **v2**. Vu du dehors, une donnée
+  identique change de signature, et c'est exactement ce que ce préfixe sert
+  à départager : sans lui, un client croirait que SA donnée a changé. Les
+  empreintes publiées avant ce jour ne sont pas comparables à celles
+  d'après, et c'est dit plutôt que découvert.
+
+### Modifié
+
+- **Une chronique se relit quatre fois plus vite, et s'écrit dix-huit fois
+  plus vite (2026-09-19).** Conséquence du même changement de format,
+  mesurée sur une chronique réelle de 22 335 jours : 18,4 ms → 4,2 ms en
+  lecture, 138,7 ms → 7,5 ms en écriture, pour 2,5 fois plus de place
+  (102 Kio → 253 Kio). Sur la vue MAKAHO complète, 200 stations réelles :
+  un rechargement passe de 5,7 s à **3,1 s**, le curseur de signification
+  de 5,7 s à **2,9 s**, la première ouverture de 11,8 s à 8,9 s. L'écriture
+  plus rapide allège aussi le pool, qui réécrit tout le cache chaque
+  semaine.
+
+  Le nom des copies porte la marque de format, qui passe à `v3` : les
+  copies actuelles ne sont donc plus trouvées et sont retéléchargées une
+  fois, puis l'éviction ramasse les anciennes sans attendre leur délai de
+  lecture. Profil de ce qui reste, tout en cache : 61 % à lire et signer
+  les chroniques, 23 % à relire les séries, 15 % de tendance. Suite
+  éventuelle dans `docs/dev/PLAN_CACHE_SUITE.md` (B2b), non décidée.
+
 ### Ajouté
 
 - **Le cache est borné en place, pas seulement dans le temps
