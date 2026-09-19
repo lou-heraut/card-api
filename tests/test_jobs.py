@@ -241,7 +241,11 @@ def test_health_reports_queue_disk_and_data():
     body = client.get("/v1/health").json()
     assert set(body["jobs"]) == {"queued", "running"}
     assert body["disk"]["free_gb"] > 0
-    assert set(body["data"]) == {"total_mb", "cache_mb", "jobs_mb"}
+    # Ensemble EXACT, et c'est le but : un champ ajouté à une réponse est
+    # un changement de contrat, donc une version à couper. Ce test l'a
+    # rattrapé quand `series_mb` est arrivé.
+    assert set(body["data"]) == {"total_mb", "cache_mb", "series_mb",
+                                 "jobs_mb"}
     assert body["data"]["total_mb"] >= body["data"]["jobs_mb"]
 
 
@@ -330,10 +334,33 @@ def test_l_age_accepte_par_la_requete_decide_aussi_du_routage(tmp_path,
 
 
 def test_le_plafond_haut_borne_quand_meme(monkeypatch, sans_calcul):
-    """Tout en cache ne veut pas dire gratuit : le calcul reste petit mais
-    pas nul, et un worker ne doit pas être monopolisé."""
+    """Tout en cache ne veut pas dire gratuit : relire et signer chaque
+    chronique coûte ~25 ms, ce qu'aucun cache ne supprime, et un worker ne
+    doit pas être monopolisé.
+
+    Le seuil est abaissé pour le test : la valeur de production (250) est
+    au-dessus du plafond dur public (100 stations), qui ne se lève qu'avec
+    une clé de priorité. Un test qui dépendrait de ces deux valeurs
+    mesurerait leur rapport, pas la règle.
+    """
     monkeypatch.setattr(cache, "is_fresh", lambda s, max_age=None: True)
-    trop = jobs.SYNC_STATIONS_CACHED + 1
-    r = client.get("/v1/extract", params={"stations": _stations(trop),
+    monkeypatch.setattr(jobs, "SYNC_STATIONS_CACHED", 20)
+    r = client.get("/v1/extract", params={"stations": _stations(21),
                                           "cards": "QA"})
     assert r.status_code == 202
+
+
+def test_le_produit_stations_fois_fiches_borne_aussi(monkeypatch, sans_calcul):
+    """Le second plafond de la réponse immédiate, mesuré le 2026-09-19 :
+    une série relue coûte ~5 ms, donc c'est le PRODUIT qui compte.
+
+    Sans lui, relever le plafond de stations pour la vue MAKAHO ouvrirait
+    un pire cas de 250 stations par 20 fiches, soit une trentaine de
+    secondes en réponse immédiate.
+    """
+    monkeypatch.setattr(cache, "is_fresh", lambda s, max_age=None: True)
+    monkeypatch.setattr(jobs, "SYNC_SERIES", 30)
+    p = {"stations": _stations(20), "cards": "QA"}
+    assert client.get("/v1/extract", params=p).status_code == 200
+    p["cards"] = "QA,VCN10"                      # 40 séries, au-dessus
+    assert client.get("/v1/extract", params=p).status_code == 202

@@ -1,10 +1,14 @@
-> **Statut : plan de chantier, ouvert.** Ce que le service doit gagner
-> pour qu'un client puisse en dépendre, chantier par chantier, avec la
-> décision retenue et ce qui la justifie. Ce qui est livré en sort et
-> devient une entrée de `CHANGELOG.md`. Les pistes ouvertes qui ne
-> relèvent pas de ce chantier restent dans `CHANTIERS.md`. Les
-> arbitrages permanents du service restent dans `API.md` : ce plan y
-> renvoie et n'en recopie rien.
+> **Statut : plan de chantier, TOUT LIVRÉ le 2026-09-19** (service 0.5.0,
+> 0.6.0 et 0.7.0, moteur `stase` 0.6.5). Le document reste pour ce qu'il
+> est le seul à porter : les MESURES qui ont commandé chaque décision, ce
+> qui a été vérifié dans le moteur avant d'écrire une ligne, et les deux
+> ou trois endroits où une mesure a contredit une intuition de départ.
+> Chaque chantier y porte son état, et la règle de la clé de cache (une
+> clé trop complète ne coûte que des recalculs, une clé incomplète rend
+> des résultats faux en silence) s'applique à tout paramètre ajouté plus
+> tard. Les pistes ouvertes qui ne relèvent pas de ce chantier restent
+> dans `CHANTIERS.md`. Les arbitrages permanents du service restent dans
+> `API.md` : ce plan y renvoie et n'en recopie rien.
 
 # Ce qui manque pour qu'un client puisse dépendre du service
 
@@ -514,7 +518,18 @@ régression d'ergonomie franche par rapport à l'application R actuelle.
 *Fin :* la mesure est consignée, la valeur est dans `.env`, `/v1` la
 publie comme les autres. Jamais recopiée dans une description.
 
-*État : accepté, sans réserve. À faire en dernier.*
+*État : **livré le 2026-09-19**, card-api 0.7.0, et la mesure a donné plus
+que la valeur attendue. Sur 200 chroniques réelles, une demande tout en
+cache coûte ~25 ms par station (relire et signer, ce qu'aucun cache ne
+supprime) plus ~5 ms par série : 5,7 s pour 200 stations et une fiche,
+7,7 s pour trois, contre 43,5 s à froid sur `dtLF`.
+`SYNC_STATIONS_CACHED` passe donc à 250, pour que la vue MAKAHO réponde en
+direct, et un TROISIÈME seuil apparaît, `SYNC_SERIES` (600), qui borne le
+produit stations × fiches : le plafond de stations seul aurait ouvert un
+pire cas de 250 stations par 20 fiches, une trentaine de secondes en
+réponse immédiate. Chaque seuil borne maintenant un terme mesuré du coût.
+À noter : 250 dépasse le plafond dur public de 100 stations, la vue MAKAHO
+suppose donc une clé de priorité.*
 
 ## A7. Exposer la chronique journalière
 
@@ -560,7 +575,10 @@ plus tard.
 
 Le contrat gagne une route, donc `api_version`.
 
-*État : accepté, avec l'ordre des raisons inversé.*
+*État : **livré le 2026-09-19**, card-api 0.7.0. `/v1/chronicles` et son
+jumeau `.csv`, plafond propre publié par `/v1`, et un test qui compare
+l'empreinte d'un export à celle d'un calcul : c'est la promesse de
+provenance, elle se vérifie plutôt qu'elle ne s'affirme.*
 
 ## A8. Remonter le nombre de points
 
@@ -626,15 +644,18 @@ n'attend plus rien.
   fait  A8     le nombre de points           0.6.0
   fait  A5     le second étage               sans effet sur le contrat
   fait  A4b    le pool et l'éviction         sans effet sur le contrat
-        A7     la chronique exposée          contrat : api_version
-        A6     le plafond                    après mesure, en dernier
+  fait  A7     la chronique exposée          0.7.0
+  fait  A6     le plafond                    0.7.0
 ```
 
-`S1`, `C1` et `C2` sont livrés eux aussi (cf. plus haut). **Il reste donc
-A4b, A7 et A6.** A4b évince ce que A5 a rangé, sur la même question de
-dernière lecture et dans le même registre ; A6 ne se règle qu'une fois
-mesuré le coût réel d'une demande toute en cache, ce que `make stats`
-donne maintenant.
+`S1`, `C1` et `C2` sont livrés eux aussi (cf. plus haut). **Tout ce plan
+est donc livré**, en trois versions du service (0.5.0, 0.6.0, 0.7.0) et
+deux du moteur. Ce qui reste à faire n'est pas dans ce document : c'est de
+regarder tourner en production, `make stats` donnant le taux de succès du
+cache et les durées réelles, et de décider à partir de ces chiffres. Une
+seule piste a été écrite puis délibérément NON prise, et elle est en A5 :
+enregistrer l'empreinte d'une chronique à côté du fichier pour supprimer
+aussi le plancher de lecture.
 
 **Versions.** Le service se coupe une version le jour où ce qu'un client
 voit change. Ici : A1 et A3 (un paramètre), A7 (une route), A8 (un

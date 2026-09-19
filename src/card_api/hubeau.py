@@ -156,8 +156,11 @@ def fetch_chronicle(station: str, refresh: bool = False,
     if not _STATION_RE.match(station):
         raise StationInconnue(f"code de station invalide : {station!r}")
     if not refresh and cache.is_fresh(station, max_age):
-        cache.mark_read(station)
-        return cache.load_chronicle(station)
+        deja = cache.load_chronicle(station)
+        if deja is not None:
+            cache.mark_read(station)
+            return deja
+        # Copie inutilisable : elle a été effacée, on la retélécharge.
 
     rows = _fetch_all(f"{BASE}/obs_elab", {
         "code_entite": station,

@@ -95,6 +95,12 @@ LTP_SEED = 0
 # son dernier jour disponible, donc ne pas en poser.
 START_DEFAUT = "1968-01-01"
 
+# Plafond de stations d'un export de chronique. BAS, et pour une raison
+# qui n'est pas celle des autres plafonds : une chronique pèse des dizaines
+# de milliers de lignes, donc ce n'est pas un calcul à sérialiser mais un
+# gros transfert à borner.
+CHRONICLE_STATIONS = int(os.environ.get("CARD_API_CHRONICLE_STATIONS", 5))
+
 MK_DEFAUT = "AR1"
 LEVEL_DEFAUT = 0.1
 ORIENT_DEFAUT = "records"
@@ -561,6 +567,52 @@ def extraction(data, retenues, empreintes, params):
     miss = sum(len(v) for v in manquants.values())
     return donnees, meta, {"actif": True, "hits": len(cles) - miss,
                            "miss": miss}
+
+
+def chronicles_export(params: dict) -> dict:
+    """La chronique journalière elle-même, telle que le service l'a lue.
+
+    **Pourquoi le service la rend**, alors qu'elle vient de Hub'Eau et que
+    n'importe qui peut l'y demander : la PROVENANCE, et le coût évité n'est
+    qu'un bonus. Un client qui tracerait la chronique en interrogeant
+    Hub'Eau lui-même afficherait sur la même page deux choses qui ne
+    viennent pas du même endroit : une carte calculée sur une copie lue il
+    y a trois semaines, et un graphe lu à l'instant, éventuellement révisé
+    entre-temps. Les deux peuvent diverger sans que rien ne le signale, et
+    aucune ne porte l'empreinte de l'autre. En passant par ici, les deux
+    lisent la MÊME copie, avec la même `data_fetched_at` et la même
+    `data_fingerprint` : c'est ce qui rend un export citable, et c'est ce
+    que le service est fait pour garantir.
+
+    C'est aussi le premier point de sortie qui rend de la donnée SOURCE
+    plutôt qu'un résultat calculé : le service devient un miroir partiel de
+    Hub'Eau. C'est défendable, les droits Etalab étant déjà publiés dans
+    chaque réponse, et c'est dit dans `docs/dev/API.md` plutôt que laissé à
+    découvrir.
+
+    L'empreinte porte sur la chronique ENTIÈRE, comme partout ailleurs,
+    même quand la réponse n'en montre qu'une fenêtre : elle identifie
+    l'état de la SOURCE, pas la tranche servie.
+    """
+    st = params["stations"]
+    data, empreintes, retenues, omises = chroniques(
+        st, params["start"], params["end"], max_age=params.get("max_age"))
+    fenetre = data[data["date"].between(
+        params["start"] or data["date"].min(),
+        params["end"] or data["date"].max())].reset_index(drop=True)
+    return {
+        **versions(),
+        "rights": rights(),
+        "stations": retenues,
+        "stations_requested": list(st),
+        "stations_omitted": omises,
+        "period": {"start": params["start"], "end": params["end"]},
+        "source": SOURCE,
+        "data_fetched_at": fetched_at(retenues),
+        "data_fingerprint": hubeau.combine_fingerprints(empreintes),
+        "orient": params["orient"],
+        "data": serialize(fenetre, params["orient"]),
+    }
 
 
 def compute(params: dict, progress=None, verrou=None) -> dict:

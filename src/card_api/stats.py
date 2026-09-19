@@ -142,7 +142,7 @@ def _dir_size(path):
 # cherche des yeux une ligne qu'on s'attendait à trouver. Un zéro est une
 # information, souvent la plus utile : il dit qu'un endpoint qu'on
 # maintient ne sert à personne.
-ENDPOINTS_CALCUL = ("extract", "trend", "jobs")
+ENDPOINTS_CALCUL = ("extract", "trend", "chronicles", "jobs")
 ENDPOINTS_DECOUVERTE = ("cards", "card_detail", "card_figure",
                         "stations", "vocabulary", "suivi")
 RENDUS = ("json", "csv", "figure")

@@ -14,9 +14,14 @@ from card_api import cache
 
 
 def _copie(tmp_path, station="K0550010", contenu=b"x"):
-    d = tmp_path / "chroniques"
-    d.mkdir(parents=True, exist_ok=True)
-    f = d / f"{station}.csv.gz"
+    """Une copie en cache, posée là où le cache l'attend.
+
+    Le nom se demande à `cache.chronicle_path` et ne se fabrique pas ici :
+    il porte une marque de format, et un test qui recopierait la règle
+    cesserait de vérifier le vrai chemin le jour où elle change.
+    """
+    f = cache.chronicle_path(station)
+    f.parent.mkdir(parents=True, exist_ok=True)
     f.write_bytes(contenu)
     return f
 
@@ -108,7 +113,7 @@ def test_l_ecriture_est_atomique_et_compressee(monkeypatch, tmp_path):
     assert octets[:2] == b"\x1f\x8b"                  # en-tête gzip
     assert b"K0550010" in gzip.decompress(octets)
     assert sorted(p.name for p in cache.chronicles_dir().iterdir()) \
-        == ["K0550010.csv.gz"]
+        == [cache.chronicle_path("K0550010").name]
 
 
 def test_le_registre_avance_la_date_et_compte_les_lectures(monkeypatch,
@@ -169,7 +174,7 @@ def test_une_demande_marque_la_lecture_un_rafraichissement_non(monkeypatch,
     # Et la comptabilité ne salit pas les données : `chroniques/` garde une
     # entrée par fichier, le registre vit dans `cache.db`.
     assert [p.name for p in cache.chronicles_dir().iterdir()] \
-        == ["K0550010.csv.gz"]
+        == [cache.chronicle_path("K0550010").name]
 
     # Une demande qui doit télécharger marque aussi : on vient de la
     # payer, elle ne doit pas passer pour jamais lue.
@@ -177,3 +182,53 @@ def test_une_demande_marque_la_lecture_un_rafraichissement_non(monkeypatch,
     cache.forget("K0550010")
     hubeau.fetch_chronicle("K0550010")
     assert cache.last_read("K0550010") is not None
+
+
+def test_une_copie_au_format_perime_est_traitee_comme_absente(monkeypatch,
+                                                              tmp_path):
+    """Le cas n'est pas théorique : des copies d'avant le renommage
+    `id` → `code_station` du 2026-07-28 existent encore sur des disques.
+
+    Servie telle quelle, une telle copie ne donne pas une erreur claire
+    mais un 422 sur des « dates dupliquées », le moteur ne reconnaissant
+    aucune colonne identifiante et prenant deux cents stations pour une
+    seule série. Tant que les copies vivaient un jour, le cas s'effaçait de
+    lui-même ; l'âge accepté étant passé au mois, il peut durer.
+    """
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    ancienne = pd.DataFrame({"id": ["K0550010"] * 3,
+                             "date": pd.date_range("1990-01-01", periods=3),
+                             "Q": [1.0, 2.0, 3.0]})
+    ancienne.to_csv(cache.chronicle_path("K0550010"), index=False,
+                    compression="gzip")
+    assert cache.is_fresh("K0550010")                  # elle est là, fraîche
+    assert cache.load_chronicle("K0550010") is None    # et inutilisable
+    assert not cache.chronicle_path("K0550010").exists()
+
+    # ... donc une demande la retélécharge au lieu d'échouer
+    from card_api import hubeau
+    monkeypatch.setattr(hubeau, "_fetch_all", lambda url, params: [
+        {"code_station": "K0550010", "date_obs_elab": "1990-01-01",
+         "resultat_obs_elab": 272000.0}])
+    df = hubeau.fetch_chronicle("K0550010")
+    assert list(df.columns) == ["code_station", "date", "Q"]
+
+
+def test_une_copie_d_un_format_plus_ancien_n_est_pas_servie(monkeypatch,
+                                                            tmp_path):
+    """La marque de format est dans le NOM, donc une copie écrite par un
+    client plus ancien n'est même pas trouvée : inoffensive par
+    construction, là où un contrôle de contenu attraperait un cas et
+    laisserait passer le suivant.
+
+    L'éviction la ramasse sans attendre le délai de lecture : elle ne peut
+    plus être servie, donc la garder ne fait que prendre de la place.
+    """
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    ancienne = cache.chronicles_dir() / "K0550010.csv.gz"
+    ancienne.write_bytes(b"x")
+
+    assert not cache.is_fresh("K0550010")            # pas trouvée
+    assert cache.cached_stations() == ["K0550010"]   # mais à rafraîchir
+    assert cache.evict(10_000)["chroniques"] == 1    # et effacée d'office
+    assert not ancienne.exists()

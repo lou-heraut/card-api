@@ -51,8 +51,27 @@ from . import cache, hubeau, usage
 # durée d'une réponse immédiate. SYNC_STATIONS_CACHED s'applique au total :
 # haut, il empêche qu'une demande de 500 stations toutes en cache
 # monopolise un worker, le calcul restant petit mais pas nul.
+#
+# Relevés le 2026-09-19, une fois le second étage de cache en place, sur 200
+# chroniques Hub'Eau réelles. Une demande TOUT EN CACHE coûte environ
+# 25 ms par station (relire la chronique et la signer, ce que le cache ne
+# supprime pas, l'empreinte entrant dans sa clé) plus 5 ms par série
+# demandée (relire la série agrégée). Mesuré : 5,7 s pour 200 stations et
+# une fiche, 7,7 s pour 200 stations et trois fiches.
+#
+# D'où DEUX bornes et non une, parce que deux termes très différents
+# composent le coût. Le plafond de stations seul aurait ouvert un pire cas
+# de 250 stations par 20 fiches, soit une trentaine de secondes en réponse
+# immédiate. SYNC_SERIES borne le produit stations × fiches, qui est ce que
+# la demande coûte vraiment.
+#
+# SYNC_STATIONS_CACHED passe à 250 pour que la vue par défaut de MAKAHO
+# (228 stations) réponde en direct : un ticket et un aller-retour à chaque
+# changement de variable seraient une régression d'ergonomie franche par
+# rapport à son application R, alors que la réponse tient en six secondes.
 SYNC_STATIONS = int(os.environ.get("CARD_API_SYNC_STATIONS", 10))
-SYNC_STATIONS_CACHED = int(os.environ.get("CARD_API_SYNC_STATIONS_CACHED", 60))
+SYNC_STATIONS_CACHED = int(os.environ.get("CARD_API_SYNC_STATIONS_CACHED", 250))
+SYNC_SERIES = int(os.environ.get("CARD_API_SYNC_SERIES", 600))
 SYNC_CARDS = int(os.environ.get("CARD_API_SYNC_CARDS", 20))
 JOB_STATIONS = int(os.environ.get("CARD_API_JOB_STATIONS", 100))
 JOB_CARDS = int(os.environ.get("CARD_API_JOB_CARDS", 50))

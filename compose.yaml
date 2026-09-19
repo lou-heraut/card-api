@@ -18,7 +18,8 @@ services:
       CARD_API_RATE_COMPUTE: ${CARD_API_RATE_COMPUTE:-60}
       CARD_API_RATE_LIGHT: ${CARD_API_RATE_LIGHT:-300}
       CARD_API_SYNC_STATIONS: ${CARD_API_SYNC_STATIONS:-10}
-      CARD_API_SYNC_STATIONS_CACHED: ${CARD_API_SYNC_STATIONS_CACHED:-60}
+      CARD_API_SYNC_STATIONS_CACHED: ${CARD_API_SYNC_STATIONS_CACHED:-250}
+      CARD_API_SYNC_SERIES: ${CARD_API_SYNC_SERIES:-600}
       CARD_API_SYNC_CARDS: ${CARD_API_SYNC_CARDS:-20}
       CARD_API_JOB_STATIONS: ${CARD_API_JOB_STATIONS:-100}
       CARD_API_JOB_CARDS: ${CARD_API_JOB_CARDS:-50}
@@ -31,6 +32,16 @@ services:
       # dans le code et dans .env.example, il était resté ici, prêt à
       # ressurgir chez quiconque retirerait la ligne de son .env.
       CARD_API_PRIORITY_CARDS: ${CARD_API_PRIORITY_CARDS:-0}
+      # Le cache : âge accepté d'une copie, second étage (séries agrégées),
+      # plafond d'un export de chronique, et la tâche de fond qui garde le
+      # cache chaud et l'évince.
+      CARD_API_MAX_AGE_DAYS: ${CARD_API_MAX_AGE_DAYS:-30}
+      CARD_API_SERIES_CACHE: ${CARD_API_SERIES_CACHE:-1}
+      CARD_API_CHRONICLE_STATIONS: ${CARD_API_CHRONICLE_STATIONS:-5}
+      CARD_API_POOL: ${CARD_API_POOL:-1}
+      CARD_API_POOL_HOURS: ${CARD_API_POOL_HOURS:-6}
+      CARD_API_POOL_REFRESH_DAYS: ${CARD_API_POOL_REFRESH_DAYS:-7}
+      CARD_API_EVICT_DAYS: ${CARD_API_EVICT_DAYS:-90}
     volumes:
       - data:/data
     ports:

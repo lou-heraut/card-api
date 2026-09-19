@@ -81,7 +81,14 @@ src/card_api/
                 #   sampling=preferred|MM-JJ,
                 #   series=true joint les séries extraites au diagnostic ;
                 #   stations_meta=true joint le référentiel Hub'Eau des
-                #   stations : résultat autoportant), jobs (POST + statut
+                #   stations : résultat autoportant),
+                #   chronicles + chronicles.csv (la chronique journalière
+                #   telle que le service l'a LUE : la raison est la
+                #   PROVENANCE, pas le téléchargement évité, une page dont
+                #   la carte et le graphe ne viennent pas de la même copie
+                #   ne peut pas se citer. Plafond de stations BAS et à part
+                #   des autres : ici on borne un transfert, pas un calcul,
+                #   et aucune bascule en file ne le rattrape), jobs (POST + statut
                 #   + result + DELETE dismiss par ticket ; GET /v1/jobs =
                 #   « mes jobs » par clé, 401 sinon), health (file,
                 #   disque VM entière vs empreinte data du service).

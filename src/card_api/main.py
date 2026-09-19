@@ -618,15 +618,26 @@ def _limits():
         "sync": {
             "stations_to_download": jobs.SYNC_STATIONS,
             "stations_total": jobs.SYNC_STATIONS_CACHED,
+            "series": jobs.SYNC_SERIES,
             "cards": jobs.SYNC_CARDS,
             "note": "au-delà de l'un de ces seuils la demande devient un "
-                    "job (202 + ticket). Ce qui compte n'est pas le nombre "
-                    "de stations mais celles qui restent à télécharger : "
-                    "une chronique déjà lue coûte environ trente fois moins "
-                    "qu'un téléchargement.",
+                    "job (202 + ticket). Chacun borne un coût mesuré : les "
+                    "stations À TÉLÉCHARGER (une chronique coûte environ "
+                    "trente fois plus à rapatrier qu'à calculer), les "
+                    "stations au total (relire et signer chaque chronique, "
+                    "ce qu'aucun cache ne supprime), et les séries, soit "
+                    "stations × fiches.",
         },
         "job": {"stations": jobs.JOB_STATIONS, "cards": jobs.JOB_CARDS,
                 "result_ttl_days": jobs.JOB_TTL_DAYS},
+        "chronicles": {
+            "stations": pipeline.CHRONICLE_STATIONS,
+            "note": "export de la chronique journalière : plafond BAS, et "
+                    "pour une autre raison que les autres. Ailleurs on "
+                    "borne un calcul, que la bascule en file rattrape ; ici "
+                    "on borne un transfert de dizaines de milliers de "
+                    "lignes par station, et aucune file ne le rattrape.",
+        },
         "cache": {
             "max_age_days": cache.MAX_AGE_DAYS,
             "note": "âge accepté par défaut pour la copie locale d'une "
@@ -992,7 +1003,8 @@ def _parse_lists(stations, cards, prio=None):
             422, f"au plus {dit_st} stations et {dit_cd} fiches par "
                  f"demande (au-delà de {jobs.SYNC_STATIONS} stations à "
                  f"télécharger, de {jobs.SYNC_STATIONS_CACHED} stations au "
-                 f"total ou de {jobs.SYNC_CARDS} fiches, la demande devient "
+                 f"total, de {jobs.SYNC_SERIES} séries (stations × fiches) "
+                 f"ou de {jobs.SYNC_CARDS} fiches, la demande devient "
                  f"un job){hint}")
     _check_cards_q(cd)
     return st, cd
@@ -1032,10 +1044,15 @@ def _tient_en_direct(st, cd, max_age) -> bool:
     chaud, et le compteur unique tranchait au mauvais endroit : on payait
     un ticket, une file et un aller-retour pour économiser une seconde.
 
-    Deux seuils, chacun sur ce qu'il borne vraiment. Le bas s'applique aux
-    téléchargements, il tient la durée d'une réponse immédiate. Le haut
-    s'applique au total, il évite qu'une demande énorme mais toute en
-    cache monopolise un worker.
+    Trois seuils, chacun sur ce qu'il borne vraiment. Le bas s'applique aux
+    téléchargements, il tient la durée d'une réponse immédiate. Celui du
+    total de stations borne la lecture des chroniques, qu'aucun cache ne
+    supprime puisque leur empreinte entre dans la clé du second étage
+    (~25 ms par station). Et celui des SÉRIES, le produit stations ×
+    fiches, borne ce que la demande coûte ensuite (~5 ms par série
+    relue) : sans lui, relever le plafond de stations ouvrirait un pire cas
+    de 250 stations par 20 fiches, soit une trentaine de secondes en
+    réponse immédiate.
 
     Conséquence assumée : la même URL peut partir en file au premier appel
     et répondre en direct au second. C'est voulu. Le coût réel varie, il
@@ -1043,7 +1060,9 @@ def _tient_en_direct(st, cd, max_age) -> bool:
     le sens de l'utilisateur. Un client doit de toute façon savoir lire un
     202, qui reste possible à tout moment.
     """
-    if len(cd) > jobs.SYNC_CARDS or len(st) > jobs.SYNC_STATIONS_CACHED:
+    if (len(cd) > jobs.SYNC_CARDS
+            or len(st) > jobs.SYNC_STATIONS_CACHED
+            or len(st) * len(cd) > jobs.SYNC_SERIES):
         return False
     a_telecharger = sum(1 for s in st if not cache.is_fresh(s, max_age))
     return a_telecharger <= jobs.SYNC_STATIONS
@@ -1167,10 +1186,14 @@ def _csv_entete(out, endpoint):
         + (f" ({out['stase_swhid']})" if out.get("stase_swhid") else "")
         + f" · api {out.get('api_version')}",
         f"stations : {' · '.join(out['stations'])}",
-        f"fiches : {' · '.join(out['cards'])}",
+        # Un export de chronique n'a ni fiche ni fenêtre d'échantillonnage :
+        # l'en-tête décrit ce que l'enveloppe porte, il ne récite pas une
+        # liste fixe.
+        *([f"fiches : {' · '.join(out['cards'])}"] if out.get("cards") else []),
         f"période demandée : {out['period']['start'] or 'depuis le début'}"
         f" → {out['period']['end'] or 'jusqu’à la fin'}",
-        f"échantillonnage : {_dit_sampling(out['sampling'])}",
+        *([f"échantillonnage : {_dit_sampling(out['sampling'])}"]
+          if "sampling" in out else []),
         f"source : {out['source']}",
         f"données lues le {out['data_fetched_at']}"
         f" · empreinte {out['data_fingerprint']}",
@@ -1234,7 +1257,7 @@ def _csv_nom(table, out, endpoint):
     """
     morceaux = ["card-api", endpoint,
                 _abrege(out["stations"], "stations"),
-                _abrege(out["cards"], "variables")]
+                _abrege(out.get("cards") or [], "variables")]
     if out.get("mk"):
         morceaux.append(str(out["mk"]))
     morceaux.append(_annees(table))
@@ -1299,7 +1322,13 @@ def _table_extract(out):
                 columns=["code_station", "date", "variable", "value"]))
 
 
-_TABLES = {"extract": _table_extract, "trend": _table_trend}
+def _table_chronicles(out):
+    """La chronique n'a pas de table à fabriquer : elle EST une table."""
+    return _table(out["data"])
+
+
+_TABLES = {"extract": _table_extract, "trend": _table_trend,
+           "chronicles": _table_chronicles}
 
 
 def _csv_du_resultat(out, endpoint):
@@ -1716,6 +1745,114 @@ def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
     return PlainTextResponse(_figure_du_resultat(out))
 
 
+# ── La chronique journalière, telle que le service l'a lue ──────────────
+#
+# Le service la détenait déjà sans la rendre : aucune fiche à entrée `Q` ne
+# restitue la chronique brute. La raison d'ouvrir cette porte n'est pas le
+# téléchargement évité, c'est la PROVENANCE (cf. `pipeline.chronicles_export`
+# et `docs/dev/API.md`).
+
+_D_CHRONICLE_STATIONS = (
+    "Codes de stations Hub'Eau, séparés par des virgules. Le plafond est "
+    "bas et publié par `/v1` (bloc `limits.chronicles`) : une chronique de "
+    "cinquante ans pèse des dizaines de milliers de lignes, ce n'est pas un "
+    "calcul mais un gros transfert.")
+
+
+class ChronicleParams(BaseModel):
+    """Les paramètres de l'export, déclarés UNE fois et partagés par le
+    JSON et son jumeau CSV (cf. TrendParams pour la même raison)."""
+
+    stations: str = Field(json_schema_extra=_X_STATIONS,
+                          description=_D_CHRONICLE_STATIONS)
+    start: str | None = Field(None, json_schema_extra=_X_START,
+                              description=_D_START)
+    end: str | None = Field(None, description=_D_END)
+    max_age: float | None = Field(None, ge=0, description=_D_MAX_AGE)
+    orient: _Orient = Field("records", description=_D_ORIENT)
+
+
+def _parse_stations(stations):
+    """Les stations d'un export de chronique, avec son plafond propre.
+
+    Il ne passe pas par `_parse_lists` : il n'y a aucune fiche à valider, et
+    le plafond ne borne pas la même chose. Ailleurs il borne un CALCUL, que
+    la bascule en file rattrape au-delà ; ici il borne un TRANSFERT, et
+    aucune file ne viendra le rattraper.
+    """
+    st = _split(stations)
+    if not st:
+        raise HTTPException(422, "stations est requis")
+    if len(st) > pipeline.CHRONICLE_STATIONS:
+        raise HTTPException(
+            422, f"au plus {pipeline.CHRONICLE_STATIONS} stations par export "
+                 f"de chronique : une chronique de cinquante ans pèse des "
+                 f"dizaines de milliers de lignes. Le plafond est publié par "
+                 f"/v1, bloc limits.chronicles")
+    return st
+
+
+def _chronicles_result(request: Request, p: ChronicleParams, rendu="json"):
+    """L'export, partagé par les deux représentations.
+
+    Pas de bascule en file : ce n'est pas un calcul, donc pas le sémaphore.
+    Ce qui le borne est son plafond de stations.
+    """
+    st = _parse_stations(p.stations)
+    try:
+        params = pipeline.normalise({
+            "endpoint": "chronicles", "stations": st, "start": p.start,
+            "end": p.end, "max_age": p.max_age, "orient": p.orient})
+        out = pipeline.chronicles_export(params)
+    except (hubeau.HubEauIndisponible, pipeline.RienACalculer,
+            pipeline.ParametresInvalides, ValueError) as e:
+        raise _traduit(e)
+    usage.log_usage(request, "chronicles", stations=len(st), rendu=rendu,
+                    omises=len(out["stations_omitted"]) or None)
+    return out
+
+
+@app.get("/v1/chronicles", tags=["data"],
+         summary="La chronique journalière lue par le service",
+         dependencies=[Depends(usage.rate_compute)])
+def chronicles(request: Request, p: Annotated[ChronicleParams, Query()]):
+    """Le débit journalier (QmnJ, m³/s) tel que le service l'a lu chez
+    Hub'Eau, avec sa provenance.
+
+    **Pourquoi passer par ici plutôt que par Hub'Eau directement.** Une
+    page qui affiche une carte calculée par ce service et un graphe lu
+    ailleurs montre deux choses qui ne viennent pas du même endroit : la
+    copie du service peut avoir trois semaines quand le graphe est lu à
+    l'instant, et Hub'Eau révise ses données. Les deux peuvent donc
+    diverger sans que rien ne le signale. Ici, les deux lisent la même
+    copie, avec la même `data_fetched_at` et la même `data_fingerprint` :
+    c'est ce qui rend un export citable.
+
+    La réponse est bornée par un plafond de stations bas (cf. `/v1`,
+    `limits.chronicles`) : ce n'est pas un calcul mais un gros transfert, et
+    aucune bascule en file ne vient le rattraper. `max_age` s'applique comme
+    partout ailleurs, et l'empreinte porte sur la chronique ENTIÈRE même
+    quand la réponse n'en montre qu'une fenêtre : elle identifie l'état de
+    la source, pas la tranche servie.
+
+    Pour le même contenu en tableur : `/v1/chronicles.csv`.
+    """
+    return _chronicles_result(request, p)
+
+
+@app.get("/v1/chronicles.csv", tags=["data"],
+         summary="La même chronique, en CSV pour le tableur",
+         response_class=_RawResponse,
+         responses={200: {"content": {"text/csv": {}}}},
+         dependencies=[Depends(usage.rate_compute)])
+def chronicles_csv(request: Request, p: Annotated[ChronicleParams, Query()]):
+    """La même chronique qu'`/v1/chronicles`, en un seul tableau, avec sa
+    provenance en lignes `#` : sans elle, un tableau de chiffres ne dit
+    plus d'où il vient."""
+    out = _chronicles_result(request, p, rendu="csv")
+    return _csv_du_resultat(out, "chronicles")
+
+
 # ── Jobs : demandes massives en file de calcul ──────────────────────────────
 
 class JobRequest(BaseModel):
@@ -1979,5 +2116,6 @@ def health():
                  "free_gb": round(du.free / 1e9, 1)},
         "data": {"total_mb": _tree_mb(d),
                  "cache_mb": _tree_mb(cache.chronicles_dir()),
+                 "series_mb": _tree_mb(cache.series_dir()),
                  "jobs_mb": _tree_mb(d / "jobs")},
     }

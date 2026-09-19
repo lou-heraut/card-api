@@ -540,9 +540,14 @@ def test_les_defauts_de_compose_suivent_le_code():
         r"\$\{(CARD_API_[A-Z_]+):-([^}]*)\}",
         (racine / "compose.yaml").read_text()))
     code = {}
-    for module in ("jobs.py", "usage.py"):
+    # TOUS les modules du paquet, et non une liste écrite à la main : les
+    # réglages ont essaimé dans cache.py, pipeline.py et pool.py avec le
+    # cache à deux étages, et une liste fixe aurait cessé de les voir sans
+    # rien dire. Les défauts entre guillemets comptent aussi.
+    for module in sorted(p.name for p in (racine / "src" / "card_api")
+                         .glob("*.py")):
         code.update(dict(re.findall(
-            r'os\.environ\.get\("(CARD_API_[A-Z_]+)",\s*([0-9.]+)\)',
+            r'os\.environ\.get\("(CARD_API_[A-Z_]+)",\s*"?([0-9.]+)"?\)',
             (racine / "src" / "card_api" / module).read_text())))
 
     assert code, "aucun défaut lu dans le code"

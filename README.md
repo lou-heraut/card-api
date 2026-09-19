@@ -56,6 +56,8 @@ les droits qui vont avec.
 | `GET /v1/trend` | extraction + test de Mann-Kendall et pente de Sen |
 | `GET /v1/trend.csv` | les mêmes diagnostics, en CSV pour le tableur |
 | `GET /v1/trend/figure` | le diagnostic **dessiné** (texte) : sens, ampleur, verdict |
+| `GET /v1/chronicles` | la chronique journalière lue par le service, avec sa provenance |
+| `GET /v1/chronicles.csv` | la même chronique, en CSV pour le tableur |
 | `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
 | `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
 | `GET /v1/health` | santé du service (file de calcul, disque) |

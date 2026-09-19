@@ -133,9 +133,30 @@ def chronicles_dir() -> Path:
     return data_dir() / "chroniques"
 
 
+# Marque de format dans le NOM des copies de chronique, à incrémenter dès
+# que le client écrit autre chose : un nom de colonne, une unité, ou une
+# règle de nettoyage. Le mécanisme est celui de la clé du second étage : une
+# marque qui change est un autre nom de fichier, donc les copies d'avant
+# cessent d'être trouvées, donc d'être servies, et l'éviction les ramasse.
+#
+# Sans elle, une copie écrite par un client plus ancien reste servie jusqu'à
+# son expiration, et le symptôme n'est pas une erreur claire. Vécu deux fois
+# sur un cache de juillet : des colonnes `id` au lieu de `code_station`, et
+# des dates dupliquées que le client filtre depuis (un code de SITE dont
+# deux stations mesurent en parallèle). Dans les deux cas, un 422 sur des
+# « dates dupliquées » que rien ne rattache à sa cause. Tant que les copies
+# vivaient un jour, le cas s'effaçait de lui-même ; l'âge accepté étant passé
+# au mois, il peut durer des semaines.
+_FORMAT = "v2"
+
+
 def chronicle_path(station: str) -> Path:
-    """Emplacement de la copie locale d'une chronique."""
-    return chronicles_dir() / f"{station}.csv.gz"
+    """Emplacement de la copie locale d'une chronique.
+
+    Le nom porte la marque de format : une copie écrite par un client plus
+    ancien n'est donc même pas trouvée, ce qui la rend inoffensive.
+    """
+    return chronicles_dir() / f"{station}.{_FORMAT}.csv.gz"
 
 
 def collected_at(station: str) -> str | None:
@@ -376,12 +397,42 @@ def store_series(cle: str, df: pd.DataFrame) -> None:
 
 # ── Les chroniques elles-mêmes ───────────────────────────────────────────────
 
-def load_chronicle(station: str) -> pd.DataFrame:
-    """Relit une chronique en cache, types compris."""
-    # dtype code_station : un code tout-numérique relu en int64 ne serait
-    # plus détecté comme identifiant de série (détection par type).
-    return pd.read_csv(chronicle_path(station), parse_dates=["date"],
-                       dtype={"code_station": str})
+# Ce qu'une copie de chronique doit contenir pour être utilisable. La
+# colonne de station porte le nom de Hub'Eau, et elle s'est déjà appelée
+# autrement : `id` jusqu'au 2026-07-28.
+_COLONNES = ("code_station", "date", "Q")
+
+
+def load_chronicle(station: str) -> pd.DataFrame | None:
+    """Relit une chronique en cache, types compris, ou None.
+
+    `None` veut dire « comme si elle n'était pas là » : fichier tronqué par
+    un arrêt brutal, ou écrit dans une forme que le service ne comprend
+    plus. Le cas n'est pas théorique, une copie d'avant le renommage
+    `id` → `code_station` du 2026-07-28 existe encore sur des disques ; et
+    servie telle quelle, elle ne produit pas une erreur claire mais un 422
+    sur des « dates dupliquées », le moteur ne reconnaissant aucune colonne
+    identifiante et prenant deux cents stations pour une seule série.
+
+    Tant que les copies vivaient un jour, le cas s'effaçait de lui-même.
+    L'âge accepté étant passé au mois, il peut durer : la copie est donc
+    effacée et retéléchargée. On perd un téléchargement, jamais la
+    justesse.
+    """
+    p = chronicle_path(station)
+    try:
+        # dtype code_station : un code tout-numérique relu en int64 ne
+        # serait plus détecté comme identifiant de série (détection par
+        # type).
+        df = pd.read_csv(p, parse_dates=["date"],
+                         dtype={"code_station": str})
+    except Exception:
+        p.unlink(missing_ok=True)
+        return None
+    if not set(_COLONNES).issubset(df.columns):
+        p.unlink(missing_ok=True)
+        return None
+    return df
 
 
 def cached_stations() -> list[str]:
@@ -391,8 +442,11 @@ def cached_stations() -> list[str]:
     ce qui est là est ce que des gens ont demandé. Aucune liste de stations
     appartenant à un client n'a donc à exister ici.
     """
-    return sorted(p.name.removesuffix(".csv.gz")
-                  for p in chronicles_dir().glob("*.csv.gz"))
+    # Les copies d'un format périmé comptent : la station EST dans
+    # l'ensemble de travail, et le rafraîchissement la réécrira au format
+    # courant, ce qui la soigne.
+    return sorted({p.name.removesuffix(".csv.gz").removesuffix(f".{_FORMAT}")
+                   for p in chronicles_dir().glob("*.csv.gz")})
 
 
 def store_chronicle(station: str, df: pd.DataFrame) -> None:
@@ -438,7 +492,18 @@ def evict(jours: float) -> dict:
                 ("series", series_dir(), "*.parquet", ".parquet", _SERIE))
     for nom, dossier, motif, suffixe, prefixe in familles:
         for fichier in sorted(dossier.glob(motif)):
-            cle = prefixe + fichier.name.removesuffix(suffixe)
+            entree = fichier.name.removesuffix(suffixe)
+            if prefixe == _CHRONIQUE:
+                station = entree.removesuffix(f".{_FORMAT}")
+                if fichier != chronicle_path(station):
+                    # Format périmé : cette copie ne peut plus être servie,
+                    # donc la garder ne fait que prendre de la place. Elle
+                    # part sans attendre le délai de lecture.
+                    fichier.unlink(missing_ok=True)
+                    bilan[nom] += 1
+                    continue
+                entree = station
+            cle = prefixe + entree
             ligne = _ligne_cle(cle)
             quand = ligne[0] if ligne else fichier.stat().st_mtime
             if time.time() - quand > seuil:

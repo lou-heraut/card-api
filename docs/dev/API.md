@@ -186,6 +186,41 @@ la queue revient dès qu'on regarde une facture de bande passante. Le code
 ne permet déjà pas de faire autrement, et un test le tient, en vérifiant
 que la demande envoyée à Hub'Eau ne porte aucune borne de date.
 
+## La chronique journalière est servie par le service (arbitré 2026-09-19)
+
+`/v1/chronicles` rend le débit journalier tel que le service l'a lu, et son
+jumeau `.csv` le même contenu pour un tableur. **La raison est la
+provenance, et le coût évité n'est qu'un bonus.**
+
+Un client qui tracerait la chronique en interrogeant Hub'Eau lui-même
+afficherait, sur la même page, deux choses qui ne viennent pas du même
+endroit : une carte calculée sur une copie lue il y a trois semaines, et un
+graphe lu à l'instant, éventuellement révisé entre-temps. Les deux peuvent
+diverger sans que rien ne le signale, et aucune ne porte l'empreinte de
+l'autre. En passant par le service, les deux lisent la MÊME copie, avec la
+même `data_fetched_at` et la même `data_fingerprint`. C'est ce que le
+service est fait pour garantir, et c'est ce qui rend un export citable. Un
+test le vérifie en comparant l'empreinte d'un export et celle d'un calcul.
+
+Deux conséquences à assumer.
+
+**Le service devient un miroir partiel de Hub'Eau**, puisque c'est le
+premier point de sortie qui rend de la donnée SOURCE plutôt qu'un résultat
+calculé. C'est défendable, les droits Etalab étant déjà publiés dans chaque
+réponse, mais cela se dit ici plutôt que de se découvrir plus tard.
+
+**Le plafond de stations est bas, et il ne borne pas la même chose que les
+autres.** Ailleurs un plafond borne un CALCUL, et la bascule en file
+rattrape la demande au-delà. Ici il borne un TRANSFERT, une chronique de
+cinquante ans pesant des dizaines de milliers de lignes par station, et
+aucune file ne viendra le rattraper : le refus est donc franc, et le
+plafond est publié par `/v1` (`limits.chronicles`). Ce n'est pas un calcul,
+donc pas le sémaphore.
+
+L'empreinte porte sur la chronique ENTIÈRE même quand la réponse n'en
+montre qu'une fenêtre : elle identifie l'état de la source, pas la tranche
+servie.
+
 ## Une station muette n'annule pas le lot (arbitré 2026-07-29)
 
 Une demande de vingt stations échouait entièrement dès que l'une d'elles

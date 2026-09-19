@@ -41,6 +41,8 @@ des deux endroits.
 
 ## Non publié
 
+## 0.7.0 (2026-09-19)
+
 ### Ajouté
 
 - **Le second étage de cache : une série agrégée ne se recalcule plus
@@ -142,7 +144,69 @@ des deux endroits.
   `CARD_API_POOL=0` qui coupe la tâche sans reconstruire l'image, utile en
   développement.
 
+- **La chronique journalière est servie par le service (2026-09-19).**
+  `GET /v1/chronicles` rend le débit journalier tel que le service l'a lu,
+  et `/v1/chronicles.csv` le même contenu pour un tableur.
+
+  **La raison est la provenance, le coût évité n'est qu'un bonus.** Un
+  client qui tracerait la chronique en interrogeant Hub'Eau lui-même
+  afficherait sur la même page deux choses qui ne viennent pas du même
+  endroit : une carte calculée sur une copie lue il y a trois semaines et un
+  graphe lu à l'instant, éventuellement révisé entre-temps. Les deux peuvent
+  diverger sans que rien ne le signale. Ici elles lisent la MÊME copie, avec
+  la même `data_fetched_at` et la même `data_fingerprint` : un test compare
+  l'empreinte d'un export et celle d'un calcul, elles doivent être égales.
+
+  Le plafond de stations est bas et publié par `/v1`
+  (`limits.chronicles`) : ailleurs un plafond borne un calcul que la
+  bascule en file rattrape, ici il borne un transfert de dizaines de
+  milliers de lignes par station, et rien ne le rattrape. L'empreinte porte
+  sur la chronique ENTIÈRE même quand la réponse n'en montre qu'une
+  fenêtre. Le service devient ainsi un miroir partiel de Hub'Eau, ce qui
+  est assumé et écrit dans `docs/dev/API.md`.
+
+- **Le plafond de la réponse immédiate suit le coût mesuré (2026-09-19).**
+  Relevé sur 200 chroniques Hub'Eau réelles, une fois le second étage en
+  place : une demande TOUT EN CACHE coûte environ 25 ms par station (relire
+  la chronique et la signer, ce qu'aucun cache ne supprime, son empreinte
+  entrant dans la clé) plus 5 ms par série. Soit 5,7 s pour 200 stations et
+  une fiche, 7,7 s pour 200 stations et trois fiches, contre 43,5 s à froid
+  sur `dtLF`.
+
+  Deux conséquences. `SYNC_STATIONS_CACHED` passe de 60 à **250**, pour que
+  la vue par défaut de MAKAHO (228 stations) réponde en direct : un ticket
+  et un aller-retour à chaque changement de variable seraient une
+  régression d'ergonomie franche par rapport à son application R, alors que
+  la réponse tient en six secondes. Cette valeur dépasse le plafond dur
+  public de 100 stations, elle suppose donc une clé de priorité.
+
+  Et un troisième seuil apparaît, `CARD_API_SYNC_SERIES` (600), qui borne le
+  PRODUIT stations × fiches. Sans lui, relever le plafond de stations
+  ouvrait un pire cas de 250 stations par 20 fiches, une trentaine de
+  secondes en réponse immédiate. Chaque seuil borne désormais un terme
+  mesuré du coût, et `/v1` les publie tous les trois.
+
 ### Corrigé
+
+- **Une copie de chronique écrite par un client plus ancien ne peut plus
+  être servie (2026-09-19).** Le nom des copies porte une marque de format,
+  si bien qu'une copie d'un format périmé n'est même pas trouvée : la
+  station est simplement retéléchargée, et l'éviction ramasse l'ancienne
+  sans attendre son délai de lecture.
+
+  Le cas n'était pas théorique, et il a été rencontré deux fois sur un
+  cache de juillet : des colonnes `id` au lieu de `code_station` (renommage
+  du 2026-07-28), et des dates dupliquées que le client filtre depuis (un
+  code de SITE dont deux stations mesurent en parallèle). Dans les deux
+  cas, le symptôme n'était pas une erreur claire mais un 422 sur des
+  « dates dupliquées » que rien ne rattachait à sa cause, le moteur ne
+  reconnaissant aucune colonne identifiante et prenant deux cents stations
+  pour une seule série.
+
+  Tant que les copies vivaient 24 heures, le cas s'effaçait de lui-même. En
+  portant l'âge accepté au mois, la 0.6.0 a ouvert la porte à des semaines
+  de réponses cassées : c'est donc une conséquence de ce chantier, corrigée
+  dans le même.
 
 - **Un job ne survit plus au test qui l'a lancé (2026-09-19).** Rien ne
   change pour le service : c'est la suite de tests qui fuyait. Un test

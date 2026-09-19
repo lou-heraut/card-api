@@ -63,8 +63,10 @@ FRAICHEUR_JOURS = float(os.environ.get("CARD_API_POOL_REFRESH_DAYS", 7))
 # qu'un téléchargement.
 EVICTION_JOURS = float(os.environ.get("CARD_API_EVICT_DAYS", 90))
 
-# Attente avant la première passe.
-DEPART_S = float(os.environ.get("CARD_API_POOL_START_S", 300))
+# Attente avant la première passe. Constante et non réglable : personne
+# n'aurait de raison de la tourner, et un réglage de plus est un réglage de
+# plus à tenir, à documenter et à déclarer dans compose.yaml.
+DEPART_S = 300.0
 
 _demarre = False
 _verrou = threading.Lock()
