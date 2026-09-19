@@ -25,7 +25,7 @@ from collections import Counter
 from datetime import date, timedelta
 
 from . import jobs
-from .cache import chronicles_dir, data_dir
+from .cache import chronicles_dir, data_dir, series_dir
 
 SPARK = "▁▂▃▄▅▆▇█"
 SHADE = "·░▒▓█"
@@ -320,11 +320,30 @@ def _jobs_box(entries):
                      f"{len(p['stations']):>4} st × {len(p['cards'])} fiches  "
                      f"{bar} {frac:>4.0%}  {pr.get('phase', '')[:18]}")
 
+    # Une ligne par question, et courtes : `_box` coupe à sa largeur, et
+    # une ligne coupée perd justement le chiffre de droite.
     du = shutil.disk_usage(data_dir())
-    lines.append(
-        f"disque {du.used / du.total:.0%} ({du.free / 1e9:.0f} Go libres)"
-        f" · cache {_fmt_size(_dir_size(chronicles_dir()))}"
-        f" · résultats {_fmt_size(_dir_size(jobs.jobs_dir()))}")
+    lines.append(f"disque {du.used / du.total:.0%} "
+                 f"({du.free / 1e9:.0f} Go libres)")
+    lines.append(f"cache  chroniques {_fmt_size(_dir_size(chronicles_dir()))}"
+                 f" · séries {_fmt_size(_dir_size(series_dir()))}"
+                 f" · résultats {_fmt_size(_dir_size(jobs.jobs_dir()))}")
+
+    # La dernière passe du pool. TOUJOURS une ligne : un pool qui ne tourne
+    # pas est exactement ce qu'on veut voir, et son silence se lirait sinon
+    # comme « rien à faire ».
+    passes = [e for e in entries if e.get("event") == "pool"]
+    if passes:
+        derniere = passes[-1]
+        quand = derniere.get("ts", "?")[5:16].replace("T", " ")
+        lines.append(f"pool   {quand}"
+                     f" · {derniere.get('rafraichies', 0)}"
+                     f"/{derniere.get('candidates', 0)} rafraîchies"
+                     f" · {derniere.get('echecs', 0)} échecs")
+        lines.append(f"évincé {derniere.get('chroniques', 0)} chroniques"
+                     f" · {derniere.get('series', 0)} séries")
+    else:
+        lines.append("pool   aucune passe journalisée")
     return _box("file de calcul", lines)
 
 

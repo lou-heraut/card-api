@@ -226,11 +226,19 @@ base.
 Le pool tourne, l'éviction est testée, `make stats` montre sa taille et
 `/v1/health` la place occupée.
 
-*État : **A4a livré le 2026-09-18** (le module, les deux dates, l'écriture
-atomique) ; le pool et l'éviction restent, cf. A4b dans l'ordre de
-livraison. Le registre de lectures est un ajout à la passation, en
-table SQLite, le choix étant
-arbitré sur la pérennité plutôt que sur la simplicité.*
+*État : **livré**. A4a le 2026-09-18 (le module, les deux dates,
+l'écriture atomique), A4b le 2026-09-19 (le pool et l'éviction). Le
+registre de lectures est un ajout à la passation, en table SQLite, le choix
+étant arbitré sur la pérennité plutôt que sur la simplicité.*
+
+**Ce que A4b a retenu, et qui n'était pas dans la passation.** L'éviction
+se rabat sur la date du FICHIER quand une entrée n'a aucune date de
+lecture : une entrée tout juste écrite dont le marquage a échoué ne doit
+pas partir dans la seconde qui suit, et la direction de l'erreur reste la
+bonne (on garde un peu trop plutôt que d'effacer ce qui sert). L'espacement
+des téléchargements n'est PAS un réglage : il se déduit du nombre à faire,
+étalé sur la moitié d'une passe, si bien que rien ne peut partir en rafale
+et qu'une passe finit toujours avant la suivante.
 
 ## A5. Le second étage du cache
 
@@ -617,7 +625,7 @@ n'attend plus rien.
   fait  A2     la chronique entière          du pur écrit, plus un test
   fait  A8     le nombre de points           0.6.0
   fait  A5     le second étage               sans effet sur le contrat
-        A4b    le pool et l'éviction         dépend de la forme de A5
+  fait  A4b    le pool et l'éviction         sans effet sur le contrat
         A7     la chronique exposée          contrat : api_version
         A6     le plafond                    après mesure, en dernier
 ```

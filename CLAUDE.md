@@ -168,6 +168,18 @@ src/card_api/
                 #   reviendrait en float64, donc une réponse servie du
                 #   cache différerait d'une réponse calculée. La clé,
                 #   elle, vit dans pipeline.py
+  pool.py       # tâche de fond : rafraîchit ce qui est DÉJÀ en cache
+                #   (l'ensemble de travail se définit donc de lui-même, et
+                #   le service n'a aucune liste de stations d'un client à
+                #   connaître, ce qui est voulu) et évince ce que personne
+                #   n'a LU depuis EVICT_DAYS, dans les deux étages, par la
+                #   même règle. NE MARQUE AUCUNE LECTURE : il réécrit les
+                #   copies donc écrase leur date de collecte, et s'il
+                #   marquait les lectures rien ne sortirait plus jamais du
+                #   cache. Poli par construction, l'espacement se déduisant
+                #   du nombre à faire. Démarré par le lifespan de main,
+                #   pas à la première requête comme les workers : évincer
+                #   doit tourner même si personne n'appelle
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After) ;
                 #   plafonds LARGES à dessein : ce compteur compte des
                 #   requêtes, pas leur coût, et la charge est tenue par

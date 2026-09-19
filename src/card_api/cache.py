@@ -384,6 +384,17 @@ def load_chronicle(station: str) -> pd.DataFrame:
                        dtype={"code_station": str})
 
 
+def cached_stations() -> list[str]:
+    """Les stations dont une copie locale existe, triées.
+
+    C'est l'ensemble de travail du service, et il se définit de lui-même :
+    ce qui est là est ce que des gens ont demandé. Aucune liste de stations
+    appartenant à un client n'a donc à exister ici.
+    """
+    return sorted(p.name.removesuffix(".csv.gz")
+                  for p in chronicles_dir().glob("*.csv.gz"))
+
+
 def store_chronicle(station: str, df: pd.DataFrame) -> None:
     """Écrit une chronique en cache, de façon atomique.
 
@@ -399,3 +410,39 @@ def store_chronicle(station: str, df: pd.DataFrame) -> None:
         os.replace(tmp, cible)
     finally:
         tmp.unlink(missing_ok=True)
+
+
+# ── L'éviction ───────────────────────────────────────────────────────────────
+
+def evict(jours: float) -> dict:
+    """Efface ce que personne n'a LU depuis `jours`, dans les deux étages.
+
+    **Une seule règle les ramasse toutes**, orphelines comprises. Quand une
+    clé change (une fiche corrigée, une image reconstruite), l'ancienne
+    entrée cesse d'être demandée, donc cesse d'être lue, donc tombe ici. Il
+    n'y a aucune liste à tenir de ce qu'un changement a périmé, et donc
+    aucun code qui puisse se tromper en la tenant.
+
+    L'invalidation et l'éviction sont bien deux choses : la première est
+    gratuite et automatique, la seconde est une question de place.
+
+    Sans date de lecture, on se rabat sur la date du FICHIER : une entrée
+    tout juste écrite dont le marquage a échoué ne doit pas partir dans la
+    seconde qui suit. La direction de l'erreur reste la bonne, on garde un
+    peu trop plutôt que d'effacer ce qui sert.
+    """
+    seuil = jours * 86400
+    bilan = {"chroniques": 0, "series": 0}
+    familles = (("chroniques", chronicles_dir(), "*.csv.gz", ".csv.gz",
+                 _CHRONIQUE),
+                ("series", series_dir(), "*.parquet", ".parquet", _SERIE))
+    for nom, dossier, motif, suffixe, prefixe in familles:
+        for fichier in sorted(dossier.glob(motif)):
+            cle = prefixe + fichier.name.removesuffix(suffixe)
+            ligne = _ligne_cle(cle)
+            quand = ligne[0] if ligne else fichier.stat().st_mtime
+            if time.time() - quand > seuil:
+                fichier.unlink(missing_ok=True)
+                _oublie_cle(cle)
+                bilan[nom] += 1
+    return bilan

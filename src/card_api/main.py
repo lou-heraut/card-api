@@ -14,6 +14,7 @@ des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
 par IP et journal d'usage anonymisé (usage.py).
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -38,7 +39,7 @@ from pydantic import BaseModel, Field
 
 import card
 
-from . import cache, hubeau, jobs, pipeline, usage
+from . import cache, hubeau, jobs, pipeline, pool, usage
 # Réexportés : l'identité du calcul vit dans pipeline.py, mais elle
 # reste lisible ici, où l'on écrit les réponses. `LTP_SEED` et
 # `_fetched_at` ne servent plus à main lui-même, ils restent exposés
@@ -350,10 +351,24 @@ _PUBLIC_URL = os.environ.get("CARD_API_PUBLIC_URL", "").rstrip("/")
 _SERVERS = ([{"url": _PUBLIC_URL, "description": "production"}]
             if _PUBLIC_URL else None)
 
+@contextlib.asynccontextmanager
+async def _lifespan(_app):
+    """Ce qui démarre avec le service : le pool de cache.
+
+    Les workers de calcul, eux, démarrent à la première demande
+    (`jobs.ensure_workers`) : sans demande ils n'ont rien à faire. Le pool
+    si, et c'est la différence : l'éviction doit tourner même si personne
+    n'appelle, sinon le disque grossit pendant les vacances.
+    """
+    pool.ensure_pool()
+    yield
+
+
 app = FastAPI(
     title="card-api",
     version=API_VERSION,
     servers=_SERVERS,
+    lifespan=_lifespan,
     # Ce que porte l'en-tête de /docs, et dans quel ordre Swagger le
     # rend : titre, `summary`, `description`, `termsOfService`, puis
     # contact et licence.

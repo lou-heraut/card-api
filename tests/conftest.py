@@ -28,8 +28,12 @@ def _test_env(monkeypatch, tmp_path):
     """Quotas neutralisés (tous les tests partagent l'« IP » testclient)
     et données/journal dans un dossier temporaire.
     """
-    from card_api import usage
+    from card_api import pool, usage
     usage._hits.clear()
+    # Aucun test ne démarre le pool : un thread qui rafraîchit partirait
+    # interroger le VRAI Hub'Eau, station par station, pendant la suite.
+    # Les tests du pool appellent ses passes directement.
+    monkeypatch.setattr(pool, "ENABLED", False)
     monkeypatch.setattr(usage, "RATE_COMPUTE", 10_000)
     monkeypatch.setattr(usage, "RATE_LIGHT", 10_000)
     monkeypatch.setenv("CARD_API_DATA", str(tmp_path))

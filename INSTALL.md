@@ -173,6 +173,9 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs (public ; les clés de priorité les lèveront) |
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
+| `CARD_API_POOL` | 1 | tâche de fond qui rafraîchit le cache et évince ce qui n'est plus lu ; `0` la coupe (utile en développement) |
+| `CARD_API_POOL_HOURS` / `CARD_API_POOL_REFRESH_DAYS` | 6 / 7 | période d'une passe, et âge au-delà duquel une copie est rafraîchie ; les téléchargements s'étalent sur la moitié d'une passe |
+| `CARD_API_EVICT_DAYS` | 90 | sans LECTURE depuis ce délai, une entrée des deux étages sort du cache ; se tromper ne coûte qu'un téléchargement |
 | `CARD_API_SERIES_CACHE` | 1 | second étage de cache (séries déjà agrégées) ; `0` le ferme sans reconstruire l'image. Il s'éteint seul hors image, faute d'identité de construction |
 | `CARD_API_MAX_AGE_DAYS` | 30 | âge accepté par défaut pour la copie locale d'une chronique ; une requête peut exiger plus frais avec `max_age`, au risque de basculer en job puisqu'elle compte alors des stations à télécharger |
 | `CARD_API_PRIORITY_STATIONS` / `CARD_API_PRIORITY_CARDS` | 1000 / 226 | plafonds des porteurs de clé de priorité |
