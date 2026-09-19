@@ -184,6 +184,49 @@ une fiche dirait qu'elle est inter-stations, et que le service refuserait de
 mettre en cache. Ça ne se justifie que le jour où une telle fiche est
 envisagée, et ce jour-là c'est le moteur qu'il faudra changer d'abord.
 
+## B5. Le plafond des demandes à froid est taillé sur une mesure périmée
+
+Trouvé le 2026-09-19 en instruisant B2, et ça ne concerne pas le cache mais
+le **routage**.
+
+`SYNC_STATIONS` (10) borne les stations À TÉLÉCHARGER dans une réponse
+immédiate. Il a été fixé sur une mesure de juillet, ~1,2 s par chronique.
+Mesuré à nouveau, chronique entière et pagination suivie :
+
+| station | jours | durée |
+|---|---|---|
+| K0550010 | 39 343 (108 ans) | **24,7 s** |
+| K0403010 | 24 014 (66 ans) | **11,8 s** |
+
+Soit dix à vingt fois la mesure de juillet. Une demande de dix stations à
+froid tiendrait donc deux à quatre MINUTES en réponse immédiate, derrière le
+sémaphore, en bloquant tous ceux qui attendent : exactement ce que le
+plafond doit empêcher.
+
+**Ce qui commande le coût est le nombre de LIGNES, pas le nombre d'appels.**
+Vérifié : `obs_elab` accepte plusieurs stations en un seul appel
+(`code_entite=A,B,C`), et le coût par ligne est identique aux appels séparés,
+0,295 ms. Grouper ne gagnerait donc rien. Le JSON n'est pas en cause non plus,
+le décoder coûte 0,4 % de l'appel, et la réponse arrive déjà en gzip.
+`format=csv` n'existe pas sur cet endpoint (400).
+
+### Ce qu'il faut faire, et dans quel ordre
+
+1. **Remesurer proprement**, une dizaine de stations à un moment calme : deux
+   stations à un instant donné ne suffisent pas à retailler un plafond, et
+   Hub'Eau peut simplement avoir une mauvaise journée.
+2. Puis **abaisser `SYNC_STATIONS`** pour qu'une réponse immédiate à froid
+   reste sous la minute, sans doute autour de 3. Ce n'est pas une perte de
+   service : au-delà, la demande devient un job, ce qui est précisément à
+   quoi sert la file, et le pool rend les demandes à froid rares.
+3. Et **noter que la durée dépend de la LONGUEUR de la chronique**, qui va de
+   66 à 108 ans dans cet échantillon. Un plafond en nombre de stations ne
+   peut donc pas borner une durée finement ; il n'a pas à le faire, il doit
+   seulement éviter l'ordre de grandeur de la minute.
+
+Rien n'est changé pour l'instant : un plafond se retaille sur une mesure,
+pas sur deux points.
+
 ## Ce qu'il ne faut pas faire
 
 - **Ne pas** rendre le cache obligatoire au bon fonctionnement. La règle est
