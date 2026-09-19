@@ -187,7 +187,15 @@ tests/          # hors-ligne (Hub'Eau simulé ; jobs ; clés ; retry ;
                 #   contrat compare les ENVELOPPES sync et job, pas
                 #   seulement `data` : c'est le garde-fou contre le retour
                 #   de la duplication. PROPRES_AU_JOB y liste les seuls
-                #   champs autorisés à différer. Un test qui protège
+                #   champs autorisés à différer.
+                #   AUCUN job ne doit survivre à son test : conftest vide
+                #   la file, attend celui qui est en vol et le SIGNALE
+                #   (échec de teardown). Un worker qui traverse la
+                #   frontière perd le simulateur Hub'Eau, donc appelle le
+                #   VRAI, et écrit dans un dossier qui n'est plus le sien
+                #   en accusant un test innocent. Simuler `jobs.submit`
+                #   quand seule l'enveloppe du ticket compte.
+                #   Un test qui protège
                 #   l'ancien comportement et reste vert après un
                 #   changement de comportement est un SIGNAL D'ARRÊT :
                 #   c'est ce qui a masqué le bug du 2026-07-29.
