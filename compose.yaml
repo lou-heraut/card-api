@@ -42,6 +42,7 @@ services:
       CARD_API_POOL_HOURS: ${CARD_API_POOL_HOURS:-6}
       CARD_API_POOL_REFRESH_DAYS: ${CARD_API_POOL_REFRESH_DAYS:-7}
       CARD_API_EVICT_DAYS: ${CARD_API_EVICT_DAYS:-90}
+      CARD_API_CACHE_MAX_GB: ${CARD_API_CACHE_MAX_GB:-5}
     volumes:
       - data:/data
     ports:

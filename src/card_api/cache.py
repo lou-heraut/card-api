@@ -100,6 +100,7 @@ octets, soit moins d'un mégaoctet pour une vue MAKAHO entière.
 
 import datetime as dt
 import os
+import pathlib
 import sqlite3
 import threading
 import time
@@ -114,6 +115,16 @@ import pandas as pd
 # qui a besoin de frais le demande, et le pool repassera de toute façon
 # plus souvent que ce défaut.
 MAX_AGE_DAYS = float(os.environ.get("CARD_API_MAX_AGE_DAYS", 30))
+
+# Plafond de PLACE du cache, les deux étages ensemble. Absolu et non
+# relatif à la place libre du disque : la VM est partagée, et un plafond en
+# pourcentage ferait évincer le cache parce qu'un AUTRE service a rempli le
+# disque, donc pour une raison qui ne le regarde pas et que personne ne
+# pourrait relier à la cause. Mesuré, une chronique pèse ~100 Kio et une
+# série ~4 Kio : quelques gigaoctets tiennent très au-delà de tout usage
+# plausible. Ce plafond n'arbitre pas une place rare, il donne une borne à
+# une dérive. Raisonnement complet : docs/dev/PLAN_CACHE_SUITE.md (B1).
+MAX_GO = float(os.environ.get("CARD_API_CACHE_MAX_GB", 5))
 
 # Préfixes de clé du registre : les deux familles d'entrées cohabitent
 # dans la même table sans pouvoir se confondre, et l'éviction les traite
@@ -571,7 +582,7 @@ def evict(jours: float) -> dict:
         raise RegistreIndisponible(str(e)) from e
 
     seuil = jours * 86400
-    bilan = {"chroniques": 0, "series": 0}
+    bilan = {"chroniques": 0, "series": 0, "place": 0}
     familles = (("chroniques", chronicles_dir(), "*.csv.gz", ".csv.gz",
                  _CHRONIQUE),
                 ("series", series_dir(), "*.parquet", ".parquet", _SERIE))
@@ -595,4 +606,57 @@ def evict(jours: float) -> dict:
                 fichier.unlink(missing_ok=True)
                 _oublie_cle(cle)
                 bilan[nom] += 1
+
+    _par_la_place(bilan)
     return bilan
+
+
+def _entrees() -> list[tuple[float, int, pathlib.Path, str]]:
+    """Tout ce que le cache contient : (dernière lecture, taille, fichier,
+    clé de registre), pour les deux étages.
+
+    La date est celle de la lecture quand le registre la connaît, sinon
+    celle du fichier : même repli que l'éviction par le temps, et pour la
+    même raison, on ne jette pas ce dont on ne sait rien.
+    """
+    out = []
+    for dossier, motif, suffixe, prefixe in (
+            (chronicles_dir(), "*.csv.gz", ".csv.gz", _CHRONIQUE),
+            (series_dir(), "*.parquet", ".parquet", _SERIE)):
+        for fichier in dossier.glob(motif):
+            entree = fichier.name.removesuffix(suffixe)
+            if prefixe == _CHRONIQUE:
+                entree = entree.removesuffix(f".{_FORMAT}")
+            ligne = _ligne_cle(prefixe + entree)
+            try:
+                taille = fichier.stat().st_size
+            except OSError:
+                continue
+            quand = ligne[0] if ligne else fichier.stat().st_mtime
+            out.append((quand, taille, fichier, prefixe + entree))
+    return out
+
+
+def _par_la_place(bilan: dict) -> None:
+    """Sous le plafond de place, en effaçant les MOINS RÉCEMMENT LUES.
+
+    Même information que l'éviction par le temps, dans le même registre :
+    une seule question posée deux fois, avec deux réponses différentes
+    (« plus personne ne veut de ça » et « je n'ai plus la place »).
+
+    Ce que ça coûte quand on se trompe : un téléchargement pour une
+    chronique, un calcul pour une série. Jamais une réponse fausse.
+    """
+    plafond = MAX_GO * 1e9
+    entrees = _entrees()
+    total = sum(taille for _, taille, _, _ in entrees)
+    if total <= plafond:
+        return
+    for quand, taille, fichier, cle in sorted(entrees):
+        if total <= plafond:
+            break
+        fichier.unlink(missing_ok=True)
+        _oublie_cle(cle)
+        total -= taille
+        bilan["place"] += taille
+        bilan["chroniques" if cle.startswith(_CHRONIQUE) else "series"] += 1

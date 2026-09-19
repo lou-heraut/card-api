@@ -68,7 +68,7 @@ def test_l_eviction_efface_ce_que_personne_ne_lit_plus():
     _lu_il_y_a(cache._CHRONIQUE, "VIEILLE0", 120)
     _lu_il_y_a(cache._CHRONIQUE, "RECENTE0", 2)
 
-    assert cache.evict(90) == {"chroniques": 1, "series": 0}
+    assert cache.evict(90) == {"chroniques": 1, "series": 0, "place": 0}
     assert not cache.chronicle_path("VIEILLE0").exists()
     assert cache.chronicle_path("RECENTE0").exists()
     # le registre suit : il cesserait sinon de décrire le cache
@@ -82,7 +82,7 @@ def test_l_eviction_ramasse_les_series_aussi():
     _serie("vieille-serie")
     _serie("recente-serie")
     _lu_il_y_a(cache._SERIE, "vieille-serie", 120)
-    assert cache.evict(90) == {"chroniques": 0, "series": 1}
+    assert cache.evict(90) == {"chroniques": 0, "series": 1, "place": 0}
     assert not cache.series_path("vieille-serie").exists()
     assert cache.series_path("recente-serie").exists()
 
@@ -94,7 +94,7 @@ def test_sans_date_de_lecture_on_se_rabat_sur_le_fichier():
     _copie("TOUTNEUF", age_jours=0)
     _copie("ANCIENNE", age_jours=200)
     assert cache.last_read("TOUTNEUF") is None       # jamais marquée
-    assert cache.evict(90) == {"chroniques": 1, "series": 0}
+    assert cache.evict(90) == {"chroniques": 1, "series": 0, "place": 0}
     assert cache.chronicle_path("TOUTNEUF").exists()
     assert not cache.chronicle_path("ANCIENNE").exists()
 
@@ -190,3 +190,31 @@ def test_l_eviction_s_abstient_si_le_registre_ne_repond_pas():
     bilan = pool.passe(espacement=0)
     assert "abandon" in bilan["eviction"]
     assert bilan["rafraichies"] == 1                       # le reste tourne
+
+
+def test_le_plafond_de_place_efface_les_moins_recemment_lues(monkeypatch):
+    """L'éviction par le temps ne borne pas la TAILLE du cache : si l'usage
+    explose, le disque se remplit avant que la première entrée ne devienne
+    évinçable. Le plafond de place s'en charge, sur la même information de
+    dernière lecture, en commençant par ce que personne ne regarde plus.
+    """
+    monkeypatch.setattr(cache, "MAX_GO", 3_000 / 1e9)       # 3 Ko
+    for station, jours in (("ANCIENNE", 90), ("MOYENNE0", 10),
+                           ("RECENTE0", 1)):
+        f = _copie(station)
+        f.write_bytes(b"x" * 2_000)                         # 2 Ko chacune
+        _lu_il_y_a(cache._CHRONIQUE, station, jours)
+
+    bilan = cache.evict(10_000)                 # rien à évincer par le temps
+    assert bilan["place"] >= 2_000
+    assert not cache.chronicle_path("ANCIENNE").exists()    # la moins lue
+    assert cache.chronicle_path("RECENTE0").exists()        # la plus lue
+    reste = sum(p.stat().st_size for p in cache.chronicles_dir().iterdir())
+    assert reste <= 3_000
+
+
+def test_le_plafond_de_place_ne_touche_a_rien_s_il_reste_de_la_marge():
+    _copie("K0550010")
+    _lu_il_y_a(cache._CHRONIQUE, "K0550010", 1)
+    assert cache.evict(10_000)["place"] == 0
+    assert cache.chronicle_path("K0550010").exists()

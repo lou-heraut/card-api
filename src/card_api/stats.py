@@ -340,8 +340,11 @@ def _jobs_box(entries):
                      f" · {derniere.get('rafraichies', 0)}"
                      f"/{derniere.get('candidates', 0)} rafraîchies"
                      f" · {derniere.get('echecs', 0)} échecs")
+        place = derniere.get("place", 0)
         lines.append(f"évincé {derniere.get('chroniques', 0)} chroniques"
-                     f" · {derniere.get('series', 0)} séries")
+                     f" · {derniere.get('series', 0)} séries"
+                     + (f" · {_fmt_size(place)} rendus (plafond de place)"
+                        if place else ""))
     else:
         lines.append("pool   aucune passe journalisée")
     return _box("file de calcul", lines)

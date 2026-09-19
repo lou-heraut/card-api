@@ -41,6 +41,28 @@ des deux endroits.
 
 ## Non publié
 
+### Ajouté
+
+- **Le cache est borné en place, pas seulement dans le temps
+  (2026-09-19).** L'éviction effaçait ce que personne n'avait lu depuis 90
+  jours, ce qui ne bornait pas sa TAILLE : si l'usage explose, le disque se
+  remplit avant que la première entrée ne devienne évinçable. Au-delà de
+  `CARD_API_CACHE_MAX_GB` (5 Go par défaut, les deux étages ensemble), les
+  entrées les MOINS RÉCEMMENT LUES partent jusqu'à repasser dessous. Même
+  information de dernière lecture, même registre : une seule question posée
+  deux fois, avec deux réponses différentes, « plus personne ne veut de ça »
+  et « je n'ai plus la place ».
+
+  **Le plafond est absolu, et non une fraction de la place libre.** La VM est
+  partagée : un pourcentage ferait évincer le cache parce qu'un AUTRE service
+  a rempli le disque, donc pour une raison qui ne le regarde pas et que
+  personne ne pourrait relier à la cause le jour où les demandes redeviennent
+  lentes. Mesuré, une chronique pèse ~100 Kio et une série ~4 Kio : ce
+  plafond n'arbitre pas une place rare, il donne une borne à une dérive.
+  `/v1/health` publie la taille de chaque étage et l'état du disque, de quoi
+  voir le rapport entre les deux. `make stats` montre la place rendue par la
+  dernière passe.
+
 ### Corrigé
 
 - **Le cache ne peut plus faire échouer une demande (audit du

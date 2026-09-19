@@ -174,7 +174,16 @@ src/card_api/
                 #   qu'une variable de DATE est une date, et tQJXA
                 #   reviendrait en float64, donc une réponse servie du
                 #   cache différerait d'une réponse calculée. La clé,
-                #   elle, vit dans pipeline.py
+                #   elle, vit dans pipeline.py.
+                #   ÉVICTION à deux règles, sur la même information de
+                #   dernière lecture : par le TEMPS (rien lu depuis
+                #   EVICT_DAYS) et par la PLACE (au-delà de CACHE_MAX_GB,
+                #   les moins récemment lues partent). Le plafond est
+                #   ABSOLU et non un pourcentage du disque, qui est
+                #   partagé : sinon le cache évincerait parce qu'un autre
+                #   service a rempli la VM. Sans registre lisible,
+                #   l'éviction S'ABSTIENT au lieu de deviner sur les dates
+                #   de fichier : cf. PLAN_CACHE_SUITE.md (B1)
   pool.py       # tâche de fond : rafraîchit ce qui est DÉJÀ en cache
                 #   (l'ensemble de travail se définit donc de lui-même, et
                 #   le service n'a aucune liste de stations d'un client à
