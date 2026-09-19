@@ -139,24 +139,31 @@ ce qu'elle peut déjà voir.
 
 À instruire, pas encore tranché.
 
-## B4. L'indépendance, mesurée sur tout le corpus
+## B4. L'indépendance par station : refermé le 2026-09-19
 
 Tout le second étage repose sur une hypothèse : **la série d'une station ne
-dépend pas des autres stations de la demande.** Elle est mesurée sur sept
-fiches couvrant les quatre formes de sortie, fenêtres adaptatives et valeur
-de date comprises, sans aucun écart (détail dans `PLAN_CACHE.md`, A5).
+dépend pas des autres stations de la demande.** Elle tenait sur sept fiches
+mesurées. Elle tient maintenant sur deux choses, et la première vaut mieux
+que n'importe quelle mesure.
 
-Le risque résiduel est une fiche qui normaliserait entre stations, un indice
-régional par exemple : le cache la casserait en silence. **Aucune fiche du
-corpus ne fait cela aujourd'hui**, et c'est ce qui rend ce chantier
-optionnel plutôt qu'urgent. Deux façons de le fermer :
+**L'argument structurel.** Le moteur groupe TOUJOURS par identifiant de
+série avant d'appliquer une fonction : chaque appel d'agrégation passe
+`[id_col, ...]` comme clés de groupement (`stase/extraction.py`, les trois
+chemins d'agrégation). Une fonction de fiche ne reçoit donc jamais les
+données de deux stations ensemble. Une fiche inter-stations ne serait pas une
+fiche inhabituelle, ce serait un changement du MOTEUR.
 
-- une mesure unique sur les 472 fiches, longue mais sans risque, qui
-  transforme un pari en fait ;
-- ou une propriété DÉCLARÉE côté card, sur le modèle de `is_transform` : une
-  fiche dit si elle est inter-stations, et le service refuse de la mettre en
-  cache. C'est plus durable, puisque ça couvre aussi les fiches futures, et
-  ça demande une décision dans card.
+**La mesure élargie.** Une fiche par combinaison (phénomène, aspect, purpose,
+forme de sortie) parmi les 133 fiches à entrée `Q`, soit 19 familles
+distinctes, comparées seule contre lot sur trois stations de longueurs
+différentes : **aucun écart**, en 16 secondes. C'est ce qui couvre les
+familles que sept fiches ne touchaient pas, sans faire tourner les 472.
+
+**Ce qui resterait à faire, et seulement si le besoin apparaît** : une
+propriété DÉCLARÉE côté card, sur le modèle de `is_transform`, par laquelle
+une fiche dirait qu'elle est inter-stations, et que le service refuserait de
+mettre en cache. Ça ne se justifie que le jour où une telle fiche est
+envisagée, et ce jour-là c'est le moteur qu'il faudra changer d'abord.
 
 ## Ce qu'il ne faut pas faire
 
