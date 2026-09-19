@@ -106,6 +106,42 @@ des deux endroits.
   lisant comme un échec là où il faut lire une absence. Détail, mesures et
   preuves : `docs/dev/PLAN_CACHE.md` (A5).
 
+- **Le cache se garde chaud et se vide tout seul (2026-09-19).** Un module
+  `pool.py` tient une tâche de fond qui, à chaque passe, évince ce que
+  personne n'a LU depuis 90 jours puis rafraîchit les copies qui
+  vieillissent. Rien ne change pour un client : ni route, ni champ, ni
+  valeur.
+
+  **L'ensemble de travail se définit de lui-même** : le pool rafraîchit ce
+  qui est DÉJÀ en cache, donc ce que des gens ont demandé. Le service n'a
+  aucune liste de stations appartenant à un client à connaître, et continue
+  d'ignorer ce qu'est un réseau de référence, ce qui est voulu.
+
+  **Une seule règle évince les deux étages**, sur la même date de dernière
+  lecture, et elle ramasse aussi les orphelines : quand une clé change (une
+  fiche corrigée, une image reconstruite), l'ancienne entrée cesse d'être
+  demandée, donc d'être lue, donc tombe dans l'éviction. Aucune liste à
+  tenir de ce qu'un changement a périmé, donc aucun code qui puisse se
+  tromper en la tenant. Sans date de lecture, on se rabat sur la date du
+  fichier : une entrée tout juste écrite dont le marquage a échoué ne part
+  pas dans la seconde qui suit.
+
+  **Le pool ne marque aucune lecture**, et c'est la règle sur laquelle
+  repose toute l'éviction : il réécrit les copies, donc écrase leur date de
+  collecte, et s'il marquait aussi les lectures rien ne sortirait plus
+  jamais du cache. Un test le tient, sur le vrai chemin de
+  rafraîchissement.
+
+  **Poli par construction** : les téléchargements s'étalent sur la moitié
+  d'une passe, l'espacement se déduisant du nombre à faire, et la première
+  passe attend que le démarrage soit passé. La chronique est retéléchargée
+  ENTIÈRE, comme partout ailleurs.
+
+  `make stats` montre la dernière passe (rafraîchies, évincées, échecs) et
+  la place occupée par chaque étage. Quatre réglages dans `.env`, dont
+  `CARD_API_POOL=0` qui coupe la tâche sans reconstruire l'image, utile en
+  développement.
+
 ### Corrigé
 
 - **Un job ne survit plus au test qui l'a lancé (2026-09-19).** Rien ne
