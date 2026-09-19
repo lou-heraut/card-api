@@ -99,6 +99,13 @@ MK_DEFAUT = "AR1"
 LEVEL_DEFAUT = 0.1
 ORIENT_DEFAUT = "records"
 
+# Second étage de cache : les séries déjà agrégées. Coupable sans
+# reconstruire l'image, parce que le test le plus important du chantier en
+# a besoin (cache actif et cache éteint doivent rendre le même résultat)
+# et qu'un exploitant doit pouvoir le fermer si le disque déborde.
+SERIES_CACHE = os.environ.get(
+    "CARD_API_SERIES_CACHE", "1").lower() not in ("0", "false", "no", "off")
+
 
 # ── Identité du calcul ─────────────────────────────────────────────────
 
@@ -431,6 +438,131 @@ def chroniques(stations, start, end, progress=None, max_age=None):
             empreintes, retenues, omises)
 
 
+def _extrait(data, fiches, params):
+    """Un appel à `card.extract`, sous la forme que le reste consomme.
+
+    UN SEUL appel pour toutes les stations et toutes les fiches données :
+    mesuré le 2026-09-19, une extraction station par station coûte 6,6
+    fois plus cher (80 ms contre 12 ms par station sur `QA`), le coût fixe
+    d'un appel étant amorti par le lot. Le découpage par station se fait
+    donc APRÈS, pour le rangement en cache, et c'est légitime parce que la
+    série d'une station ne dépend pas des autres stations de la demande.
+    """
+    fiches = list(fiches)
+    # Borne haute absente : la dernière date disponible, sans effet
+    # puisque le filtre est `date <= fin`, mais `stase` veut deux bornes
+    # et une date inventée se lirait dans les traces.
+    res = card.extract(data, cards=fiches,
+                       default_period=[params["start"],
+                                       params["end"] or data["date"].max()],
+                       sampling_period=params.get("sampling"),
+                       verbose=False)
+    out = res["data"]
+    if not isinstance(out, dict):
+        out = {fiches[0]: out}
+    return out, res["meta"]
+
+
+def extraction(data, retenues, empreintes, params):
+    """Les séries extraites, servies par le second étage de cache.
+
+    Rend `(données par fiche, méta, compteurs)`. L'agrégation était
+    repayée à chaque demande, même tout en cache, et derrière le
+    sémaphore : mesuré à l'échelle d'une vue MAKAHO de 200 stations, 2,4 s
+    pour `QA` et 35 s pour `dtLF`.
+
+    Ce que le cache ne fait PAS disparaître : la lecture des chroniques et
+    leur empreinte, 4,9 s pour 200 stations, puisque l'empreinte est un
+    ingrédient de la clé. Le second étage supprime le calcul, pas la
+    lecture de la source.
+
+    Les garanties sur lesquelles tout repose sont mesurées, pas supposées
+    (cf. `docs/dev/PLAN_CACHE.md`, A5) : la série d'une station est la
+    même seule et dans un lot, y compris quand la fin de période est
+    absente et que la borne haute vient donc du lot ; une fiche rend la
+    même chose seule ou avec d'autres ; et `meta` ne dépend pas des
+    stations.
+
+    L'ordre des lignes est le seul point où une mesure trop gentille m'a
+    trompé : le moteur groupe ses stations dans l'ordre TRIÉ, pas dans
+    celui de la demande, ce qu'une première vérification n'a pas vu parce
+    que ses stations d'essai étaient déjà triées. Le recollage suit donc
+    `sorted`, et c'est le test « cache actif contre cache éteint » qui l'a
+    rattrapé : un cas qui ne discrimine pas ne prouve rien.
+    """
+    cd = list(params["cards"])
+    if BUILD_ID is None or not SERIES_CACHE:
+        # Étage éteint : le chemin d'origine, à l'octet près. Sans identité
+        # de construction, une clé serait amputée d'un ingrédient et deux
+        # états différents du code se confondraient : mieux vaut ne rien
+        # garder que garder sous une clé qui ment.
+        donnees, meta = _extrait(data, cd, params)
+        return donnees, meta, {"actif": False, "hits": 0, "miss": 0}
+
+    cles = {(st, f): cle_serie(st, empreintes[st], f, params["start"],
+                               params["end"], params.get("sampling"),
+                               BUILD_ID)
+            for st in retenues for f in cd}
+    parts, manquants = {}, {}
+    for (st, f), cle in cles.items():
+        deja = cache.load_series(cle)
+        if deja is None:
+            manquants.setdefault(f, []).append(st)
+        else:
+            parts[(st, f)] = deja
+
+    # Les fiches qui manquent pour le MÊME ensemble de stations partent
+    # ensemble : c'est le cas courant (tout froid, ou une station nouvelle
+    # pour toutes les fiches), et ça garde un seul appel au moteur.
+    groupes = {}
+    for f, sts in manquants.items():
+        groupes.setdefault(tuple(sts), []).append(f)
+    for sts, fiches in groupes.items():
+        calcule, _ = _extrait(data[data["code_station"].isin(sts)],
+                              fiches, params)
+        for f in fiches:
+            frame = calcule[f]
+            if "code_station" not in frame.columns:
+                # Rien ne permet d'attribuer ces lignes à une station,
+                # donc rien ne peut être rangé par station : cette fiche
+                # passe à côté du cache plutôt que d'être rangée au hasard.
+                parts[(None, f)] = frame
+                continue
+            for st, part in frame.groupby("code_station", observed=True):
+                st = str(st)
+                parts[(st, f)] = part.reset_index(drop=True)
+                if (st, f) in cles:
+                    cache.store_series(cles[(st, f)], parts[(st, f)])
+
+    donnees = {}
+    for f in cd:
+        if (None, f) in parts:
+            donnees[f] = parts[(None, f)]
+            continue
+        # Trié, comme le moteur le fait, et non dans l'ordre de la
+        # demande : sinon les lignes sortent dans un autre ordre et le
+        # résultat servi diffère de celui d'un calcul complet.
+        morceaux = [parts[(st, f)] for st in sorted(retenues)
+                    if (st, f) in parts]
+        if not morceaux:
+            # Aucune station pour cette fiche. Deviner la forme d'un cadre
+            # vide serait inventer un résultat : on recalcule tout sans
+            # cache, ce qui est toujours juste.
+            donnees, meta = _extrait(data, cd, params)
+            return donnees, meta, {"actif": True, "hits": 0,
+                                   "miss": len(cles)}
+        donnees[f] = pd.concat(morceaux, ignore_index=True)
+
+    # La méta ne dépend pas des stations, et elle doit couvrir TOUTES les
+    # fiches demandées, y compris celles qu'on n'a pas eu à calculer :
+    # elle se prend donc sans données.
+    meta = card.extract(None, cards=cd, metadata_only=True,
+                        verbose=False)["meta"]
+    miss = sum(len(v) for v in manquants.values())
+    return donnees, meta, {"actif": True, "hits": len(cles) - miss,
+                           "miss": miss}
+
+
 def compute(params: dict, progress=None, verrou=None) -> dict:
     """Le calcul et le résultat COMMUN aux deux portes.
 
@@ -455,23 +587,14 @@ def compute(params: dict, progress=None, verrou=None) -> dict:
         progress(total, total, "extraction")
     ctx = verrou if verrou is not None else _sans_verrou()
     with ctx:
-        # La période va au moteur, qui la fait passer à chaque process.
-        # Borne haute absente : la dernière date disponible, sans effet
-        # puisque le filtre est `date <= fin`, mais `stase` veut deux
-        # bornes et une date inventée se lirait dans les traces.
-        res = card.extract(data, cards=cd,
-                           default_period=[params["start"],
-                                           params["end"] or data["date"].max()],
-                           sampling_period=params.get("sampling"),
-                           verbose=False)
-        extracted = res["data"]
-        if not isinstance(extracted, dict):
-            extracted = {cd[0]: extracted}
+        extracted, meta, etage2 = extraction(data, retenues, empreintes,
+                                             params)
         tr = None
         if params.get("endpoint") == "trend":
             if progress:
                 progress(total, total, "tendance")
-            tr = card.trend(res, level=params["level"],
+            tr = card.trend({"data": extracted, "meta": meta},
+                            level=params["level"],
                             dependency=params["mk"], seed=LTP_SEED)
 
     sortie = tr["data"] if tr is not None else extracted
@@ -493,7 +616,7 @@ def compute(params: dict, progress=None, verrou=None) -> dict:
         "data_fetched_at": fetched_at(retenues),
         "data_fingerprint": hubeau.combine_fingerprints(empreintes),
         "orient": orient,
-        "meta": serialize(res["meta"]),
+        "meta": serialize(meta),
         "data": {k: serialize(v, orient) for k, v in sortie.items()},
     }
     if params.get("endpoint") == "trend":
@@ -503,7 +626,7 @@ def compute(params: dict, progress=None, verrou=None) -> dict:
             out["series"] = {k: serialize(v, orient)
                              for k, v in extracted.items()}
     return {**out, "_extracted": extracted, "_trend": tr,
-            "_empreintes": empreintes}
+            "_empreintes": empreintes, "_cache": etage2}
 
 
 class _sans_verrou:

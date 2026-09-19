@@ -188,8 +188,10 @@ def _activity_box(entries):
     # la même règle et pour une raison plus forte encore : un utilisateur
     # repoussé n'a rien consommé.
     reqs = [e for e in entries if "endpoint" in e and "event" not in e]
-    month = [e for e in reqs
-             if e.get("ts", "")[:10] >= str(date.today() - timedelta(30))]
+    recent = str(date.today() - timedelta(30))
+    month = [e for e in reqs if e.get("ts", "")[:10] >= recent]
+    # Tout, événements compris : le cache se mesure aussi sur les jobs.
+    month_tout = [e for e in entries if e.get("ts", "")[:10] >= recent]
     # DEUX FAMILLES, jamais additionnées. Consulter le catalogue et
     # lancer un calcul sont deux usages réels mais d'un tout autre ordre
     # de grandeur : une somme unique serait écrasée par la découverte et
@@ -213,6 +215,27 @@ def _activity_box(entries):
     rendus = Counter(e.get("rendu", "json") for e in month
                      if e["endpoint"] in ("extract", "trend"))
     lines.append(_detail("rendu", [(n, rendus.get(n, 0)) for n in RENDUS]))
+
+    # Le second étage de cache sert-il ? Il a été construit sur une
+    # prévision, et la doctrine du service est de régler sur l'observation,
+    # comme pour les quotas. Les séries comptées ici sont des couples
+    # (station, fiche) : c'est l'unité du cache, pas la requête.
+    #
+    # Les jobs comptent AUSSI, bien qu'ils soient des événements et non des
+    # usages : une demande à l'échelle d'un réseau entier passe justement
+    # par la file, et l'en exclure mesurerait le cache là où il sert le
+    # moins. La ligne est toujours là, et elle DIT quand elle ne sait pas :
+    # avec l'étage éteint, aucune requête ne porte ces champs, et un
+    # « 0 % » se lirait comme un échec au lieu d'une absence.
+    hits = sum(e.get("cache_hits", 0) for e in month_tout)
+    miss = sum(e.get("cache_miss", 0) for e in month_tout)
+    if hits + miss:
+        lines.append(_detail("cache", [
+            (f"servies ({hits / (hits + miss):.0%})", hits),
+            ("calculées", miss)]))
+    else:
+        lines.append(f"{'  cache':<{GOUTTIERE}} "
+                     f"aucune série journalisée (étage éteint ?)")
 
     lines.append("")
     lines.append(_ligne("DÉCOUVERTE", decouverte))

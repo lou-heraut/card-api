@@ -44,6 +44,20 @@ src/card_api/
                 #   seule chose que la file avait de plus, et la seule
                 #   raison qu'avait la copie d'exister.
                 #   NE JAMAIS refaire de boucle chroniques ailleurs.
+                #   Porte aussi la CLÉ du second étage de cache
+                #   (cle_serie) : c'est de la sémantique de calcul, donc
+                #   sa place est ici et pas dans cache.py, qui possède
+                #   des octets et ignore ce qu'est une fiche. Règle de la
+                #   clé : trop complète ne coûte que des recalculs,
+                #   incomplète rend des résultats FAUX en silence, donc
+                #   tout paramètre ajouté à l'extraction y entre le même
+                #   jour. BUILD_ID absent = étage DÉSACTIVÉ, jamais
+                #   dégradé. `extraction()` cherche, calcule les
+                #   manquants en UN SEUL appel groupé (par station coûte
+                #   6,6 fois plus cher) puis recolle dans l'ordre TRIÉ,
+                #   celui du moteur, jamais celui de la demande : mesuré,
+                #   et une première vérification l'avait raté faute de
+                #   stations d'essai désordonnées
   main.py       # endpoints : racine / (panneau indicateur, forme des
                 #   « landing pages » OGC API : liens typés service-desc,
                 #   service-doc, latest-version ; le détail reste dans
@@ -146,6 +160,14 @@ src/card_api/
                 #   partagé sans ses garanties. WAL + transactions d'une
                 #   ligne + échec avalé, la perte d'une date ne coûtant
                 #   qu'un téléchargement : cf. PLAN_CACHE.md (A4)
+                #   DEUX étages : les chroniques (CSV gz) et les séries
+                #   déjà agrégées (Parquet, data/series/<clé>.parquet).
+                #   Parquet parce que c'est le seul format qui rende le
+                #   cadre IDENTIQUE, types compris : un CSV ne sait pas
+                #   qu'une variable de DATE est une date, et tQJXA
+                #   reviendrait en float64, donc une réponse servie du
+                #   cache différerait d'une réponse calculée. La clé,
+                #   elle, vit dans pipeline.py
   usage.py      # quotas IP (fenêtre glissante, 429+Retry-After) ;
                 #   plafonds LARGES à dessein : ce compteur compte des
                 #   requêtes, pas leur coût, et la charge est tenue par

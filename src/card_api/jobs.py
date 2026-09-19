@@ -238,8 +238,9 @@ def _worker():
             _save(_job)
 
         t0 = time.time()
+        etage2 = {}
         try:
-            payload = _execute(job, progress)
+            payload, etage2 = _execute(job, progress)
             raw = json.dumps(payload, ensure_ascii=False).encode()
             (jobs_dir() / job_id / "result.json.gz").write_bytes(
                 gzip.compress(raw))
@@ -256,6 +257,11 @@ def _worker():
             stations=len(job["params"]["stations"]),
             cards=job["params"]["cards"],
             wait_s=round(_wait, 1), run_s=round(time.time() - t0, 1),
+            # Sans ces deux nombres, le second étage de cache ne serait
+            # mesuré que sur les réponses immédiates, alors qu'une demande
+            # à l'échelle d'un réseau entier passe justement par la file.
+            **({"cache_hits": etage2["hits"], "cache_miss": etage2["miss"]}
+               if etage2.get("actif") else {}),
         )
 
 
@@ -291,9 +297,10 @@ def _execute(job: dict, progress) -> dict:
     out["job"] = {
         "id": job["id"],
         "created": job["created"],
-        # Date de LECTURE des chroniques, pas du calcul : avec un cache de
-        # 24 h les deux diffèrent d'autant, et c'est la première qui compte
-        # puisque Hub'Eau révise ses données.
+        # Date de LECTURE des chroniques, pas du calcul : une copie
+        # locale peut vivre des semaines, les deux diffèrent donc
+        # d'autant, et c'est la première qui compte puisque Hub'Eau
+        # révise ses données.
         "data_fetched_at": out["data_fetched_at"],
         "params": {k: v for k, v in p.items() if v is not None},
     }
@@ -302,4 +309,4 @@ def _execute(job: dict, progress) -> dict:
     if p.get("stations_meta"):
         progress(total, total, "référentiel stations")
         out["stations_meta"] = hubeau.stations_referential(p["stations"])
-    return out
+    return out, brut.get("_cache") or {}

@@ -424,7 +424,72 @@ sur l'intuition.
   comparé sur un échantillon réel. C'est le test le plus important du
   chantier.
 
-*État : accepté, avec la clé revue sur trois points.*
+### Ce que la vérification a appris, avant d'écrire une ligne
+
+Tout repose sur une hypothèse : la série d'une station ne dépend pas des
+autres stations de la demande. Mesuré le 2026-09-19 sur quatre stations de
+longueurs volontairement différentes (une finissant en 2020, une en 2026,
+une trouée de huit ans) et sept fiches couvrant les quatre formes de
+sortie, fenêtres adaptatives et valeur de date comprises :
+
+- **aucun écart sur 28 couples** (station seule contre station dans le
+  lot), y compris quand la fin de période est absente et que la borne
+  haute vient donc du lot ;
+- **aucun écart** entre une fiche seule et la même avec d'autres ;
+- `meta` **ne dépend pas des stations**, 44 colonnes identiques ;
+- **la chaîne entière** est équivalente : `card.trend` sur un résultat
+  recollé rend les mêmes valeurs, et le JSON servi est identique.
+
+Deux choses que cette vérification a corrigées, et qui valent d'être
+écrites parce qu'elles ne se devinent pas :
+
+- **le moteur rend ses stations dans l'ordre TRIÉ**, jamais dans celui de
+  la demande. Une première mesure l'avait manqué, ses stations d'essai
+  étant déjà triées : le cas ne discriminait pas. C'est le test « cache
+  actif contre cache éteint » qui l'a rattrapé, sur un recollage qui
+  suivait l'ordre de la demande ;
+- **un seul écart résiduel subsiste**, interne : `code_station` revient en
+  `str` au lieu de `category` sur certaines fiches, recoller des
+  catégories aux catégories différentes donnant du texte. Il ne sort pas
+  du service et ne change aucune valeur. **L'équivalence se définit donc
+  sur la réponse SERVIE**, plus une égalité de valeurs sur les cadres :
+  prétendre canoniser le type serait inventer une vérité que le calcul
+  complet n'a pas lui-même, puisqu'il rend `category` pour `QA` et `str`
+  pour `VCN10`.
+
+### Un appel groupé, découpé après
+
+Mesuré : **une extraction station par station coûte 6,6 fois plus cher**
+qu'un appel groupé (80 ms contre 12 ms par station sur `QA`), le coût fixe
+d'un appel étant amorti par le lot. Les manquantes partent donc en UN
+appel, et le découpage par station se fait après, pour le rangement. Les
+fiches qui manquent pour le même ensemble de stations voyagent ensemble.
+
+### Ce que le second étage ne fait PAS disparaître
+
+La lecture des chroniques et leur empreinte, **4,9 s pour 200 stations**
+(22 ms de lecture, 2,7 ms d'empreinte par station), puisque l'empreinte
+est un ingrédient de la clé. Le gain réel, tout en cache :
+
+| fiche | avant | après |
+|---|---|---|
+| `dtLF` | 4,9 + 35,4 s | ~5,2 s |
+| `VCN10` | 4,9 + 5,2 s | ~5,2 s |
+| `QA` | 4,9 + 2,4 s | ~5,2 s |
+
+Une piste reste ouverte, et elle n'est pas prise : enregistrer l'empreinte
+et les dates extrêmes d'une chronique au moment de l'écrire, ce qui
+supprimerait aussi ces 4,9 s (une demande tout en cache coûterait ~0,3 s).
+Le risque est qu'une empreinte enregistrée ne correspondant plus au
+fichier ferait servir une série périmée, en silence ; il se ferme en
+enregistrant aussi taille et date du fichier et en recalculant si elles ne
+correspondent plus. **Décision du 2026-09-19 : pas maintenant**, on juge
+sur le taux de succès et les durées réelles avant d'ajouter cette
+machinerie.
+
+*État : **livré le 2026-09-19**. Clé, magasin, plomberie, interrupteur et
+mesure. Aucun changement de contrat : ni route, ni champ, ni valeur, donc
+pas de version coupée. Ce qui reste du chantier : A4b, A7, A6.*
 
 ## A6. Mesurer, puis relever le plafond synchrone
 
@@ -551,16 +616,17 @@ n'attend plus rien.
   fait  A1+A3  l'âge accepté                 0.6.0
   fait  A2     la chronique entière          du pur écrit, plus un test
   fait  A8     le nombre de points           0.6.0
-        A5     le second étage               le gros morceau
+  fait  A5     le second étage               sans effet sur le contrat
         A4b    le pool et l'éviction         dépend de la forme de A5
         A7     la chronique exposée          contrat : api_version
         A6     le plafond                    après mesure, en dernier
 ```
 
 `S1`, `C1` et `C2` sont livrés eux aussi (cf. plus haut). **Il reste donc
-A5, puis A4b, A7 et A6**, dans cet ordre : A5 commande la forme du
-registre que A4b évince, et A6 ne se règle qu'une fois mesuré le coût
-d'une demande toute en cache.
+A4b, A7 et A6.** A4b évince ce que A5 a rangé, sur la même question de
+dernière lecture et dans le même registre ; A6 ne se règle qu'une fois
+mesuré le coût réel d'une demande toute en cache, ce que `make stats`
+donne maintenant.
 
 **Versions.** Le service se coupe une version le jour où ce qu'un client
 voit change. Ici : A1 et A3 (un paramètre), A7 (une route), A8 (un

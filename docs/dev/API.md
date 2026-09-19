@@ -119,10 +119,15 @@ trop bas. Les valeurs se règlent désormais sur cette observation.
 - **Journal d'usage** anonymisé (IP hachée, endpoint, stations,
   fiches, date) → la matière première des bilans d'impact pour les
   dossiers de financement, sans gestion de comptes.
-- **Cache à deux étages** : chroniques par station (TTL quotidien,
-  les séries validées bougent peu) ; résultats d'extraction par
-  (station, fiche, version de fiche) : l'invalidation est offerte par
-  la discipline de versions.
+- **Cache à deux étages**, livré le 2026-09-19 : les chroniques par
+  station (âge accepté réglable, cf. plus haut) et les séries déjà
+  agrégées par (station, fiche). La clé de ce second étage ne porte PAS
+  la version de fiche, comme prévu à l'origine, mais le **SWHID** de son
+  fichier, plus la période, la fenêtre d'échantillonnage telle que
+  demandée et l'identité de construction de l'image : une version se
+  bosse à la main, un hash de contenu non. L'invalidation est alors
+  gratuite, une clé qui change cessant simplement d'être demandée.
+  Détail, mesures et preuves dans `PLAN_CACHE.md` (A5).
 - Respecter la politique de débit Hub'Eau (taille de page, pauses) ;
   bannière de provenance des données (Licence Ouverte, eaufrance).
 - **Formats de réponse (arbitré 2026-07-16)** : JSON `records` par

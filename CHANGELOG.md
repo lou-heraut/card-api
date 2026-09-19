@@ -43,35 +43,68 @@ des deux endroits.
 
 ### Ajouté
 
-- **Les fondations du second étage de cache (2026-09-19).** Rien ne change
-  encore pour un client : la clé et le magasin existent, personne ne les
-  emploie. Ils sont livrés seuls parce que c'est la partie où une erreur
-  serait invisible.
+- **Le second étage de cache : une série agrégée ne se recalcule plus
+  (2026-09-19).** Le service gardait la matière première, la chronique
+  journalière, et rien du produit. L'agrégation était donc repayée à chaque
+  demande, même tout en cache, et derrière le sémaphore, donc par tous ceux
+  qui attendaient. Mesuré à l'échelle d'une vue MAKAHO de 200 stations :
+  2,4 s pour `QA`, 5,2 s pour `VCN10`, **35,4 s pour `dtLF`**. C'est cette
+  dépense qui disparaît au second appel.
 
-  `pipeline.cle_serie` énumère tout ce qui peut influencer une série :
-  station, empreinte de la chronique, fiche et SWHID de son fichier,
-  période et fenêtre d'échantillonnage **telles que demandées**, et
-  identité de construction de l'image. Restent dehors `level`, `mk`,
-  `series`, `orient` et `stations_meta`, qui ne touchent que le test ou la
-  mise en forme : déplacer le curseur de signification deviendra gratuit
-  alors qu'il relance aujourd'hui toute l'agrégation. Un test énumère les
+  **Rien ne change pour un client** : ni route, ni champ, ni valeur, donc
+  pas de version coupée. Un test le vérifie en comparant, sur une fiche à
+  fenêtre adaptative, le JSON servi avec le cache actif et avec le cache
+  éteint.
+
+  **La clé** énumère tout ce qui peut influencer une série : station,
+  empreinte de la chronique, fiche et SWHID de son fichier, période et
+  fenêtre d'échantillonnage telles que DEMANDÉES, identité de construction
+  de l'image. Une version de fiche se bosse à la main, un hash de contenu
+  non. Restent dehors `level`, `mk`, `series`, `orient` et
+  `stations_meta` : **déplacer le curseur de signification devient
+  gratuit**, alors qu'il relançait toute l'agrégation. Un test énumère les
   ingrédients, de sorte qu'un paramètre ajouté demain sans entrer dans la
-  clé le casse. `scripts/resolve_refs.py` écrit désormais l'instant de
-  construction, seul ingrédient d'identité qui ne peut pas échouer, et
-  sans lui le second étage sera **désactivé, jamais dégradé**.
+  clé le casse. Sans identité de construction (hors image), l'étage est
+  **désactivé, jamais dégradé** : une clé amputée confondrait deux états
+  du code. `CARD_API_SERIES_CACHE=0` le ferme aussi, sans reconstruire.
 
-  Le magasin est en **Parquet**, contre ce que ce plan avait écrit, et la
+  **Le magasin est en Parquet**, contre ce que le plan avait écrit, et la
   mesure a renversé la décision : un CSV relu perd le dernier bit des
   flottants, et surtout il ne sait pas qu'une variable de DATE est une
   date, si bien que `tQJXA` reviendrait en `float64` et qu'une réponse
-  servie par le cache différerait d'une réponse calculée, en silence. Le
-  service dépend donc de `pyarrow` (~150 Mo dans l'image, 4 Kio par
-  entrée au lieu de 700 octets). Détail et chiffres dans
-  `docs/dev/PLAN_CACHE.md` (A5).
+  servie du cache différerait d'une réponse calculée, en silence. Le
+  service dépend donc de `pyarrow` (~150 Mo dans l'image, 4 Kio par entrée
+  au lieu de 700 octets).
 
-  Ce que le chantier achète, mesuré à l'échelle d'une vue MAKAHO (200
-  stations) : 2,4 s pour `QA`, 5,2 s pour `VCN10`, **35,4 s pour `dtLF`**,
-  repayés à chaque demande derrière le sémaphore.
+  **Ce que la vérification a appris**, faite avant d'écrire la plomberie,
+  sur des chroniques de longueurs différentes et sept fiches couvrant les
+  quatre formes de sortie : aucun écart sur 28 couples entre une station
+  seule et la même dans un lot, y compris quand la fin de période vient du
+  lot ; aucun écart entre une fiche seule et avec d'autres ; `meta`
+  indépendante des stations ; et la chaîne entière équivalente jusqu'au
+  JSON. Deux enseignements moins confortables : le moteur rend ses
+  stations dans l'ordre **trié** et non dans celui de la demande, ce
+  qu'une première mesure avait manqué faute de stations d'essai
+  désordonnées ; et `code_station` revient en `str` au lieu de `category`
+  sur certaines fiches, écart interne qui ne sort pas du service, d'où
+  l'équivalence définie sur la réponse SERVIE.
+
+  **Les manquantes partent en un seul appel au moteur**, découpé ensuite
+  par station pour le rangement : une extraction station par station coûte
+  6,6 fois plus cher, le coût fixe d'un appel étant amorti par le lot.
+
+  **Ce que le cache ne fait pas disparaître** : la lecture des chroniques
+  et leur empreinte, 4,9 s pour 200 stations, l'empreinte étant un
+  ingrédient de la clé. Une demande tout en cache coûte donc ~5,2 s au
+  lieu de 40 s sur `dtLF`, mais reste à 5 s sur `QA`. La piste qui
+  supprimerait ce plancher est écrite dans le plan et **délibérément non
+  prise** : on juge d'abord sur l'observation.
+
+  **Ce qu'on en voit** : chaque requête de calcul journalise ses séries
+  servies et calculées, jobs compris, et `make stats` affiche le taux de
+  succès. Les deux champs sont ABSENTS quand l'étage est éteint, un zéro se
+  lisant comme un échec là où il faut lire une absence. Détail, mesures et
+  preuves : `docs/dev/PLAN_CACHE.md` (A5).
 
 ### Corrigé
 

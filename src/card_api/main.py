@@ -1059,6 +1059,20 @@ def _maybe_job(request, params, prio=None):
     return _job_envelope(job)
 
 
+def _journal_cache(brut):
+    """Ce que le second étage de cache a servi, pour le journal.
+
+    RIEN quand il est éteint, et c'est délibéré : un champ toujours
+    présent à zéro se lirait comme « aucun succès » là où il faut lire
+    « pas de cache ». Même règle que pour les refus de quota, qui sont des
+    événements et non des usages, pour que le tableau de bord ne confonde
+    pas une absence avec un zéro.
+    """
+    c = brut.get("_cache") or {}
+    return ({"cache_hits": c["hits"], "cache_miss": c["miss"]}
+            if c.get("actif") else {})
+
+
 def _stations_meta(st):
     """Fiches du référentiel Hub'Eau des stations demandées, jointes
     à la réponse sous 'stations_meta' : un résultat autoportant (une
@@ -1501,7 +1515,8 @@ def _extract_result(request: Request, p: ExtractParams, rendu="json"):
     out = pipeline.sans_prives(brut)
     usage.log_usage(request, "extract", stations=len(params["stations"]),
                     cards=params["cards"], rendu=rendu,
-                    omises=len(out["stations_omitted"]) or None)
+                    omises=len(out["stations_omitted"]) or None,
+                    **_journal_cache(brut))
     if params.get("stations_meta"):
         # Le référentiel couvre les stations DEMANDÉES, omises comprises :
         # c'est là qu'on lit pourquoi. Le libellé « échelle aval de Mâcon »
@@ -1606,7 +1621,8 @@ def _trend_result(request: Request, p: TrendParams, rendu="json"):
     out = pipeline.sans_prives(brut)
     usage.log_usage(request, "trend", stations=len(params["stations"]),
                     cards=params["cards"], mk=params["mk"], rendu=rendu,
-                    omises=len(out["stations_omitted"]) or None)
+                    omises=len(out["stations_omitted"]) or None,
+                    **_journal_cache(brut))
     if params.get("stations_meta"):
         out["stations_meta"] = _stations_meta(params["stations"])
     return out, brut["_trend"]

@@ -353,8 +353,10 @@ automatiquement sur ce circuit (réponse `202` au lieu d'un refus).
 
 Le service est public avec un quota par IP et par minute ; en cas de
 dépassement (`429`), l'en-tête `Retry-After` indique quand réessayer.
-Les chroniques sont mises en cache 24 h côté serveur : répéter une
-requête ne re-télécharge rien depuis Hub'Eau.
+Les chroniques sont mises en cache côté serveur, pour une durée que
+`/v1` publie (bloc `limits.cache`) et qu'une requête peut resserrer avec
+`max_age` : répéter une requête ne re-télécharge rien depuis Hub'Eau, et
+ne recalcule rien non plus.
 
 Si vous atteignez le quota, c'est presque toujours qu'une boucle
 appelle le service une fois par station. Ce n'est pas la bonne forme :
