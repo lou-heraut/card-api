@@ -114,10 +114,21 @@ def test_orient_columns_ne_casse_pas_les_rendus():
     assert "TENDANCE" in fig.text and "K0550010" in fig.text
 
 
-def test_le_ticket_csv_annonce_ou_prendre_le_csv():
+def test_le_ticket_csv_annonce_ou_prendre_le_csv(monkeypatch):
     """Demander un CSV et recevoir un ticket qui ne mène qu'à du JSON
     était la friction signalée : le ticket porte maintenant l'adresse de
-    sa propre représentation."""
+    sa propre représentation.
+
+    Le dépôt est SIMULÉ parce que ce test porte sur l'enveloppe du ticket
+    et non sur le calcul. Déposé pour de vrai, un job de onze stations
+    survivait au test : il perdait en route le simulateur Hub'Eau, retiré
+    à la fin du test, partait donc interroger le vrai Hub'Eau, et écrivait
+    ensuite dans un dossier de données qui n'était plus celui du test.
+    """
+    from card_api import jobs
+    monkeypatch.setattr(jobs, "submit",
+                        lambda params, user, priority=0, key=None:
+                        {"id": "0" * 16, "status": "queued"})
     stations = ",".join(f"K{i:07d}" for i in range(11))   # > plafond sync
     r = client.get("/v1/trend.csv", params={"stations": stations,
                                             "cards": "QA"})

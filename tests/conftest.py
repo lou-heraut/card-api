@@ -4,7 +4,9 @@ et fournit la chronique simulée qui garde la suite HORS-LIGNE.
 En production l'image Docker installe card et stase depuis GitHub.
 """
 
+import queue
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -24,12 +26,67 @@ for p in (
 @pytest.fixture(autouse=True)
 def _test_env(monkeypatch, tmp_path):
     """Quotas neutralisés (tous les tests partagent l'« IP » testclient)
-    et données/journal dans un dossier temporaire."""
+    et données/journal dans un dossier temporaire.
+    """
     from card_api import usage
     usage._hits.clear()
     monkeypatch.setattr(usage, "RATE_COMPUTE", 10_000)
     monkeypatch.setattr(usage, "RATE_LIGHT", 10_000)
     monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    yield
+    reste = _travail_en_vol()
+    if reste:
+        pytest.fail(
+            "ce test laisse du travail en vol : " + ", ".join(reste) + ".\n"
+            "Un job qui survit au test qui l'a lancé emporte deux ennuis "
+            "avec lui. Il perd le simulateur Hub'Eau, retiré à la fin du "
+            "test, donc il part interroger le VRAI Hub'Eau ; et il écrit "
+            "son résultat dans un dossier de données qui n'est plus celui "
+            "du test, d'où une exception dans un thread, sans rapport "
+            "visible avec le test qui l'a causée. Simuler `jobs.submit` "
+            "quand seule l'enveloppe du ticket compte, ou attendre la fin "
+            "du job dans le test.")
+
+
+def _travail_en_vol():
+    """Ce qui restait à faire quand le test s'est terminé.
+
+    Deux gestes, et ils répondent à deux besoins différents.
+
+    La file est VIDÉE tout de suite : c'est un objet de module, partagé
+    par toute la suite, et un reste de test s'exécuterait plus tard, dans
+    le contexte d'un autre test.
+
+    Un job déjà parti, lui, ne s'interrompt pas. On ATTEND qu'il finisse,
+    pour qu'aucun thread ne traverse la frontière du test suivant, et on
+    le SIGNALE quand même, sur ce qui a été vu au premier coup d'œil :
+    attendre est de l'hygiène, signaler est ce qui fait corriger le test.
+    Sans quoi un job assez court pour finir pendant l'attente resterait
+    invisible, alors qu'il a déjà perdu son simulateur Hub'Eau.
+    """
+    from card_api import jobs
+
+    restes = []
+    while True:
+        try:
+            restes.append("en file " + jobs._queue.get_nowait()[2])
+        except queue.Empty:
+            break
+
+    def _en_cours():
+        try:
+            return [f"{job['status']} {d.name}"
+                    for d in jobs.jobs_dir().iterdir()
+                    if (job := jobs.load(d.name))
+                    and job["status"] in ("queued", "running")]
+        except OSError:
+            return []
+
+    vus = _en_cours()
+    fin = time.time() + 30.0
+    while _en_cours() and time.time() < fin:
+        time.sleep(0.05)
+    return restes + vus
 
 
 @pytest.fixture

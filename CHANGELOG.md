@@ -41,6 +41,27 @@ des deux endroits.
 
 ## Non publié
 
+### Corrigé
+
+- **Un job ne survit plus au test qui l'a lancé (2026-09-19).** Rien ne
+  change pour le service : c'est la suite de tests qui fuyait. Un test
+  déposait une demande de onze stations pour vérifier la forme du ticket
+  CSV, sans attendre la fin du job. Le worker continuait donc dans un
+  autre test, avec deux ennuis à la clé : il perdait le simulateur
+  Hub'Eau, retiré à la fin du test qui l'avait posé, donc il partait
+  interroger le VRAI Hub'Eau ; et il écrivait son résultat dans un dossier
+  de données qui n'était plus le sien, d'où une exception de thread
+  attribuée à un test innocent, quarante tests plus loin.
+
+  Ce test simule maintenant le dépôt, son sujet étant l'enveloppe du
+  ticket et non le calcul. Et `conftest.py` tient la règle pour tout le
+  monde : à la fin de chaque test, la file est vidée, un job encore en vol
+  est attendu, puis SIGNALÉ. Attendre est de l'hygiène, signaler est ce
+  qui fait corriger le test, sans quoi un job assez court pour finir
+  pendant l'attente resterait invisible alors qu'il a déjà perdu son
+  simulateur. Vérifié dans les deux sens : la suite ne lève plus aucune
+  exception de thread, et un test qui fuit exprès est bien refusé.
+
 ## 0.6.0 (2026-09-18)
 
 ### Ajouté
