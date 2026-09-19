@@ -79,7 +79,13 @@ def passe(espacement: float | None = None) -> dict:
     période de passe. Les tests le mettent à 0, faute de quoi ils
     attendraient des heures.
     """
-    bilan = cache.evict(EVICTION_JOURS)
+    try:
+        bilan = cache.evict(EVICTION_JOURS)
+    except cache.RegistreIndisponible as e:
+        # L'éviction s'abstient, le rafraîchissement continue : les deux
+        # gestes d'une passe répondent à deux questions, et l'un n'a pas
+        # besoin de l'autre.
+        bilan = {"chroniques": 0, "series": 0, "eviction": f"abandon ({e})"}
     a_faire = [s for s in cache.cached_stations()
                if not cache.is_fresh(s, FRAICHEUR_JOURS)]
     if espacement is None:

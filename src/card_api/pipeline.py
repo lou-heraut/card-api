@@ -226,7 +226,16 @@ def cle_serie(station: str, empreinte: str, fiche: str,
       `preferred` et `MM-JJ` sont trois choses différentes pour une fiche
       à fenêtre adaptative. Mesuré, `dtLF` rend 42 lignes sans paramètre
       et 41 avec `preferred` ;
-    - `build`, l'identité de construction de l'image (cf. `BUILD_ID`).
+    - `build`, l'identité de construction de l'image (cf. `BUILD_ID`) ;
+    - **la bascule `CARD_ROLL_COMPAT`, lue à chaque appel**, parce qu'elle
+      est le seul réglage documenté qui change un résultat sans changer
+      l'image : card la lit au moment du calcul (`functions/aggregation.py`)
+      et elle modifie la moyenne mobile, donc VCN10 et tout ce qui en
+      découle. L'identité de construction ne la couvre pas, une image
+      pouvant être redémarrée avec une autre valeur. Trouvée à l'audit du
+      2026-09-19, et c'est exactement le cas que la règle de la clé
+      vise : sans elle, deux valeurs différentes se partageraient une
+      entrée, en silence.
 
     Ce qui reste DEHORS, et c'est tout l'intérêt : `level`, `mk`,
     `series`, `orient`, `stations_meta`. Ils ne touchent que le test ou
@@ -247,6 +256,7 @@ def cle_serie(station: str, empreinte: str, fiche: str,
         f"end={end}",
         f"sampling={sampling}",
         f"build={build}",
+        f"roll={os.environ.get('CARD_ROLL_COMPAT') or ''}",
     ])
     return f"{fiche}-{station}-{hashlib.sha256(brut.encode()).hexdigest()}"
 

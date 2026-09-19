@@ -41,6 +41,43 @@ des deux endroits.
 
 ## Non publié
 
+### Corrigé
+
+- **Le cache ne peut plus faire échouer une demande (audit du
+  2026-09-19).** Trois défauts trouvés en cherchant à casser ce qui venait
+  d'être livré, et le premier était grave.
+
+  **Un disque qui refuse l'écriture cassait chaque calcul.** Dossier non
+  inscriptible, disque plein, système de fichiers en lecture seule : la
+  `PermissionError` remontait jusqu'au client. Le second étage écrit six
+  cents entrées là où le premier en écrivait quelques-unes, si bien qu'une
+  faute de ce genre passait d'un incident rare à une panne générale. La
+  règle est maintenant écrite en tête de `cache.py` et tenue par des tests :
+  le cache est une accélération, jamais une dépendance. On renonce à garder
+  ou à relire, et on sert le résultat.
+
+  **L'éviction pouvait effacer sur une information absente.** Si le
+  registre des lectures ne répond pas, elle se rabattait sur les dates de
+  fichier, c'est-à-dire effaçait ce qui sert. Elle s'abstient désormais et
+  le dit ; le pool continue de rafraîchir, les deux gestes d'une passe
+  répondant à deux questions différentes.
+
+  **Deux fils pouvaient écrire dans le même fichier temporaire.** Son nom
+  ne portait que le processus, or le sémaphore de calcul laisse passer deux
+  demandes à la fois et elles peuvent porter sur la même entrée : les deux
+  ouvraient le même temporaire et le tronquaient l'un pour l'autre. Aucune
+  réponse n'en aurait été fausse, un fichier abîmé se relisant comme une
+  absence, mais on aurait payé un calcul pour rien. Le nom porte maintenant
+  le fil, dont l'identifiant est unique parmi les vivants, ce qui est
+  exactement la garantie nécessaire.
+
+- **La bascule `CARD_ROLL_COMPAT` entre dans la clé du cache (2026-09-19).**
+  Elle change la moyenne mobile de card, donc VCN10 et tout ce qui en
+  découle, et card la lit au moment du CALCUL. L'identité de construction
+  ne la couvrait pas : la même image redémarrée avec une autre valeur
+  aurait servi d'autres résultats sous les mêmes clés, en silence. C'est
+  exactement le cas que la règle de la clé vise, et il manquait.
+
 ## 0.7.0 (2026-09-19)
 
 ### Ajouté

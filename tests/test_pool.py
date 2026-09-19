@@ -168,3 +168,25 @@ def test_le_pool_ne_demarre_pas_s_il_est_coupe(monkeypatch):
     démarrer aucun thread."""
     monkeypatch.setattr(pool, "ENABLED", False)
     assert pool.ensure_pool() is False
+
+
+def test_l_eviction_s_abstient_si_le_registre_ne_repond_pas():
+    """Effacer sur une information absente est la seule faute de ce module
+    qui coûterait plus qu'un recalcul.
+
+    Sans registre, l'éviction se rabattrait sur les dates de fichier, donc
+    effacerait ce qui sert : elle s'abstient et le dit. Le pool, lui,
+    continue de rafraîchir, les deux gestes d'une passe répondant à deux
+    questions.
+    """
+    _copie("K0550010", age_jours=200)
+    (cache.data_dir() / "cache.db").write_bytes(b"pas une base sqlite")
+    cache._con = None
+
+    with pytest.raises(cache.RegistreIndisponible):
+        cache.evict(90)
+    assert cache.chronicle_path("K0550010").exists()      # rien d'effacé
+
+    bilan = pool.passe(espacement=0)
+    assert "abandon" in bilan["eviction"]
+    assert bilan["rafraichies"] == 1                       # le reste tourne

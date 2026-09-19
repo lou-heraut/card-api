@@ -63,6 +63,19 @@ est en WAL, une transaction porte une ligne, et `mark_read` avale son
 échec. La direction de l'erreur est la bonne, une date perdue faisant
 évincer trop tôt, donc retélécharger, jamais rendre un résultat faux.
 
+**Le cache ne fait jamais échouer une demande.** C'est LA règle du module,
+et elle passe avant tout le reste : il est une accélération, jamais une
+dépendance. Disque plein, système de fichiers en lecture seule, droits
+changés, registre corrompu, fichier tronqué par un arrêt brutal : chaque
+fois, on renonce à garder ou à relire l'entrée, et on sert le résultat. On
+perd du temps, on ne perd ni la réponse ni sa justesse.
+
+Ce n'est pas une précaution abstraite : l'audit du 2026-09-19 a montré
+qu'un dossier non inscriptible faisait remonter une `PermissionError`
+jusqu'au client, sur chaque calcul. Le second étage écrit six cents entrées
+là où le premier en écrivait quelques-unes, si bien qu'une faute de ce
+genre est passée d'un incident rare à une panne générale.
+
 **L'écriture est atomique** : fichier temporaire puis renommage. Deux
 demandes simultanées sur la même entrée peuvent la calculer deux fois,
 c'est du gaspillage acceptable ; lire un fichier à moitié écrit ne l'est
@@ -115,6 +128,15 @@ CREATE TABLE IF NOT EXISTS lectures (
     n_acces        INTEGER NOT NULL
 )
 """
+
+class RegistreIndisponible(RuntimeError):
+    """Le registre des lectures ne répond pas.
+
+    L'éviction s'abstient alors, au lieu de se rabattre sur les dates de
+    fichier : effacer sur une information absente est la seule faute de ce
+    module qui coûterait plus qu'un recalcul.
+    """
+
 
 _verrou = threading.Lock()
 _con: sqlite3.Connection | None = None
@@ -287,7 +309,20 @@ def mark_read(station: str) -> None:
 
 
 def _ligne(station: str) -> tuple[float, int] | None:
-    return _ligne_cle(_CHRONIQUE + station)
+    return _ligne_sure(_CHRONIQUE + station)
+
+
+def _ligne_sure(cle: str) -> tuple[float, int] | None:
+    """Comme `_ligne_cle`, mais un registre muet se lit comme une absence.
+
+    Pour de la consultation (une date, un décompte), c'est le bon
+    comportement : personne ne doit tomber parce que le registre a un
+    problème. L'éviction, elle, passe par `_ligne_cle` et s'abstient.
+    """
+    try:
+        return _ligne_cle(cle)
+    except sqlite3.Error:
+        return None
 
 
 def last_read(station: str) -> str | None:
@@ -358,13 +393,19 @@ def load_series(cle: str) -> pd.DataFrame | None:
     sans quoi il serait relu éternellement : la série se recalcule, ce qui
     coûte du temps et non de la justesse.
     """
-    p = series_path(cle)
-    if not p.exists():
-        return None
     try:
+        p = series_path(cle)
+        if not p.exists():
+            return None
         df = pd.read_parquet(p)
     except Exception:
-        p.unlink(missing_ok=True)
+        # Fichier tronqué, illisible, ou dossier inaccessible : comme s'il
+        # n'était pas là. On efface ce qu'on peut effacer, sans quoi un
+        # fichier abîmé serait relu éternellement.
+        try:
+            series_path(cle).unlink(missing_ok=True)
+        except OSError:
+            pass
         _oublie_cle(_SERIE + cle)
         return None
     _marque_cle(_SERIE + cle)
@@ -385,14 +426,24 @@ def store_series(cle: str, df: pd.DataFrame) -> None:
     lit par ses colonnes, un index de tranche n'aurait aucun sens au
     retour.
     """
-    cible = series_path(cle)
-    tmp = cible.with_name(f".{cible.name}.{os.getpid()}.tmp")
+    tmp = None
     try:
+        cible = series_path(cle)
+        tmp = _temporaire(cible)
         df.reset_index(drop=True).to_parquet(tmp, index=False)
         os.replace(tmp, cible)
         _marque_cle(_SERIE + cle)
+    except Exception:
+        # Disque plein, lecture seule, droits changés : on renonce à garder
+        # cette entrée et la demande est servie quand même. Le cache est
+        # une accélération, pas une dépendance.
+        pass
     finally:
-        tmp.unlink(missing_ok=True)
+        if tmp is not None:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 # ── Les chroniques elles-mêmes ───────────────────────────────────────────────
@@ -435,6 +486,22 @@ def load_chronicle(station: str) -> pd.DataFrame | None:
     return df
 
 
+def _temporaire(cible: Path) -> Path:
+    """Le fichier temporaire d'une écriture atomique, dans le MÊME dossier
+    que sa cible : un renommage ne traverse pas deux systèmes de fichiers.
+
+    Le nom porte le processus ET le fil. Avec le seul processus, deux fils
+    qui écrivent la même clé en même temps ouvraient le même temporaire,
+    donc le tronquaient l'un pour l'autre, et la cible pouvait recevoir un
+    fichier illisible. Le sémaphore de calcul en laisse passer deux à la
+    fois, ce cas n'est donc pas théorique. Aucune réponse n'en serait
+    fausse, la relecture d'un fichier abîmé valant une absence, mais on
+    aurait payé un calcul pour rien et laissé une saleté sur le disque.
+    """
+    return cible.with_name(
+        f".{cible.name}.{os.getpid()}-{threading.get_ident()}.tmp")
+
+
 def cached_stations() -> list[str]:
     """Les stations dont une copie locale existe, triées.
 
@@ -457,13 +524,23 @@ def store_chronicle(station: str, df: pd.DataFrame) -> None:
     compression est demandée explicitement : pandas la déduit sinon du
     suffixe, que le nom temporaire n'a pas.
     """
-    cible = chronicle_path(station)
-    tmp = cible.with_name(f".{cible.name}.{os.getpid()}.tmp")
+    tmp = None
     try:
+        cible = chronicle_path(station)
+        tmp = _temporaire(cible)
         df.to_csv(tmp, index=False, compression="gzip")
         os.replace(tmp, cible)
+    except Exception:
+        # Même règle que pour les séries : ne pas pouvoir garder la copie
+        # n'empêche pas de servir la chronique qu'on a déjà en mémoire.
+        # Elle sera simplement retéléchargée la prochaine fois.
+        pass
     finally:
-        tmp.unlink(missing_ok=True)
+        if tmp is not None:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 # ── L'éviction ───────────────────────────────────────────────────────────────
@@ -485,6 +562,14 @@ def evict(jours: float) -> dict:
     seconde qui suit. La direction de l'erreur reste la bonne, on garde un
     peu trop plutôt que d'effacer ce qui sert.
     """
+    try:
+        _ligne_cle("sonde")
+    except sqlite3.Error as e:
+        # Sans registre, l'éviction n'a plus d'information sur les lectures
+        # et se rabattrait sur les dates de fichier, c'est-à-dire
+        # effacerait ce qui sert. Elle s'abstient et le dit.
+        raise RegistreIndisponible(str(e)) from e
+
     seuil = jours * 86400
     bilan = {"chroniques": 0, "series": 0}
     familles = (("chroniques", chronicles_dir(), "*.csv.gz", ".csv.gz",

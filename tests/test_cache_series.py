@@ -16,6 +16,7 @@ incomplète rend des résultats faux, en silence.
 
 import datetime as dt
 import json
+import stat
 
 import pandas as pd
 import pytest
@@ -280,3 +281,51 @@ def test_le_journal_ne_ment_pas_quand_l_etage_est_eteint(monkeypatch,
     client.get("/v1/extract", params={"stations": "K0550010", "cards": "QA"})
     ligne = [x for x in _journal() if x.get("endpoint") == "extract"][0]
     assert "cache_hits" not in ligne and "cache_miss" not in ligne
+
+
+# ── Le cache ne doit jamais faire échouer une demande ────────────────────────
+#
+# Trouvé à l'audit du 2026-09-19 : sans ces gardes, un dossier non
+# inscriptible faisait remonter une PermissionError jusqu'au client, sur
+# CHAQUE calcul. Le second étage écrit six cents entrées là où le premier en
+# écrivait quelques-unes, si bien qu'une faute de ce genre passe d'un
+# incident rare à une panne générale.
+
+def test_une_ecriture_impossible_ne_casse_pas_la_demande(etage2):
+    """Disque plein, lecture seule, droits changés : trois causes, un seul
+    symptôme, et la réponse est la même. On renonce à garder, on sert."""
+    cache.series_dir().chmod(stat.S_IRUSR | stat.S_IXUSR)
+    try:
+        r = client.get("/v1/extract", params={"stations": "K0550010",
+                                              "cards": "QA"})
+        assert r.status_code == 200
+        assert r.json()["data"]["QA"]
+    finally:
+        cache.series_dir().chmod(stat.S_IRWXU)
+
+
+def test_un_registre_illisible_ne_casse_pas_la_demande(etage2):
+    """Le registre sert l'éviction, pas la justesse : s'il ne répond plus,
+    la demande n'a aucune raison d'en souffrir."""
+    cache.data_dir().joinpath("cache.db").write_bytes(b"pas une base sqlite")
+    cache._con = None                       # forcer une reconnexion
+    r = client.get("/v1/extract", params={"stations": "K0550010",
+                                          "cards": "QA"})
+    assert r.status_code == 200
+    assert cache.last_read("K0550010") is None      # illisible = absence
+    assert cache.read_count("K0550010") == 0
+
+
+def test_la_bascule_de_moyenne_mobile_change_la_cle(monkeypatch):
+    """`CARD_ROLL_COMPAT=rcpp` change la moyenne mobile de card, donc VCN10
+    et tout ce qui en découle, et card la lit au moment du CALCUL.
+
+    L'identité de construction ne la couvre pas : la même image redémarrée
+    avec une autre valeur donnerait d'autres résultats sous les mêmes clés.
+    Trouvé à l'audit du 2026-09-19, et c'est le cas même que la règle de la
+    clé vise : une clé incomplète rend des résultats faux en silence.
+    """
+    monkeypatch.delenv("CARD_ROLL_COMPAT", raising=False)
+    normale = pipeline.cle_serie(**BASE)
+    monkeypatch.setenv("CARD_ROLL_COMPAT", "rcpp")
+    assert pipeline.cle_serie(**BASE) != normale

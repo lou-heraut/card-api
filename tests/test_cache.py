@@ -6,6 +6,7 @@ fichiers.
 
 import gzip
 import os
+import threading
 import time
 
 import pandas as pd
@@ -232,3 +233,37 @@ def test_une_copie_d_un_format_plus_ancien_n_est_pas_servie(monkeypatch,
     assert cache.cached_stations() == ["K0550010"]   # mais à rafraîchir
     assert cache.evict(10_000)["chroniques"] == 1    # et effacée d'office
     assert not ancienne.exists()
+
+
+def test_deux_fils_n_ecrivent_pas_dans_le_meme_temporaire(monkeypatch,
+                                                          tmp_path):
+    """Le sémaphore de calcul laisse passer deux demandes à la fois, et
+    elles peuvent porter sur la même entrée.
+
+    Avec un temporaire nommé du seul processus, les deux fils ouvraient le
+    même fichier, donc le tronquaient l'un pour l'autre, et la cible
+    pouvait recevoir un parquet illisible. Aucune réponse n'en serait
+    fausse, un fichier abîmé se relisant comme une absence, mais on aurait
+    payé un calcul pour rien.
+    """
+    monkeypatch.setenv("CARD_API_DATA", str(tmp_path))
+    cible = cache.series_path("meme-cle")
+    noms = []
+    # Les quatre fils doivent être VIVANTS en même temps : l'identifiant de
+    # fil est unique parmi les vivants et se recycle ensuite, ce qui est
+    # exactement la garantie dont l'écriture a besoin. Sans barrière, les
+    # fils mouraient trop vite et deux d'entre eux recevaient le même
+    # identifiant, ce qui ne prouvait rien.
+    barriere = threading.Barrier(4)
+
+    def prend_un_nom():
+        barriere.wait()
+        noms.append(cache._temporaire(cible).name)
+
+    fils = [threading.Thread(target=prend_un_nom) for _ in range(4)]
+    for f in fils:
+        f.start()
+    for f in fils:
+        f.join()
+    assert len(set(noms)) == 4                  # un par fil vivant
+    assert all(n.endswith(".tmp") for n in noms)
