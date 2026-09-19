@@ -4,10 +4,12 @@
 > en sort et devient une entrée de `CHANGELOG.md`, à la racine du dépôt,
 > qui renvoie au document expliquant le détail.
 
-# CHANTIERS : pistes ouvertes du service (mise à jour 2026-07-29)
+# CHANTIERS : pistes ouvertes du service (mise à jour 2026-09-19)
 
-Il n'en reste qu'une. Ce qui a quitté ce fichier le 2026-07-29 est parti
-dans le document qui en porte la matière, pas à la corbeille :
+Deux entrées, et aucune n'est un chantier à mener : la première renvoie au
+document qui porte ce qui reste du cache, la seconde est un objectif de fond.
+Ce qui a quitté ce fichier le 2026-07-29 est parti dans le document qui en
+porte la matière, pas à la corbeille :
 
 - le **thème de `/docs`** est refermé. Le bouton « Télécharger » a été
   repris par l'utilisateur, la fenêtre « Authorize » a été vérifiée. Le
@@ -25,15 +27,20 @@ dans le document qui en porte la matière, pas à la corbeille :
   chaque écriture n'est pas un chantier qu'on finira un jour : c'est une
   règle, et sa place est là où on lit les règles.
 
-## Ce qui manque pour qu'un client puisse dépendre du service
+## Le cache, et ce qu'il reste après lui
 
-Instruit le 2026-09-18 depuis l'audit de migration de MAKAHO : la période
-transmise au moteur, la fraîcheur réglable par requête, la règle de la
-chronique entière, le pool qui se garde chaud, le second étage de
-cache, le plafond synchrone, la chronique journalière exposée, le nombre
-de points de la tendance.
+Le chantier « ce qui manque pour qu'un client puisse dépendre du service »,
+instruit le 2026-09-18 depuis l'audit de migration de MAKAHO, est
+**entièrement livré** (service 0.5.0 à 0.8.0, moteur 0.6.5) : il a quitté ce
+fichier pour `CHANGELOG.md`, qui dit quand chaque morceau est tombé, et
+`PLAN_CACHE.md`, qui garde les mesures et les raisons.
 
-Tout est dans `PLAN_CACHE.md`, et rien n'en est recopié ici.
+Ce qui reste ouvert est dans **`PLAN_CACHE_SUITE.md`**, écrit après l'audit
+du 2026-09-19 : ne plus relire la chronique pour signer (chiffré, non
+décidé), faire surveiller le pool par la sonde (une question de forme à
+trancher), et le plafond des demandes à froid, taillé sur une mesure de
+juillet que la réalité a démentie d'un facteur dix à vingt. Rien n'en est
+recopié ici, et chaque chantier y porte son état.
 
 ## Rendre le catalogue lisible, pas seulement exact
 

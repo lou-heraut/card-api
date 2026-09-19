@@ -1,10 +1,19 @@
-> **Statut : plan de chantier, ouvert.** Ce qui reste du cache APRÈS que
-> `PLAN_CACHE.md` a été entièrement livré (service 0.5.0 à 0.7.0, moteur
-> 0.6.5). Il ne redit rien de ce document : les mesures qui ont commandé
-> l'architecture, la règle de la clé et ce qui a été vérifié dans le moteur
-> sont là-bas. Ici, ce que l'audit du 2026-09-19 a trouvé, et les quatre
-> questions qu'il a laissées ouvertes. Ce qui est livré en sort et devient
+> **Statut : plan de chantier, trois restes ouverts** au 2026-09-19. Ce qui
+> reste du cache APRÈS que `PLAN_CACHE.md` a été entièrement livré (service
+> 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
+> mesures qui ont commandé l'architecture, la règle de la clé et ce qui a
+> été vérifié dans le moteur sont là-bas. Ici, ce que l'audit du 2026-09-19
+> a trouvé, et ce qu'il a laissé ouvert. Ce qui est livré en sort et devient
 > une entrée de `CHANGELOG.md`.
+>
+> | chantier | état |
+> |---|---|
+> | B1, évincer par la place | **livré** le 2026-09-19 |
+> | B2a, les chroniques en Parquet | **livré**, card-api 0.8.0 |
+> | B2b, ne plus relire la chronique | ouvert, chiffré, **non décidé** |
+> | B3, faire surveiller le pool | ouvert, une question de forme à trancher |
+> | B4, l'indépendance par station | **refermé**, c'est une propriété du moteur |
+> | B5, le plafond des demandes à froid | ouvert, **à remesurer d'abord** |
 
 # Ce qui reste du cache, après l'audit
 
@@ -18,19 +27,21 @@ l'éviction pouvait effacer sur une information absente, deux fils pouvaient
 écrire dans le même fichier temporaire, et un ingrédient manquait à la clé
 (`CARD_ROLL_COMPAT`).
 
-Ce qui reste est de quatre natures différentes, et il faut les distinguer :
-**une décision prise dont le seuil est à fixer** (B1), **une question
-d'architecture mal posée au départ et qu'il faut reprendre** (B2), **un
-besoin d'exploitation à instruire** (B3), et **une garantie à mesurer plus
-large** (B4).
+Ce qui en est sorti est de natures différentes, et les distinguer évite de
+tout traiter avec la même urgence : **une décision prise dont le seuil était
+à fixer** (B1, livré), **une question mal posée au départ qu'il a fallu
+reprendre** (B2, dont la première moitié est livrée et corrige une faute de
+justesse), **un besoin d'exploitation à instruire** (B3), **une garantie à
+mesurer plus large** (B4, refermée par un argument structurel), et **un
+plafond taillé sur une mesure périmée**, trouvé en chemin et qui ne concerne
+pas le cache mais le routage (B5).
 
-## B1. Évincer par la place, pas seulement par le temps
+## B1. Évincer par la place : livré le 2026-09-19
 
-**Décidé : à faire.** L'éviction actuelle est temporelle, elle efface ce que
-personne n'a lu depuis quatre-vingt-dix jours. Rien ne borne donc la TAILLE
-du cache : si l'usage explose, le disque se remplit avant que la première
-entrée ne devienne évinçable. C'est visible dans `/v1/health` et dans
-`make stats`, ce n'est pas borné.
+L'éviction était temporelle, elle effaçait ce que personne n'avait lu depuis
+quatre-vingt-dix jours. Rien ne bornait donc la TAILLE du cache : si l'usage
+explose, le disque se remplit avant que la première entrée ne devienne
+évinçable.
 
 ### La règle
 

@@ -10,15 +10,19 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
 - `docs/dev/API.md` : conception et arbitrages (accès public sans clé,
   quotas IP, journal anonymisé, aspect commercial écarté).
 - `docs/dev/CHANTIERS.md` : pistes ouvertes du service, seulement.
-- `docs/dev/PLAN_CACHE.md` : ce qui manque pour qu'un client puisse
-  dépendre du service, chantier par chantier, avec la décision retenue et
-  la mesure qui la fonde. Porte aussi la règle de la clé de cache (une
-  clé trop complète ne coûte que des recalculs, une clé incomplète rend
-  des résultats faux en silence) et ce qui a été vérifié dans le moteur
-  pour l'écrire. **Chaque chantier y porte son état**, livré ou non, et
-  l'ordre de livraison est en fin de document : ne pas se fier à un
-  souvenir de ce qui restait, le `CHANGELOG.md` dit quand chacun est
-  tombé.
+- `docs/dev/PLAN_CACHE.md` : le cache à deux étages, **entièrement livré**
+  (0.5.0 à 0.7.0). Le document reste pour ce qu'il est seul à porter : les
+  MESURES qui ont commandé chaque décision, la règle de la clé (une clé
+  trop complète ne coûte que des recalculs, une clé incomplète rend des
+  résultats faux en silence, donc tout paramètre ajouté à l'extraction y
+  entre le même jour), ce qui a été vérifié dans le moteur avant d'écrire,
+  et les endroits où une mesure a contredit une intuition. Chaque chantier
+  y porte son état.
+- `docs/dev/PLAN_CACHE_SUITE.md` : ce qui reste du cache APRÈS cet audit du
+  2026-09-19, chantier par chantier avec son état, plus ce qu'il ne faut
+  pas faire et pourquoi. C'est là qu'on regarde avant de toucher au cache,
+  pas dans un souvenir : trois restes ouverts, dont le plafond des demandes
+  à froid qui est taillé sur une mesure périmée d'un facteur dix à vingt.
 - Ménage documentaire : la procédure est commune aux trois dépôts et vit
   dans `../card/docs/dev/NETTOYAGE.md`, avec l'état de la campagne en
   cours. Rien à en recopier ici.
