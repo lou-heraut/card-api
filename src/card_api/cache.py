@@ -63,10 +63,26 @@ est en WAL, une transaction porte une ligne, et `mark_read` avale son
 échec. La direction de l'erreur est la bonne, une date perdue faisant
 évincer trop tôt, donc retélécharger, jamais rendre un résultat faux.
 
-**L'écriture des chroniques est atomique** : fichier temporaire puis
-renommage. Deux demandes simultanées sur la même station peuvent
-télécharger deux fois, c'est du gaspillage acceptable ; lire un fichier à
-moitié écrit ne l'est pas.
+**L'écriture est atomique** : fichier temporaire puis renommage. Deux
+demandes simultanées sur la même entrée peuvent la calculer deux fois,
+c'est du gaspillage acceptable ; lire un fichier à moitié écrit ne l'est
+pas.
+
+**Deux étages.** Le premier garde la matière première, la chronique
+journalière ; le second garde le PRODUIT, la série annuelle déjà agrégée,
+sous une clé qui énumère tout ce qui a pu influencer sa valeur (cf.
+`pipeline.cle_serie`). L'agrégation était repayée à chaque demande, même
+tout en cache, et derrière le sémaphore : mesuré le 2026-09-19 sur 200
+stations, 2,4 s pour `QA` et 35 s pour `dtLF`.
+
+Les séries sont en **Parquet**, et c'est un choix mesuré contre le CSV
+compressé : seul Parquet rend le cadre IDENTIQUE, types compris. Un CSV
+relu perd le dernier bit des flottants, et surtout il ne sait pas qu'une
+variable de DATE est une date : `tQJXA` part en `Int64` et revient en
+`float64`, si bien qu'une réponse servie par le cache différerait d'une
+réponse calculée, en silence. Le prix est connu et assumé : un paquet de
+plus (~150 Mo dans l'image) et des fichiers de 4 Kio au lieu de 700
+octets, soit moins d'un mégaoctet pour une vue MAKAHO entière.
 """
 
 import datetime as dt
@@ -86,10 +102,11 @@ import pandas as pd
 # plus souvent que ce défaut.
 MAX_AGE_DAYS = float(os.environ.get("CARD_API_MAX_AGE_DAYS", 30))
 
-# Préfixe de clé du registre. Le second étage de cache aura le sien, si
-# bien que les deux familles cohabiteront dans la même table sans pouvoir
-# se confondre.
+# Préfixes de clé du registre : les deux familles d'entrées cohabitent
+# dans la même table sans pouvoir se confondre, et l'éviction les traite
+# de la même façon puisque c'est la même question.
 _CHRONIQUE = "chronique:"
+_SERIE = "serie:"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS lectures (
@@ -193,6 +210,46 @@ def _connexion() -> sqlite3.Connection:
     return _con
 
 
+def _marque_cle(cle: str) -> None:
+    """Note qu'une entrée du registre vient d'être servie.
+
+    L'échec est avalé, et la direction de l'erreur est la bonne : sans
+    date, l'entrée passe pour n'avoir jamais été lue, donc sort du cache
+    plus tôt. On repaie un calcul, on ne rend rien de faux.
+    """
+    try:
+        with _verrou:
+            con = _connexion()
+            con.execute(
+                "INSERT INTO lectures (cle, dernier_acces, n_acces) "
+                "VALUES (?, ?, 1) "
+                "ON CONFLICT(cle) DO UPDATE SET "
+                "  dernier_acces = excluded.dernier_acces, "
+                "  n_acces = n_acces + 1",
+                (cle, time.time()))
+            con.commit()
+    except sqlite3.Error:
+        pass
+
+
+def _ligne_cle(cle: str) -> tuple[float, int] | None:
+    with _verrou:
+        cur = _connexion().execute(
+            "SELECT dernier_acces, n_acces FROM lectures WHERE cle = ?",
+            (cle,))
+        return cur.fetchone()
+
+
+def _oublie_cle(cle: str) -> None:
+    try:
+        with _verrou:
+            con = _connexion()
+            con.execute("DELETE FROM lectures WHERE cle = ?", (cle,))
+            con.commit()
+    except sqlite3.Error:
+        pass
+
+
 def mark_read(station: str) -> None:
     """Note que quelqu'un vient de DEMANDER cette chronique.
 
@@ -205,27 +262,11 @@ def mark_read(station: str) -> None:
     date, l'entrée passe pour n'avoir jamais été lue, donc sort du cache
     plus tôt. On repaie un téléchargement, on ne rend rien de faux.
     """
-    try:
-        with _verrou:
-            con = _connexion()
-            con.execute(
-                "INSERT INTO lectures (cle, dernier_acces, n_acces) "
-                "VALUES (?, ?, 1) "
-                "ON CONFLICT(cle) DO UPDATE SET "
-                "  dernier_acces = excluded.dernier_acces, "
-                "  n_acces = n_acces + 1",
-                (_CHRONIQUE + station, time.time()))
-            con.commit()
-    except sqlite3.Error:
-        pass
+    _marque_cle(_CHRONIQUE + station)
 
 
 def _ligne(station: str) -> tuple[float, int] | None:
-    with _verrou:
-        cur = _connexion().execute(
-            "SELECT dernier_acces, n_acces FROM lectures WHERE cle = ?",
-            (_CHRONIQUE + station,))
-        return cur.fetchone()
+    return _ligne_cle(_CHRONIQUE + station)
 
 
 def last_read(station: str) -> str | None:
@@ -264,14 +305,73 @@ def forget(station: str) -> None:
     Sans cela le registre garderait la trace d'entrées qui n'existent
     plus, et son décompte cesserait de décrire le cache.
     """
+    _oublie_cle(_CHRONIQUE + station)
+
+
+# ── Le second étage : les séries déjà agrégées ───────────────────────────────
+
+def series_dir() -> Path:
+    """Dossier des séries annuelles déjà calculées."""
+    d = data_dir() / "series"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def series_path(cle: str) -> Path:
+    """Emplacement d'une série, nommée par sa clé.
+
+    La clé étant une empreinte de tout ce qui a pu influencer la valeur,
+    un changement d'ingrédient donne un autre nom de fichier : l'ancienne
+    entrée n'est plus demandée, donc plus lue. L'invalidation ne demande
+    aucun code, c'est l'éviction qui ramasse (`read_age`).
+    """
+    return series_dir() / f"{cle}.parquet"
+
+
+def load_series(cle: str) -> pd.DataFrame | None:
+    """La série déjà calculée pour cette clé, ou None si elle manque.
+
+    Une lecture est NOTÉE au registre, comme pour une chronique : c'est ce
+    que l'éviction attend. Un fichier illisible (écriture interrompue par
+    un arrêt brutal, disque abîmé) est traité comme absent et EFFACÉ,
+    sans quoi il serait relu éternellement : la série se recalcule, ce qui
+    coûte du temps et non de la justesse.
+    """
+    p = series_path(cle)
+    if not p.exists():
+        return None
     try:
-        with _verrou:
-            con = _connexion()
-            con.execute("DELETE FROM lectures WHERE cle = ?",
-                        (_CHRONIQUE + station,))
-            con.commit()
-    except sqlite3.Error:
-        pass
+        df = pd.read_parquet(p)
+    except Exception:
+        p.unlink(missing_ok=True)
+        _oublie_cle(_SERIE + cle)
+        return None
+    _marque_cle(_SERIE + cle)
+    return df
+
+
+def store_series(cle: str, df: pd.DataFrame) -> None:
+    """Garde une série calculée, de façon atomique.
+
+    L'écriture note aussi une lecture : la série vient d'être calculée
+    POUR quelqu'un, et sans cette note elle passerait pour n'avoir jamais
+    été demandée, donc sortirait du cache avant d'avoir servi. Rien ne
+    réécrit une série dans le dos d'une demande, contrairement aux
+    chroniques que le pool rafraîchit, donc il n'y a pas ici de second
+    chemin à distinguer.
+
+    L'index n'est pas conservé : une série s'identifie par sa clé et se
+    lit par ses colonnes, un index de tranche n'aurait aucun sens au
+    retour.
+    """
+    cible = series_path(cle)
+    tmp = cible.with_name(f".{cible.name}.{os.getpid()}.tmp")
+    try:
+        df.reset_index(drop=True).to_parquet(tmp, index=False)
+        os.replace(tmp, cible)
+        _marque_cle(_SERIE + cle)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 # ── Les chroniques elles-mêmes ───────────────────────────────────────────────

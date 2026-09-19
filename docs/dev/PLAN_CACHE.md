@@ -341,12 +341,28 @@ donc gratuit, alors qu'il relance aujourd'hui toute l'agrégation.
   (station, fiche) dans le cache, ne calculer que les manquants, et
   réassembler. Le réassemblage doit rendre exactement ce qu'un calcul
   complet aurait rendu.
-- **Le format de stockage.** Ni pyarrow ni fastparquet ne sont installés,
-  et les ajouter pour cela serait cher. Le repli est le format déjà
-  éprouvé pour les chroniques, CSV compressé avec les types déclarés à la
-  relecture, à condition de prouver que l'aller-retour est exact au bit
-  près : la parité MAKAHO est tenue à 1e-12, on ne peut pas se permettre
-  une perte de précision à l'écriture.
+- **Le format de stockage : tranché le 2026-09-19, et pas comme prévu.**
+  Ce plan écartait Parquet, faute de pyarrow installé, et retenait le CSV
+  compressé « à condition de prouver que l'aller-retour est exact au bit
+  près ». La preuve a été faite, et elle dit non. Sur une série de 58
+  valeurs :
+
+  | format | taille | aller-retour |
+  |---|---|---|
+  | CSV gz, lecture par défaut | 690 o | **1 ulp perdu** sur 15 valeurs |
+  | CSV gz, lecture `round_trip` | 690 o | flottants exacts, **types perdus** |
+  | Parquet | 4 285 o | cadre **identique**, types compris |
+
+  Le point décisif n'est pas la précision, qu'une option de lecture
+  répare, c'est que **le CSV ne sait pas qu'une variable de DATE est une
+  date** : `tQJXA` part en `Int64` et revient en `float64`. Une réponse
+  servie par le cache différerait alors d'une réponse calculée (`1990`
+  contre `1990.0`), en silence, ce qui est exactement ce que ce chantier
+  ne doit pas produire. Restaurer les types demanderait de transporter un
+  schéma par fiche, c'est-à-dire de réécrire à la main ce que Parquet
+  fait. Le prix est donc accepté : un paquet de plus, ~150 Mo dans
+  l'image, et 4 Kio par entrée au lieu de 700 octets, soit moins d'un
+  mégaoctet pour une vue MAKAHO entière.
 - **L'écriture doit être atomique** (fichier temporaire puis renommage),
   sinon une lecture concurrente peut tomber sur un fichier à moitié
   écrit. Deux demandes identiques simultanées peuvent calculer deux fois,
@@ -554,8 +570,24 @@ donne les faits.
 
 ## Mesures faites pour écrire ce plan
 
-Toutes le 2026-09-18, sur le corpus et le code du jour. Elles ne sont pas
-tenues à jour : elles disent sur quoi les décisions reposent.
+Elles ne sont pas tenues à jour : elles disent sur quoi les décisions
+reposent. Sauf mention contraire, elles datent du 2026-09-18.
+
+**Ce que le second étage achète, mesuré le 2026-09-19** à l'échelle d'une
+vue MAKAHO, 200 stations, 57 ans de chronique journalière simulée :
+
+| fiche | 200 stations | par station |
+|---|---|---|
+| `QA` | 2,4 s | 12 ms |
+| `VCN10` | 5,2 s | 26 ms |
+| `dtLF` | **35,4 s** | 177 ms |
+
+L'ordre de grandeur du plan (~40 ms par station) était donc juste pour
+les fiches simples et **quatre fois trop bas pour la famille des
+étiages**, dont le seuil se calcule sur toute la période. C'est repayé à
+chaque changement de variable, derrière le sémaphore, donc par tout le
+monde à la fois. Le second étage vaut d'autant plus qu'il ne dépend
+d'aucun réseau : il rend cette dépense nulle au second appel.
 
 - **21 fiches `output: series` sur 99** ont une valeur qui dépend de la
   fenêtre d'extraction entière : `fQ01A`, `fQ05A`, `fQ10A` (seuil pris

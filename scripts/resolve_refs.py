@@ -28,6 +28,7 @@ quota GitHub) donne `null` : le service démarre quand même, il annoncera
 seulement le numéro de version.
 """
 
+import datetime as dt
 import json
 import os
 import urllib.request
@@ -55,6 +56,16 @@ def main():
     for key, repo in (("card", "card"), ("stase", "stase")):
         ref = os.environ.get(f"{key.upper()}_REF")
         out[key] = {"ref": ref, "commit": resolve(repo, ref)}
+    # L'instant de construction identifie l'image ENTIÈRE, dépendances
+    # comprises, sans avoir à les énumérer : une reconstruction tire
+    # peut-être un numpy plus récent, ou change la valeur d'une bascule
+    # d'environnement, deux choses qui modifient un résultat sans
+    # modifier un commit. C'est ce qui entre dans la clé du second étage
+    # de cache, et c'est aussi le seul ingrédient d'identité qui ne
+    # peut pas échouer : il s'écrit localement, sans réseau, là où la
+    # résolution des commits peut rendre `null`.
+    out["built_at"] = (dt.datetime.now(dt.timezone.utc)
+                       .replace(microsecond=0).isoformat())
     print(json.dumps(out))
 
 

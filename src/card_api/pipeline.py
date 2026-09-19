@@ -39,6 +39,7 @@ attrapé les quatre divergences.
 """
 
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -109,18 +110,19 @@ ORIENT_DEFAUT = "records"
 # le dit à card par `CARD_COMMIT` / `STASE_COMMIT`, que la résolution de
 # card lit en premier. Une seule règle de résolution existe donc, la
 # sienne, et le service n'apporte que ce que lui seul sait.
-def _build_refs():
+def _build_refs() -> dict:
     path = os.environ.get("CARD_API_BUILD_REFS", "/app/build_refs.json")
     try:
         with open(path, encoding="utf-8") as f:
-            refs = json.load(f)
-        return (refs.get("card", {}).get("commit"),
-                refs.get("stase", {}).get("commit"))
+            return json.load(f)
     except Exception:
-        return None, None
+        return {}
 
 
-for _cle, _commit in zip(("CARD", "STASE"), _build_refs()):
+_REFS = _build_refs()
+
+for _cle, _nom in (("CARD", "card"), ("STASE", "stase")):
+    _commit = _REFS.get(_nom, {}).get("commit")
     if _commit and not os.environ.get(f"{_cle}_COMMIT"):
         os.environ[f"{_cle}_COMMIT"] = _commit
 
@@ -141,6 +143,99 @@ try:
     API_VERSION = _pkg_version("card-api")
 except Exception:                                    # exécution hors install
     API_VERSION = "dev"
+
+# Identité de la CONSTRUCTION de l'image, ingrédient de la clé du second
+# étage de cache. Deux choses changent un résultat sans changer un
+# commit : la bascule `CARD_ROLL_COMPAT`, documentée dans l'ORIGINE_R.md
+# de card, qui modifie la moyenne mobile donc VCN10 et tout ce qui en
+# découle ; et une reconstruction qui tire un numpy ou un pandas plus
+# récent. L'instant de construction les couvre toutes les deux d'un coup,
+# sans rien avoir à énumérer, et il s'écrit sans réseau donc ne peut pas
+# manquer dans une image.
+#
+# ABSENT, le second étage est DÉSACTIVÉ, jamais dégradé : une clé amputée
+# d'un ingrédient ferait collisionner deux états différents du code, ce
+# qui rendrait des résultats faux sans que personne ne le voie. C'est le
+# cas en développement, où il n'y a pas d'image du tout.
+_BUILT_AT = _REFS.get("built_at")
+BUILD_ID = (None if not _BUILT_AT
+            else f"{_BUILT_AT}|{CARD_COMMIT}|{STASE_COMMIT}")
+
+# SWHID des fiches employées, mémorisé : le corpus ne bouge pas pendant
+# la vie du processus, l'image installant une révision de card et une
+# seule.
+_swhids: dict[str, str] = {}
+
+
+def swhid_de_fiche(fiche: str) -> str:
+    """Le SWHID du FICHIER de fiche, qui identifie sa définition exacte.
+
+    Une version de fiche se bosse à la main, un SWHID non : c'est le hash
+    du contenu du YAML, donc deux définitions différentes ne peuvent pas
+    le partager. Il voyage déjà dans les métadonnées, colonne `swhid`, et
+    s'obtient sans données.
+    """
+    if fiche not in _swhids:
+        meta = card.extract(None, cards=[fiche], metadata_only=True,
+                            verbose=False)["meta"]
+        _swhids[fiche] = str(meta["swhid"].iloc[0])
+    return _swhids[fiche]
+
+
+def cle_serie(station: str, empreinte: str, fiche: str,
+              start, end, sampling, build: str) -> str:
+    """La clé d'une série dans le second étage de cache.
+
+    **La règle qui commande tout** : une clé trop complète ne coûte que
+    des recalculs, une clé incomplète rend des résultats faux, en
+    silence, et personne ne le voit. On énumère donc tout ce qui peut
+    influencer une valeur, et dans le doute on ajoute. Tout paramètre
+    ajouté un jour à l'extraction entre dans la clé le même jour.
+
+    Les ingrédients, et pourquoi chacun :
+
+    - `station`, parce que l'extraction est indépendante d'une station à
+      l'autre, ce qui est mesuré et ce qui rend une entrée par station
+      légitime ;
+    - `empreinte`, la révision Hub'Eau de CETTE chronique : Hub'Eau
+      révise n'importe quel point de l'historique, pas seulement la queue
+      récente ;
+    - `fiche` et son `swhid`, la définition exacte du calcul ;
+    - `start` et `end` **tels que demandés**, parce que 21 fiches
+      `output: series` sur 99 ont une valeur qui dépend de la fenêtre
+      entière (les seuils d'étiage, pris sur toute la période). Tels que
+      DEMANDÉS et non tels qu'appliqués : une fin absente devient la
+      dernière date du LOT, si bien qu'une clé prise sur la valeur
+      effective dépendrait des autres stations de la demande. Une fin
+      absente est donc gardée absente, et la fin réelle est celle de la
+      chronique, déjà identifiée par son empreinte ;
+    - `sampling` tel que demandé, **jamais normalisé** : absent,
+      `preferred` et `MM-JJ` sont trois choses différentes pour une fiche
+      à fenêtre adaptative. Mesuré, `dtLF` rend 42 lignes sans paramètre
+      et 41 avec `preferred` ;
+    - `build`, l'identité de construction de l'image (cf. `BUILD_ID`).
+
+    Ce qui reste DEHORS, et c'est tout l'intérêt : `level`, `mk`,
+    `series`, `orient`, `stations_meta`. Ils ne touchent que le test ou
+    la mise en forme, si bien que déplacer le curseur de signification
+    devient gratuit alors qu'il relançait toute l'agrégation.
+
+    Le nom porte la fiche et la station en clair devant l'empreinte : ce
+    ne sont pas des secrets, et `ls data/series` devient lisible au lieu
+    d'être un mur de hachages. L'empreinte, elle, couvre TOUT, y compris
+    ces deux-là.
+    """
+    brut = "\n".join([
+        f"station={station}",
+        f"empreinte={empreinte}",
+        f"fiche={fiche}",
+        f"swhid={swhid_de_fiche(fiche)}",
+        f"start={start}",
+        f"end={end}",
+        f"sampling={sampling}",
+        f"build={build}",
+    ])
+    return f"{fiche}-{station}-{hashlib.sha256(brut.encode()).hexdigest()}"
 
 
 def versions():

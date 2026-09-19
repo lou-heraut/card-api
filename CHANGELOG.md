@@ -41,6 +41,38 @@ des deux endroits.
 
 ## Non publié
 
+### Ajouté
+
+- **Les fondations du second étage de cache (2026-09-19).** Rien ne change
+  encore pour un client : la clé et le magasin existent, personne ne les
+  emploie. Ils sont livrés seuls parce que c'est la partie où une erreur
+  serait invisible.
+
+  `pipeline.cle_serie` énumère tout ce qui peut influencer une série :
+  station, empreinte de la chronique, fiche et SWHID de son fichier,
+  période et fenêtre d'échantillonnage **telles que demandées**, et
+  identité de construction de l'image. Restent dehors `level`, `mk`,
+  `series`, `orient` et `stations_meta`, qui ne touchent que le test ou la
+  mise en forme : déplacer le curseur de signification deviendra gratuit
+  alors qu'il relance aujourd'hui toute l'agrégation. Un test énumère les
+  ingrédients, de sorte qu'un paramètre ajouté demain sans entrer dans la
+  clé le casse. `scripts/resolve_refs.py` écrit désormais l'instant de
+  construction, seul ingrédient d'identité qui ne peut pas échouer, et
+  sans lui le second étage sera **désactivé, jamais dégradé**.
+
+  Le magasin est en **Parquet**, contre ce que ce plan avait écrit, et la
+  mesure a renversé la décision : un CSV relu perd le dernier bit des
+  flottants, et surtout il ne sait pas qu'une variable de DATE est une
+  date, si bien que `tQJXA` reviendrait en `float64` et qu'une réponse
+  servie par le cache différerait d'une réponse calculée, en silence. Le
+  service dépend donc de `pyarrow` (~150 Mo dans l'image, 4 Kio par
+  entrée au lieu de 700 octets). Détail et chiffres dans
+  `docs/dev/PLAN_CACHE.md` (A5).
+
+  Ce que le chantier achète, mesuré à l'échelle d'une vue MAKAHO (200
+  stations) : 2,4 s pour `QA`, 5,2 s pour `VCN10`, **35,4 s pour `dtLF`**,
+  repayés à chaque demande derrière le sémaphore.
+
 ### Corrigé
 
 - **Un job ne survit plus au test qui l'a lancé (2026-09-19).** Rien ne

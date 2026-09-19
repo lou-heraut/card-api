@@ -14,6 +14,16 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "httpx",
+    # Parquet pour le second étage de cache, mesuré le 2026-09-19 sur une
+    # série de 58 valeurs : c'est le seul format qui rende le cadre
+    # IDENTIQUE, types compris. Un CSV relu perd le dernier bit des
+    # flottants (1 ulp, sauf lecture `round_trip`) et surtout ne sait pas
+    # qu'une variable de DATE est une date : `tQJXA` repart en Int64 et
+    # revient en float64, donc une réponse servie par le cache
+    # différerait d'une réponse calculée, en silence. Le prix est connu :
+    # ~150 Mo dans l'image, et des fichiers de 4 Kio au lieu de 700 o
+    # (soit moins d'un mégaoctet pour une vue MAKAHO entière).
+    "pyarrow",
     # card et stase : installés depuis GitHub à révision épinglée
     # (cf. Dockerfile) tant qu'ils ne sont pas sur PyPI.
 ]
