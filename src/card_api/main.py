@@ -474,9 +474,9 @@ app = FastAPI(
                     "soumis aux quotas par IP. Avec elle, les quotas "
                     "sont levés, les plafonds relevés, les jobs passent "
                     "en tête de file et `GET /v1/jobs` liste les vôtres. "
-                    "Elle se demande par une issue du dépôt, elle ne "
-                    "s'achète pas. Coller le jeton tel quel, sans "
-                    "préfixe.")),
+                    "Elle se demande par courriel (lien en tête de "
+                    "page), elle ne s'achète pas. Coller le jeton tel "
+                    "quel, sans préfixe.")),
         # Vaut pour TOUTES les routes : un contrat qui annonce ses
         # paramètres doit refuser ceux qu'il n'annonce pas, sinon il
         # n'annonce rien.

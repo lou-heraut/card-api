@@ -243,6 +243,17 @@ def test_la_description_garde_sa_prose_et_ses_liens_a_part():
     assert desc.count("mailto:") >= 2, "signaler ET demander une clé"
 
 
+def test_la_fenetre_authorize_renvoie_au_courriel():
+    """La fenêtre « Authorize » a sa PROPRE description, celle du schéma de
+    sécurité, que le test ci-dessus ne lit pas. Elle a continué d'envoyer
+    vers « une issue du dépôt » du 2026-07-29, retrait du gabarit, au
+    2026-10-11."""
+    schemas = client.get("/openapi.json").json()["components"]["securitySchemes"]
+    for nom, schema in schemas.items():
+        assert "issue" not in schema.get("description", ""), nom
+        assert "courriel" in schema.get("description", ""), nom
+
+
 def test_le_ticket_de_job_n_est_jamais_pre_rempli():
     """Tous les exemples de la page MARCHENT si on les exécute, sauf un
     qui ne le pouvait pas.

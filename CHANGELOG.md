@@ -74,6 +74,13 @@ des deux endroits.
   chaque `<link>` de `/docs` comme le ferait un navigateur. Rien ne change
   pour un client : la route est hors du contrat, d'où aucun numéro.
 
+- **La fenêtre « Authorize » envoyait encore vers une issue du dépôt
+  (2026-10-11)** pour demander une clé, alors que ce passage a été retiré
+  le 2026-07-29 au profit du courriel. Elle renvoie maintenant au lien de
+  courriel en tête de page, comme `INSTALL.md`. Un test lit cette
+  description, qui est celle du schéma de sécurité et que le test de
+  l'en-tête ne lisait pas.
+
 ## 0.8.0 (2026-09-19)
 
 ### Corrigé

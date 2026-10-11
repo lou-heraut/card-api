@@ -196,8 +196,8 @@ Alertes sans surveillance active (optionnel) :
 machine EXTÉRIEURE à la VM (une veille installée sur la VM meurt avec
 elle) ; seuils et notification ntfy.sh dans l'en-tête du script.
 
-Clés de priorité (attribution manuelle, demandées via l'issue
-« Clé de priorité » du repo) : `make key name="Prénom Nom, labo"`
+Clés de priorité (attribution manuelle, demandées par courriel, cf.
+« Données personnelles » du README) : `make key name="Prénom Nom, labo"`
 crée et affiche le jeton à transmettre, `make keys` liste,
 `make key-revoke key=<jeton, préfixe affiché par make keys, ou nom>` révoque. Stockage :
 `$CARD_API_DATA/keys.json` (jamais sous git), qui ne garde que le
