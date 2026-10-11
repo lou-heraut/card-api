@@ -43,8 +43,9 @@ import re
 import sys
 import urllib.request
 
-# Le CSS que sert FastAPI : même URL, même version majeure.
-SWAGGER_CSS = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
+# Le CSS que charge /docs, à la version EXACTE fixée dans main.py
+# (_SWAGGER_UI) : les deux se changent ensemble, un test les compare.
+SWAGGER_CSS = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.1/swagger-ui.css"
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATIC = ROOT / "src" / "card_api" / "static"

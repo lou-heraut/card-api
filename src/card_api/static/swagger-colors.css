@@ -1,6 +1,6 @@
 /* FICHIER GÉNÉRÉ : ne pas éditer à la main.
    Produit par `python scripts/build_theme.py`, qui transpose le CSS de
-   Swagger UI (https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css) dans la gamme sombre. Il ne contient QUE des
+   Swagger UI (https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.1/swagger-ui.css) dans la gamme sombre. Il ne contient QUE des
    couleurs : le reste du thème est écrit à la main dans
    `theme-identity.css`, servi juste après celui-ci, et qui lui
    s'édite sans rien reconstruire.
@@ -249,6 +249,7 @@
 .swagger-ui .shadow-hover:after{box-shadow:0 0 16px 2px rgba(0,0,0,0.34)}
 .swagger-ui .nested-links a{color:#8eaed7}
 .swagger-ui .nested-links a:focus,.swagger-ui .nested-links a:hover{color:#9dbedd}
+.swagger-ui .swagger-ui__skip-link:focus{background:#131313;border:1px solid #adb7cc;box-shadow:0 2px 8px rgba(0,0,0,0.34);color:#a6adbf}
 .swagger-ui .opblock-tag{border-bottom:1px solid rgba(166,173,191,0.3)}
 .swagger-ui .opblock-tag:hover{background:rgba(236,236,236,0.02)}
 .swagger-ui .opblock-tag{color:#a6adbf}
@@ -323,13 +324,16 @@
 .swagger-ui .btn:hover{box-shadow:0 0 5px rgba(0,0,0,0.51)}
 .swagger-ui .btn.cancel{border-color:#d68989;color:#d68989}
 .swagger-ui .btn.authorize{border-color:#72b3a2;color:#72b3a2}
-.swagger-ui .btn.authorize svg{fill:#72b3a2}
+.swagger-ui .btn.authorize svg{color:#72b3a2}
 .swagger-ui .btn.execute{background-color:#8ab4dc;border-color:#8ab4dc;color:#131313}
-.swagger-ui .expand-methods:hover svg{fill:#b9b9b9}
-.swagger-ui .expand-methods svg{fill:#999999}
+.swagger-ui .authorization__btn{color:#ececec}
+.swagger-ui .expand-methods,.swagger-ui .expand-operation{color:#ececec}
+.swagger-ui .expand-methods:hover svg{color:#b9b9b9}
+.swagger-ui .expand-methods svg{color:#999999}
 .swagger-ui button.invalid{background:#dd9d9d;border-color:#e09b78}
 .swagger-ui .copy-to-clipboard{background:#878787}
 .swagger-ui .copy-to-clipboard:active{background:#9f9f9f}
+.swagger-ui .opblock-control-arrow{color:#ececec}
 .swagger-ui select{border:2px solid #b4b4b4;box-shadow:0 1px 2px 0 rgba(0,0,0,0.425);color:#a6adbf}
 .swagger-ui select[multiple]{background:#1a1a1a}
 .swagger-ui select.invalid{background:#dd9d9d;border-color:#e09b78}

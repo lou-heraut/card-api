@@ -114,6 +114,11 @@ Swagger UI** :
 python scripts/build_theme.py
 ```
 
+La version est EXACTE, écrite dans `main.py` (`_SWAGGER_UI`) et dans le
+générateur (`SWAGGER_CSS`). Monter de version, c'est changer les deux,
+relancer le générateur et regarder la page ; un test refuse un calque
+tiré d'une autre version que celle que la page charge.
+
 Pour chercher une valeur (une marge, une taille), passer par
 l'inspecteur du navigateur et ne reporter dans le fichier que la valeur
 retenue : c'est instantané, alors qu'un aller-retour par le fichier ne
@@ -227,7 +232,8 @@ défaut qu'aucun test ne voit.
 que le thème raté aurait laissé passer : l'ordre de chargement, chaque
 feuille servie à l'adresse exacte que la page émet (empreinte comprise :
 du 2026-08-13 au 2026-10-11, elle répondait 422 à cette adresse-là, et la
-production a perdu son thème sans que la suite rougisse), la santé
+production a perdu son thème sans que la suite rougisse), le calque tiré
+de la version de Swagger que la page charge, la santé
 syntaxique de la feuille (une `url("data:…;…")` coupée sur son
 point-virgule laisse un guillemet ouvert, et le navigateur avale
 silencieusement tout ce qui suit), un plancher de couverture, la palette,

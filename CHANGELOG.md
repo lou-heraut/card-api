@@ -41,6 +41,18 @@ des deux endroits.
 
 ## Non publié
 
+### Modifié
+
+- **FastAPI et Swagger UI sont épinglés (2026-10-11).** FastAPI décide de
+  la forme du contrat, et `/docs` chargeait la dernière Swagger UI 5.x du
+  CDN : l'un comme l'autre pouvait changer à une reconstruction de
+  l'image sans qu'aucun commit le dise. Régénéré depuis la version
+  désormais fixée (5.33.1), le calque de couleurs a changé de douze
+  lignes : Swagger dessinait entre-temps ses icônes (cadenas, flèches)
+  par `color` au lieu de `fill`, ce que l'ancien calque n'atteignait plus.
+  Un test exige que le calque vienne de la version que la page charge.
+  Rien ne change pour un client.
+
 ### Documentation
 
 - **Audit du 2026-10-11** : la page `/docs` en panne, ce qu'elle dit de

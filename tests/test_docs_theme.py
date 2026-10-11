@@ -82,6 +82,21 @@ def test_docs_charge_le_theme_apres_le_css_de_swagger():
     assert '"defaultModelsExpandDepth": -1' in html
 
 
+def test_le_calque_vient_du_swagger_que_la_page_charge(colors):
+    """La page charge une version EXACTE de Swagger UI, celle dont le
+    calque de couleurs a été tiré. En `@5`, le CDN servait la dernière 5.x
+    sans qu'aucun commit le dise, et personne ne savait plus de quelle
+    version le calque venait."""
+    html = client.get("/docs").text
+    css = re.search(r'href="(https://[^"]*/swagger-ui\.css)"', html).group(1)
+    base = css.rsplit("/", 1)[0]
+    assert re.search(r"@\d+\.\d+\.\d+$", base), base
+    assert f'src="{base}/swagger-ui-bundle.js"' in html
+    assert css == build_theme.SWAGGER_CSS
+    assert css in colors.split("*/", 1)[0], (
+        "calque tiré d'une autre version : python scripts/build_theme.py")
+
+
 def test_chaque_feuille_appelee_par_la_page_est_servie():
     """Suivre les adresses que la page ÉMET, pas celles qu'on connaît.
 

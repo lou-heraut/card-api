@@ -531,6 +531,12 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 _STATIC = pathlib.Path(__file__).with_name("static")
 _CSS_LAYERS = ("swagger-colors.css", "theme-identity.css")
 
+# Version EXACTE de Swagger UI : le calque de couleurs est tiré de son
+# CSS, et note dans son en-tête l'adresse d'où il vient. Monter de
+# version = changer ce numéro ET relancer scripts/build_theme.py, ce que
+# tests/test_docs_theme.py exige en comparant les deux adresses.
+_SWAGGER_UI = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.33.1"
+
 
 def _css_tag(path) -> str:
     """Empreinte courte d'une feuille, à coller dans l'URL du `<link>`.
@@ -594,6 +600,8 @@ def swagger_docs(request: Request) -> HTMLResponse:
         # bien assez pour ne pas avoir à s'annoncer.
         title=app.title,
         swagger_favicon_url=_FAVICON,
+        swagger_js_url=f"{_SWAGGER_UI}/swagger-ui-bundle.js",
+        swagger_css_url=f"{_SWAGGER_UI}/swagger-ui.css",
         swagger_ui_parameters=app.swagger_ui_parameters,
     ).body.decode()
     links = "\n".join(
