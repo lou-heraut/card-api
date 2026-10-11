@@ -41,6 +41,21 @@ des deux endroits.
 
 ## Non publié
 
+### Corrigé
+
+- **La page `/docs` s'affichait sans son thème (2026-10-11).** Elle
+  appelle ses deux feuilles avec leur empreinte (`?v=`), et depuis le
+  refus des paramètres inconnus (0.4.0, 2026-08-13), la route des
+  feuilles répondait 422 à cette adresse-là. Le navigateur écartait la
+  feuille sans rien signaler, et la production a montré Swagger en clair
+  dès le premier déploiement qui a suivi. L'API, elle, n'était pas
+  touchée. Le paramètre est désormais déclaré sur cette route.
+
+  La suite restait verte parce qu'elle demandait chaque feuille à son
+  adresse nue, jamais à celle que la page émet. Un test suit maintenant
+  chaque `<link>` de `/docs` comme le ferait un navigateur. Rien ne change
+  pour un client : la route est hors du contrat, d'où aucun numéro.
+
 ## 0.8.0 (2026-09-19)
 
 ### Corrigé

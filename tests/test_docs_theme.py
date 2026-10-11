@@ -14,6 +14,7 @@ la page et la regarder (mode d'emploi dans `docs/dev/THEME_DOCS.md`).
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urljoin, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -79,6 +80,26 @@ def test_docs_charge_le_theme_apres_le_css_de_swagger():
     # Les deux réglages d'usage, indépendants du thème.
     assert '"tryItOutEnabled": true' in html
     assert '"defaultModelsExpandDepth": -1' in html
+
+
+def test_chaque_feuille_appelee_par_la_page_est_servie():
+    """Suivre les adresses que la page ÉMET, pas celles qu'on connaît.
+
+    Les fixtures demandent chaque feuille à son adresse nue ; la page, elle,
+    la demande avec son empreinte (`?v=`), résolue depuis `/docs` comme le
+    fait le navigateur. Du 2026-08-13 au 2026-10-11, le refus des
+    paramètres inconnus répondait 422 à cette adresse-là : le navigateur
+    écartait la feuille sans rien dire, la production affichait Swagger en
+    clair, et la suite restait verte.
+    """
+    html = client.get("/docs").text
+    hrefs = re.findall(r'<link rel="stylesheet" href="([^"]+)"', html)
+    assert {Path(urlsplit(h).path).name for h in hrefs} == {
+        Path(COLORS_URL).name, Path(IDENTITY_URL).name}
+    for href in hrefs:
+        r = client.get(urljoin("http://testserver/docs", href))
+        assert r.status_code == 200, (href, r.text[:200])
+        assert r.headers["content-type"].startswith("text/css"), href
 
 
 def test_la_feuille_est_syntaxiquement_saine(css):

@@ -154,8 +154,11 @@ async def _refuse_les_parametres_inconnus(request: Request):
     """
     route = request.scope.get("route")
     dependant = getattr(route, "dependant", None)
+    # Seules /openapi.json et /redoc, routes de FastAPI lui-même, n'ont
+    # pas de `dependant`. Une route `@app.get` en a toujours un, même
+    # absente du schéma : les feuilles de /docs y compris.
     if dependant is None:
-        return                      # route sans contrat déclaré (static)
+        return
     connus = _params_declares(dependant)
     inconnus = sorted(set(request.query_params) - connus)
     if inconnus:
@@ -543,8 +546,13 @@ def _css_tag(path) -> str:
         f"{st.st_mtime_ns}:{st.st_size}".encode()).hexdigest()[:12]
 
 
+# `v` est l'empreinte que /docs colle dans le `<link>` (`_css_tag`). Le
+# serveur n'en fait rien, elle ne sert qu'à changer l'URL pour le cache
+# du navigateur. Mais elle DOIT être déclarée : le refus des paramètres
+# inconnus vaut ici comme partout, et du 2026-08-13 au 2026-10-11 il a
+# répondu 422 à la page, qui s'affichait alors sans son thème.
 @app.get("/static/{sheet}.css", include_in_schema=False)
-def theme_css(sheet: str) -> _RawResponse:
+def theme_css(sheet: str, v: str | None = None) -> _RawResponse:
     name = f"{sheet}.css"
     if name not in _CSS_LAYERS:            # pas de traversée de chemin
         raise HTTPException(404, f"feuille inconnue : {name}")

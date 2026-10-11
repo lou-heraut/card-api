@@ -224,7 +224,10 @@ défaut qu'aucun test ne voit.
 ## Ce que les tests garantissent
 
 `tests/test_docs_theme.py`, dont chaque cas correspond à quelque chose
-que le thème raté aurait laissé passer : l'ordre de chargement, la santé
+que le thème raté aurait laissé passer : l'ordre de chargement, chaque
+feuille servie à l'adresse exacte que la page émet (empreinte comprise :
+du 2026-08-13 au 2026-10-11, elle répondait 422 à cette adresse-là, et la
+production a perdu son thème sans que la suite rougisse), la santé
 syntaxique de la feuille (une `url("data:…;…")` coupée sur son
 point-virgule laisse un guillemet ouvert, et le navigateur avale
 silencieusement tout ce qui suit), un plancher de couverture, la palette,
