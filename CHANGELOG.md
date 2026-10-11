@@ -41,6 +41,14 @@ des deux endroits.
 
 ## Non publié
 
+### Documentation
+
+- **Audit du 2026-10-11** : la page `/docs` en panne, ce qu'elle dit de
+  la complexité du service, et l'envie d'agréger davantage de données
+  (`docs/dev/audits/2026-10-11_docs-outage-and-complexity.md`). Ses
+  suites sont dans `CHANTIERS.md`. Ouvrir `/docs` après un `make update`
+  entre dans la procédure de `INSTALL.md`.
+
 ## 0.8.1 (2026-10-11)
 
 ### Corrigé

@@ -4,10 +4,10 @@
 > en sort et devient une entrée de `CHANGELOG.md`, à la racine du dépôt,
 > qui renvoie au document expliquant le détail.
 
-# CHANTIERS : pistes ouvertes du service (mise à jour 2026-09-19)
+# CHANTIERS : pistes ouvertes du service (mise à jour 2026-10-11)
 
-Deux entrées, et aucune n'est un chantier à mener : la première renvoie au
-document qui porte ce qui reste du cache, la seconde est un objectif de fond.
+Trois entrées : ce qui reste du cache, renvoyé au document qui le porte ;
+les suites de l'audit du 2026-10-11 ; un objectif de fond.
 Ce qui a quitté ce fichier le 2026-07-29 est parti dans le document qui en
 porte la matière, pas à la corbeille :
 
@@ -41,6 +41,27 @@ décidé), faire surveiller le pool par la sonde (une question de forme à
 trancher), et le plafond des demandes à froid, taillé sur une mesure de
 juillet que la réalité a démentie d'un facteur dix à vingt. Rien n'en est
 recopié ici, et chaque chantier y porte son état.
+
+## Les suites de l'audit du 2026-10-11
+
+`audits/2026-10-11_docs-outage-and-complexity.md` : la page `/docs` en
+panne, ce qu'elle dit de la complexité du service, et l'envie d'agréger
+davantage de données. Sur ses cinq propositions, deux sont faites le jour
+même (FastAPI et Swagger UI épinglés, `/docs` ouverte après chaque
+`make update`). Restent trois chantiers :
+
+- **Alléger la prose** : `CLAUDE.md` et les récits datés dans le code,
+  par la procédure commune de `../card/docs/dev/NETTOYAGE.md`, dans une
+  session à part.
+- **Remplacer le refus maison des paramètres inconnus par celui de
+  FastAPI** (`extra="forbid"` sur les modèles de paramètres, ce qui
+  suppose d'en faire un aussi pour les filtres de `/v1/cards`), la clé
+  ne passant plus que par l'en-tête `X-API-Key`. Changement de contrat,
+  donc version mineure. Question préalable, à l'utilisateur : des clés
+  ont-elles été distribuées, et un porteur passe-t-il par `?key=` ?
+- **Écrire le projet d'agrégation avant d'y toucher** : quelles données,
+  pour quels usagers, où cela vit, qui l'entretient. L'audit recommande
+  un composant à part, que le service lirait comme il lit Hub'Eau.
 
 ## Rendre le catalogue lisible, pas seulement exact
 

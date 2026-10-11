@@ -23,6 +23,8 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
   pas faire et pourquoi. C'est là qu'on regarde avant de toucher au cache,
   pas dans un souvenir : trois restes ouverts, dont le plafond des demandes
   à froid qui est taillé sur une mesure périmée d'un facteur dix à vingt.
+- `docs/dev/audits/` : états des lieux datés, figés une fois écrits ;
+  leurs suites partent dans `CHANTIERS.md`.
 - Ménage documentaire : la procédure est commune aux trois dépôts et vit
   dans `../card/docs/dev/NETTOYAGE.md`, avec l'état de la campagne en
   cours. Rien à en recopier ici.

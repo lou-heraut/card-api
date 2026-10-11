@@ -123,6 +123,11 @@ make stats      # statistiques d'usage (requêtes, utilisateurs, fiches)
 make down       # arrêt
 ```
 
+Après un `make update`, ouvrir `/docs` et déplier une opération. La
+sonde dit que l'API répond, pas que la page s'affiche : elle a perdu son
+thème et ses champs pendant des semaines sans que rien d'autre le
+signale (`docs/dev/audits/2026-10-11_docs-outage-and-complexity.md`).
+
 L'image installe card et stase depuis GitHub à révision épinglée
 (`CARD_REF`/`STASE_REF` dans `.env`) : chaque déploiement est
 traçable. Docker (`restart: unless-stopped`) relance les conteneurs
