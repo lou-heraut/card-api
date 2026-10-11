@@ -43,6 +43,24 @@ des deux endroits.
 
 ### Corrigé
 
+- **`/docs` ne proposait plus aucun champ sur les routes de calcul
+  (2026-10-11).** `extract`, `trend`, `chronicles` et leurs variantes
+  `.csv` et `/figure` reçoivent leurs paramètres par un modèle, et
+  FastAPI ne déplie un modèle dans `openapi.json` que s'il est le seul
+  paramètre de requête de la route, dépendances comprises. Depuis 0.4.0
+  (2026-08-13), la dépendance de quota déclarait `?key=` à côté, masqué
+  du schéma. Le contrat n'annonçait donc plus qu'un paramètre `p`, la
+  page n'offrait plus rien à remplir, et le lien de téléchargement des
+  `.csv` ne pouvait plus apparaître. Les appels, eux, marchaient, parce
+  que FastAPI lit une requête dépendance par dépendance : rien ne
+  rougissait.
+
+  `?key=` n'est plus déclaré nulle part, et le refus des paramètres
+  inconnus l'accepte par son nom. Un test vérifie qu'aucun paramètre du
+  contrat n'est un modèle entier. Ce qu'un client voit change :
+  `openapi.json` annonce de nouveau chaque champ, là où un client généré
+  depuis le contrat de 0.4.0 à 0.8.0 attendait un objet `p`.
+
 - **La page `/docs` s'affichait sans son thème (2026-10-11).** Elle
   appelle ses deux feuilles avec leur empreinte (`?v=`), et depuis le
   refus des paramètres inconnus (0.4.0, 2026-08-13), la route des

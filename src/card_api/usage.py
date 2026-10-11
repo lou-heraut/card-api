@@ -32,7 +32,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, Query, Request
+from fastapi import HTTPException, Request
 
 from . import keys as keys_mod
 from .cache import data_dir
@@ -77,7 +77,7 @@ def priority_of(request: Request) -> dict | None:
     {prefix, name, created} ; seul le préfixe circule ensuite
     (journal, jobs), jamais le nom ni le jeton."""
     token = (request.headers.get("x-api-key")
-             or request.query_params.get("key"))
+             or request.query_params.get(PARAM_CLE))
     if not token:
         return None
     info = keys_mod.lookup(token)
@@ -89,14 +89,19 @@ def priority_of(request: Request) -> dict | None:
 
 
 # `?key=` est une alternative à l'en-tête `X-API-Key`, et `priority_of`
-# la lit depuis toujours. Elle est DÉCLARÉE ici pour deux raisons : sans
-# déclaration, le refus des paramètres inconnus (main.py) la rejetterait
-# comme une faute de frappe ; et un paramètre que le service lit sans
-# l'annoncer est un trou dans le contrat, celui-là même qui avait été
-# bouché côté en-tête. Elle reste HORS du schéma : une clé dans une URL
-# se retrouve dans les journaux, l'historique du navigateur et les
-# référents, donc le contrat l'accepte sans que /docs la propose.
-_CLE_EN_URL = Query(None, include_in_schema=False)
+# la lit depuis toujours. Elle reste HORS du contrat : une clé dans une
+# URL se retrouve dans les journaux, l'historique du navigateur et les
+# référents, donc le service l'accepte sans que /docs la propose.
+#
+# Elle n'est déclarée NULLE PART, et c'est le refus des paramètres
+# inconnus (main.py) qui l'accepte par ce nom. Elle a été déclarée ici,
+# masquée du schéma, du 2026-08-13 au 2026-10-11, et cela suffisait à
+# vider /docs : pour écrire le contrat, FastAPI additionne les paramètres
+# d'une route et ceux de ses dépendances, et ne déplie un modèle de
+# paramètres (`p: Annotated[TrendParams, Query()]`) que s'il est SEUL.
+# Avec `key` à côté, extract, trend et chronicles n'annonçaient plus
+# qu'un paramètre `p`. Masquée ou non, une déclaration compte.
+PARAM_CLE = "key"
 
 
 def check_rate(request: Request, limit: int, famille: str):
@@ -130,7 +135,7 @@ def check_rate(request: Request, limit: int, famille: str):
         headers={"Retry-After": str(retry)})
 
 
-def rate_compute(request: Request, key: str | None = _CLE_EN_URL):
+def rate_compute(request: Request):
     if priority_of(request) is None:
         check_rate(request, RATE_COMPUTE, "calcul")
 
@@ -144,7 +149,7 @@ def rate_compute(request: Request, key: str | None = _CLE_EN_URL):
 _MUET = {"health", "job_status", "job_result", "landing", "root"}
 
 
-def rate_light(request: Request, key: str | None = _CLE_EN_URL):
+def rate_light(request: Request):
     """Quota des endpoints légers, ET journal de consultation.
 
     La consultation du catalogue est un usage aussi réel qu'un calcul :

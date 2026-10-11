@@ -116,12 +116,12 @@ def _facet_doc(facette, intro):
 def _params_declares(dependant):
     """Noms de paramètres de requête qu'une route accepte.
 
-    Trois sources, et il faut les trois. Les paramètres écrits dans la
-    signature ; ceux des sous-dépendances (limitation de débit, clé d'API) ;
-    et surtout ceux d'un MODÈLE de paramètres, `p: Annotated[TrendParams,
-    Query()]`, dont FastAPI ne rapporte que le modèle, pas ses champs. Sans
-    ce dernier cas, `/v1/trend` n'accepterait plus que `p` et refuserait
-    ses propres paramètres.
+    Trois sources. Les paramètres écrits dans la signature ; ceux des
+    sous-dépendances (aucune n'en déclare plus, et c'est voulu : cf.
+    `usage.PARAM_CLE`) ; et surtout ceux d'un MODÈLE de paramètres,
+    `p: Annotated[TrendParams, Query()]`, dont FastAPI ne rapporte que le
+    modèle, pas ses champs. Sans ce dernier cas, `/v1/trend` n'accepterait
+    plus que `p` et refuserait ses propres paramètres.
     """
     noms = set()
     for p in dependant.query_params:
@@ -159,7 +159,10 @@ async def _refuse_les_parametres_inconnus(request: Request):
     # absente du schéma : les feuilles de /docs y compris.
     if dependant is None:
         return
-    connus = _params_declares(dependant)
+    # `?key=` est accepté partout sans être déclaré nulle part : le
+    # déclarer, même masqué, empêche FastAPI de déplier les modèles de
+    # paramètres dans le contrat (cf. usage.PARAM_CLE).
+    connus = _params_declares(dependant) | {usage.PARAM_CLE}
     inconnus = sorted(set(request.query_params) - connus)
     if inconnus:
         raise HTTPException(

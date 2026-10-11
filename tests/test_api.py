@@ -626,3 +626,29 @@ def test_an_unknown_query_parameter_is_refused():
                         ("/v1/vocabulary", {}),
                         ("/docs", {})):
         assert client.get(url, params=params).status_code == 200, url
+
+
+def test_le_contrat_deplie_les_modeles_de_parametres():
+    """Chaque champ d'un modèle de paramètres est annoncé un par un.
+
+    FastAPI ne déplie `p: Annotated[TrendParams, Query()]` que si ce
+    modèle est le SEUL paramètre de requête de la route, dépendances
+    comprises. Du 2026-08-13 au 2026-10-11, la dépendance de quota
+    déclarait `key` à côté : extract, trend et chronicles n'annonçaient
+    plus qu'un paramètre `p`, /docs ne proposait plus aucun champ, et les
+    appels marchaient quand même, si bien que rien ne rougissait.
+    """
+    import json
+    import re
+    spec = client.get("/openapi.json").json()
+    schemas = spec["components"]["schemas"]
+    for chemin, methodes in spec["paths"].items():
+        for methode, op in methodes.items():
+            for q in op.get("parameters", []):
+                for ref in re.findall(r'#/components/schemas/([^"]+)',
+                                      json.dumps(q["schema"])):
+                    assert schemas[ref].get("type") != "object", (
+                        methode, chemin, q["name"])
+    noms = {q["name"]
+            for q in spec["paths"]["/v1/trend.csv"]["get"]["parameters"]}
+    assert {"stations", "cards"} <= noms, noms
