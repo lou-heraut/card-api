@@ -41,6 +41,8 @@ des deux endroits.
 
 ## Non publié
 
+## 0.8.1 (2026-10-11)
+
 ### Corrigé
 
 - **`/docs` ne proposait plus aucun champ sur les routes de calcul
