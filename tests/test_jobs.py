@@ -275,8 +275,8 @@ def sans_calcul(monkeypatch):
 def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
     """Vingt stations en cache, c'est une seconde de calcul.
 
-    Mesuré en production le 2026-07-29 : une chronique coûte ~1,2 s à
-    rapatrier et ~0,04 s à calculer. Le compteur unique envoyait donc en
+    Rapatrier une chronique coûte bien plus que la calculer (mesures :
+    docs/dev/PLAN_CACHE_SUITE.md, B5). Le compteur unique envoyait donc en
     file, avec ticket et aller-retour, une demande qui tenait en une
     seconde. C'est la friction signalée.
     """
@@ -297,8 +297,11 @@ def test_stations_a_telecharger_partent_en_file(monkeypatch, sans_calcul):
 
 
 def test_seul_le_froid_compte(monkeypatch):
-    """Vingt stations dont cinq à télécharger : c'est le coût de cinq."""
-    froides = {f"K{i:07d}" for i in range(5)}
+    """Vingt stations dont quelques-unes à télécharger : c'est le coût de
+    celles-là. Leur nombre suit le plafond en vigueur, pas une valeur
+    écrite ici : le test tenait « cinq » quand le plafond était à dix, et
+    a rougi quand il est passé à trois (B5)."""
+    froides = {f"K{i:07d}" for i in range(jobs.SYNC_STATIONS)}
     monkeypatch.setattr(cache, "is_fresh",
                         lambda s, max_age=None: s not in froides)
     r = client.get("/v1/extract", params={"stations": _stations(20),

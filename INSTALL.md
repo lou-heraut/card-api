@@ -172,7 +172,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_SALT` | aucun (requis, généré par `make env`) | sel du hachage des IP du journal ; fixe en prod pour des comptes d'utilisateurs distincts stables |
 | `CARD_API_RATE_COMPUTE` | 60 | requêtes de calcul (extract/trend/jobs) par IP/minute ; large à dessein, les refus sont journalisés et remontent dans `make stats` |
 | `CARD_API_RATE_LIGHT` | 300 | requêtes de catalogue par IP/minute |
-| `CARD_API_SYNC_STATIONS` | 10 | stations **à télécharger** tolérées dans une réponse immédiate ; c'est le téléchargement qui coûte (~1,2 s/station contre ~0,04 s de calcul) |
+| `CARD_API_SYNC_STATIONS` | 3 | stations **à télécharger** tolérées dans une réponse immédiate ; c'est le téléchargement qui coûte, et ils se suivent : bas pour qu'une réponse à froid reste sous la minute (mesures : `docs/dev/PLAN_CACHE_SUITE.md`, B5) |
 | `CARD_API_SYNC_STATIONS_CACHED` | 250 | stations au TOTAL dans une réponse immédiate ; borne la relecture des chroniques (~25 ms chacune, qu'aucun cache ne supprime). À 250 pour que la vue MAKAHO de 228 stations réponde en direct, ce qui suppose une clé de priorité, le plafond dur public restant à 100 |
 | `CARD_API_SYNC_SERIES` | 600 | séries (stations × fiches) dans une réponse immédiate ; borne la relecture des séries agrégées (~5 ms chacune). Sans lui, 250 stations × 20 fiches feraient une trentaine de secondes en direct |
 | `CARD_API_SYNC_CARDS` | 20 | fiches par réponse immédiate ; au-delà de l'un de ces trois seuils, bascule en job |
@@ -180,7 +180,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
 | `CARD_API_POOL` | 1 | tâche de fond qui rafraîchit le cache et évince ce qui n'est plus lu ; `0` la coupe (utile en développement) |
-| `CARD_API_POOL_HOURS` / `CARD_API_POOL_REFRESH_DAYS` | 6 / 7 | période d'une passe, et âge au-delà duquel une copie est rafraîchie ; les téléchargements s'étalent sur la moitié d'une passe |
+| `CARD_API_POOL_HOURS` | 6 | période d'une passe ; les téléchargements s'étalent sur sa moitié. L'âge au-delà duquel une copie est rafraîchie se déduit de `CARD_API_MAX_AGE_DAYS` (25 jours pour 30) |
 | `CARD_API_CACHE_MAX_GB` | 5 | plafond de place du cache (deux étages) ; au-delà, les entrées les moins récemment lues partent. Absolu et non relatif au disque, qui est partagé : un pourcentage ferait évincer pour une raison étrangère au cache |
 | `CARD_API_EVICT_DAYS` | 90 | sans LECTURE depuis ce délai, une entrée des deux étages sort du cache ; se tromper ne coûte qu'un téléchargement |
 | `CARD_API_SERIES_CACHE` | 1 | second étage de cache (séries déjà agrégées) ; `0` le ferme sans reconstruire l'image. Il s'éteint seul hors image, faute d'identité de construction |

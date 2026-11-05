@@ -153,9 +153,10 @@ Quelques paramètres méritent un mot :
 
 Une grosse demande reçoit un ticket (`202`) au lieu d'une réponse
 immédiate. Ce qui décide n'est pas le nombre de stations mais le nombre
-de stations **à télécharger** : rapatrier une chronique coûte environ
-trente fois plus que la calculer. Vingt stations déjà lues répondent donc
-en direct, les mêmes vingt à froid partent en file. La même URL peut par
+de stations **à télécharger** : rapatrier une chronique coûte bien plus
+que la calculer. Des stations déjà lues répondent donc en direct, les
+mêmes à froid partent en file dès qu'elles sont plus de quelques-unes
+(les seuils en vigueur se lisent dans `/v1`, bloc `limits`). La même URL peut par
 conséquent donner un ticket au premier appel et un résultat au second,
 et c'est voulu.
 

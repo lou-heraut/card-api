@@ -119,10 +119,10 @@ src/card_api/
                 #   bascule auto des demandes > plafonds synchrones.
                 #   DEUX seuils de stations : SYNC_STATIONS compte les
                 #   stations À TÉLÉCHARGER (bas), SYNC_STATIONS_CACHED le
-                #   total (haut). Mesuré : ~1,2 s de téléchargement contre
-                #   ~0,04 s de calcul par station, soit 24 s à froid et 1 s
-                #   à chaud pour les mêmes 20 stations. Compter les
-                #   stations sans regarder le cache tranchait au mauvais
+                #   total (haut). Le téléchargement coûte des dizaines à
+                #   des centaines de fois le calcul (mesures :
+                #   PLAN_CACHE_SUITE.md, B5). Compter les stations sans
+                #   regarder le cache tranchait au mauvais
                 #   endroit. La même URL peut donc partir en file au 1er
                 #   appel et répondre en direct au 2e : c'est VOULU.
                 #   Une station sans série est ÉCARTÉE, pas fatale :

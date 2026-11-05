@@ -22,9 +22,9 @@ Deux gestes par passe, et ils ne répondent pas à la même question.
   du cache, par la même règle et sur la même date de dernière lecture. La
   question est celle de la place.
 - **Rafraîchir** les copies qui vieillissent, entières (jamais par morceaux
-  recollés, cf. `docs/dev/API.md`). La question est celle de la fraîcheur,
-  et le pool est ce qui fait que l'âge réel d'une chronique consultée est
-  sa période à lui, non le plafond que le service accepte.
+  recollés, cf. `docs/dev/API.md`). La question est celle de la fraîcheur :
+  le pool renouvelle chaque copie un peu AVANT l'âge que le service
+  accepte, pour qu'aucune requête n'ait à la retélécharger elle-même.
 
 **Poli, par construction.** Les téléchargements s'étalent sur la moitié de
 la période de passe, si bien que rien ne part en rafale et qu'une passe
@@ -50,12 +50,17 @@ from . import cache, hubeau, usage
 ENABLED = os.environ.get(
     "CARD_API_POOL", "1").lower() not in ("0", "false", "no", "off")
 
-# Période entre deux passes. C'est elle qui donne l'âge réel d'une
-# chronique consultée, bien en deçà de l'âge que le service ACCEPTE.
+# Période entre deux passes.
 PASSE_HEURES = float(os.environ.get("CARD_API_POOL_HOURS", 6))
 
-# Au-delà de cet âge, une copie est rafraîchie par la passe suivante.
-FRAICHEUR_JOURS = float(os.environ.get("CARD_API_POOL_REFRESH_DAYS", 7))
+# Part de l'âge accepté gardée en marge : une copie est rafraîchie dès
+# qu'elle a dépassé les cinq sixièmes de cet âge (25 jours pour 30). Le
+# seuil se DÉDUIT de l'âge accepté et n'est pas un réglage : le pool existe
+# pour qu'aucune requête ne rencontre une copie trop vieille, il doit donc
+# passer un peu avant, jamais ailleurs. La marge couvre l'écart entre deux
+# passes et une panne de Hub'Eau de quelques jours.
+# Cf. docs/dev/PLAN_CACHE_SUITE.md (B6).
+MARGE = 1 / 6
 
 # Sans lecture depuis ce délai, une entrée sort du cache. Généreux à
 # dessein : une station consultée une fois par trimestre ne doit pas être
@@ -70,6 +75,15 @@ DEPART_S = 300.0
 
 _demarre = False
 _verrou = threading.Lock()
+
+
+def seuil_jours() -> float:
+    """Âge au-delà duquel une copie est rafraîchie, en jours.
+
+    Lu à chaque passe et non figé à l'import : il suit l'âge accepté tel
+    qu'il est à cet instant, ce que les tests vérifient en le changeant.
+    """
+    return cache.MAX_AGE_DAYS * (1 - MARGE)
 
 
 def passe(espacement: float | None = None) -> dict:
@@ -87,7 +101,7 @@ def passe(espacement: float | None = None) -> dict:
         # besoin de l'autre.
         bilan = {"chroniques": 0, "series": 0, "eviction": f"abandon ({e})"}
     a_faire = [s for s in cache.cached_stations()
-               if not cache.is_fresh(s, FRAICHEUR_JOURS)]
+               if not cache.is_fresh(s, seuil_jours())]
     if espacement is None:
         espacement = (PASSE_HEURES * 3600 * 0.5) / max(len(a_faire), 1)
 

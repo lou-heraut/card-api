@@ -110,8 +110,9 @@ Ce que le mois achète réellement, et qui tient :
   une révision ponctuelle, pas un flux ;
 - celui qui a besoin de frais le demande, donc la durée n'arbitre plus
   entre deux besoins incompatibles ;
-- et le pool (A4) repassera plus souvent que le mois, si bien que l'âge
-  réel d'une chronique consultée sera la période du pool.
+- et le pool (A4) renouvellera chaque copie un peu avant le mois, si
+  bien qu'aucune requête n'aura à le faire (son seuil se déduit de l'âge
+  accepté depuis B6, `PLAN_CACHE_SUITE.md`).
 
 La règle s'écrit dans `API.md`, la valeur dans `.env`, et elle se lit
 dans `/v1` comme les autres. Jamais recopiée dans une description.

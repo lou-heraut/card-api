@@ -1,4 +1,5 @@
-> **Statut : plan de chantier, trois restes ouverts** au 2026-09-19. Ce qui
+> **Statut : plan de chantier, l'état de chacun dans le tableau ci-dessous**
+> (repris le 2026-11-05). Ce qui
 > reste du cache APRÈS que `PLAN_CACHE.md` a été entièrement livré (service
 > 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
 > mesures qui ont commandé l'architecture, la règle de la clé et ce qui a
@@ -6,14 +7,15 @@
 > a trouvé, et ce qu'il a laissé ouvert. Ce qui est livré en sort et devient
 > une entrée de `CHANGELOG.md`.
 >
-> | chantier | état |
-> |---|---|
-> | B1, évincer par la place | **livré** le 2026-09-19 |
-> | B2a, les chroniques en Parquet | **livré**, card-api 0.8.0 |
-> | B2b, ne plus relire la chronique | ouvert, chiffré, **non décidé** |
-> | B3, faire surveiller le pool | ouvert, une question de forme à trancher |
-> | B4, l'indépendance par station | **refermé**, c'est une propriété du moteur |
-> | B5, le plafond des demandes à froid | ouvert, **à remesurer d'abord** |
+> | chantier                            | état                                               |
+> |-------------------------------------|----------------------------------------------------|
+> | B1, évincer par la place            | **livré** le 2026-09-19                            |
+> | B2a, les chroniques en Parquet      | **livré**, card-api 0.8.0                          |
+> | B2b, ne plus relire la chronique    | **non retenu** le 2026-11-05, rouvrable sur mesure |
+> | B3, faire surveiller le pool        | **décidé** le 2026-11-05, à livrer                 |
+> | B4, l'indépendance par station      | **refermé**, c'est une propriété du moteur         |
+> | B5, le plafond des demandes à froid | **livré** le 2026-11-06, à reporter dans le `.env` |
+> | B6, le seuil de rafraîchissement    | **livré** le 2026-11-06                            |
 
 # Ce qui reste du cache, après l'audit
 
@@ -150,7 +152,11 @@ Deux remarques que le profil apporte :
   gagner, mais casserait le modèle de clé par station qui permet les
   succès partiels. À ne pas faire pour un gain de cet ordre.
 
-**Rien n'est décidé sur B2b** : à juger sur des durées de production.
+**Non retenu le 2026-11-05.** Le gain (de ~3 s à ~1,2 s pour 200 stations
+en cache) ne justifie pas un état dérivé qui peut diverger du fichier tant
+qu'aucun client réel n'a montré que ~3 s le gêne. À rouvrir si les durées
+de production, lues dans `make stats` une fois MAKAHO branché, le
+demandent.
 
 ## B3. Faire surveiller le pool
 
@@ -167,7 +173,11 @@ exposé par l'API, donc soit `/v1/health` publie la date de la dernière passe
 (un champ de plus, donc une version à couper), soit la sonde se contente de
 ce qu'elle peut déjà voir.
 
-À instruire, pas encore tranché.
+**Décidé le 2026-11-05 : `/v1/health` publie la date de la dernière passe
+du pool, et la sonde la vérifie.** C'est la seule voie par laquelle une
+sonde extérieure voit le pool sans lire le journal, et le champ ne coûte
+presque rien. Le contrat bouge : il part dans la même version mineure que
+le refus natif des paramètres inconnus (`CHANTIERS.md`).
 
 ## B4. L'indépendance par station : refermé le 2026-09-19
 
@@ -210,9 +220,12 @@ Mesuré à nouveau, chronique entière et pagination suivie :
 | K0403010 | 24 014 (66 ans) | **11,8 s** |
 
 Soit dix à vingt fois la mesure de juillet. Une demande de dix stations à
-froid tiendrait donc deux à quatre MINUTES en réponse immédiate, derrière le
-sémaphore, en bloquant tous ceux qui attendent : exactement ce que le
-plafond doit empêcher.
+froid tiendrait donc deux à quatre MINUTES en réponse immédiate, sans rien
+renvoyer ni montrer d'avancement, là où un job donne un ticket et sa
+progression : exactement ce que le plafond doit empêcher. (Corrigé le
+2026-11-06 : ce paragraphe disait aussi qu'elle bloquerait les autres
+demandes derrière le sémaphore. C'est faux, les téléchargements se font
+avant de le prendre, dans `pipeline.compute`.)
 
 **Ce qui commande le coût est le nombre de LIGNES, pas le nombre d'appels.**
 Vérifié : `obs_elab` accepte plusieurs stations en un seul appel
@@ -235,8 +248,84 @@ le décoder coûte 0,4 % de l'appel, et la réponse arrive déjà en gzip.
    peut donc pas borner une durée finement ; il n'a pas à le faire, il doit
    seulement éviter l'ordre de grandeur de la minute.
 
-Rien n'est changé pour l'instant : un plafond se retaille sur une mesure,
-pas sur deux points.
+### La mesure du 2026-11-06, et ce qui en sort
+
+Faite vers minuit, heure calme : une station du RRSE sur 23, dix en tout,
+chacune téléchargée entière en séquence. Deux colonnes, parce que les deux
+chemins ne coûtent pas pareil : depuis un poste de développement
+(`hubeau.fetch_chronicle` seul), et en production (un appel
+`/v1/trend?cards=QA` à froid, donc téléchargement, écriture, extraction et
+tendance compris, depuis la VM).
+
+| station    | jours  | poste  | production |
+|------------|-------:|-------:|-----------:|
+| A234021001 | 22 447 |  5,9 s |     16,7 s |
+| H032103001 | 21 590 |  5,6 s |     12,6 s |
+| J561301001 | 21 063 |  8,7 s |     20,4 s |
+| K326401001 | 18 417 |  4,2 s |      8,4 s |
+| M024301010 | 14 326 |  4,3 s |     10,3 s |
+| O300671001 | 27 685 | 11,4 s |     21,9 s |
+| P011501001 | 29 690 |  8,7 s |     10,1 s |
+| S223561001 | 21 519 |  5,8 s |      9,3 s |
+| V101501001 | 22 218 |  5,8 s |     12,1 s |
+| X113000101 | 18 871 |  4,4 s |      8,7 s |
+
+Médiane en production ~11 s, maximum ~22 s sur des chroniques de 40 à 80
+ans ; la plus longue du RRSE (108 ans) se situerait vers 30 à 40 s. Le
+coût par ligne depuis le poste (0,23 à 0,41 ms) retrouve celui de septembre
+(0,295 ms) : la règle « le coût suit le nombre de lignes » tient, et la
+production paie environ le double, le chemin réseau de la VM et le calcul
+s'ajoutant.
+
+**`SYNC_STATIONS` passe de 10 à 3** : les téléchargements d'une demande se
+suivent (`pipeline.py`), donc trois stations à froid font ~35 s dans le cas
+courant et rarement plus d'une minute, quand quatre la dépasseraient
+souvent. Au-delà, la demande devient un job. La valeur publiée par `/v1`
+change : elle part dans la prochaine version, et la production ne la prend
+qu'une fois `CARD_API_SYNC_STATIONS` corrigé dans son `.env`.
+
+Le chiffre de juillet (~1,2 s, « trente fois le calcul ») était recopié dans
+huit fichiers, dont deux textes que lit un client. Il est retiré partout :
+les textes disent la règle (« bien plus cher à rapatrier qu'à calculer ») et
+renvoient ici pour les mesures.
+
+## B6. Le seuil de rafraîchissement du pool n'a pas de raison écrite
+
+Trouvé le 2026-11-05. Deux âges se côtoient et ne répondent pas à la même
+question :
+
+- `CARD_API_MAX_AGE_DAYS` (aujourd'hui 30) : l'âge qu'une **requête**
+  accepte. Au-delà, elle retélécharge avant de répondre, donc compte la
+  station comme à télécharger et peut basculer en job ;
+- `CARD_API_POOL_REFRESH_DAYS` (7, retiré par B6) : l'âge au-delà duquel le
+  **pool** rafraîchit une copie en tâche de fond. Son seul rôle est
+  qu'aucune requête ne rencontre une copie plus vieille que l'âge accepté.
+
+Le second doit donc rester sous le premier, avec une marge qui couvre
+l'intervalle entre deux passes et une panne de Hub'Eau de quelques jours.
+Rien ne justifie 7, ni mesure ni argument, dans aucun document ni commit.
+À 7 jours le pool retélécharge chaque chronique quatre fois par mois, alors
+que ce qui fonde le mois (donnée validée, révisions ponctuelles) vaut aussi
+pour lui : pour les 228 stations de MAKAHO, ~1 000 téléchargements par mois
+contre ~270 à 25 jours.
+
+Une phrase était fausse au passage, dans `pool.py`, `.env.example` et
+`PLAN_CACHE.md` (A1) : l'âge réel d'une chronique consultée n'est pas la
+période des passes, c'est ce seuil, à une passe près. Corrigée avec B6.
+
+**Livré le 2026-11-06** : le seuil se déduit de l'âge accepté (25 jours
+pour 30, `pool.seuil_jours`) et le réglage séparé disparaît, pour que les
+deux ne puissent plus se contredire. Rien ne change pour un client. Un test
+place une copie dans la marge et vérifie que le pool la renouvelle alors
+qu'une requête la servirait encore.
+
+C'est le schéma classique d'un cache, sous les noms de Caffeine (Java) :
+l'âge accepté est `expireAfterWrite`, le seuil du pool `refreshAfterWrite`,
+les 90 jours sans lecture `expireAfterAccess`, le plafond de place
+`maximumWeight`. Un écart, voulu : Caffeine ne rafraîchit une entrée que
+quand on la lit, le pool rafraîchit tout ce qui est en cache. D'où la règle
+« le pool ne marque aucune lecture » : un rafraîchissement compté comme une
+lecture empêcherait toute entrée de sortir.
 
 ## Ce qu'il ne faut pas faire
 

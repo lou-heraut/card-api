@@ -53,6 +53,32 @@ des deux endroits.
   Un test exige que le calque vienne de la version que la page charge.
   Rien ne change pour un client.
 
+- **Le pool renouvelle les copies un peu avant l'âge accepté, et non
+  plus au bout d'une semaine (2026-11-06).** Son seuil était un réglage à
+  part, à 7 jours, sans raison écrite : la fraîcheur réelle était donc
+  d'une semaine alors que le service a décidé qu'un mois suffit, et chaque
+  chronique était retéléchargée quatre fois par mois, ses séries
+  recalculées autant de fois. Le seuil se déduit désormais de
+  `CARD_API_MAX_AGE_DAYS` (25 jours pour 30) et `CARD_API_POOL_REFRESH_DAYS`
+  disparaît : s'il reste dans un `.env`, il ne sert plus et peut être
+  retiré. Rien ne change pour un client. Détail :
+  `docs/dev/PLAN_CACHE_SUITE.md` (B6).
+
+- **Au-delà de trois stations à télécharger, la demande part en job, et
+  non plus au-delà de dix (2026-11-06).** Le seuil avait été fixé sur une
+  mesure de juillet, ~1,2 s par chronique. Remesuré sur dix stations du
+  RRSE, une chronique entière coûte en production ~11 s en médiane et
+  jusqu'à ~22 s : dix stations à froid tenaient plusieurs minutes en
+  réponse immédiate, sans rien renvoyer ni montrer d'avancement, là où un
+  job donne un ticket et sa progression. Ce qu'un client
+  voit change : la valeur publiée par `/v1` (`limits.sync.
+  stations_to_download`), donc à publier avec la prochaine version. En
+  production, corriger `CARD_API_SYNC_STATIONS` dans le `.env`. Le chiffre
+  de juillet était recopié dans huit fichiers, dont la note de `/v1` et la
+  description de `/v1/extract` : les textes disent désormais la règle sans
+  le chiffre, et les mesures vivent dans `docs/dev/PLAN_CACHE_SUITE.md`
+  (B5).
+
 ### Documentation
 
 - **Audit du 2026-10-11** : la page `/docs` en panne, ce qu'elle dit de

@@ -4,10 +4,11 @@
 > en sort et devient une entrée de `CHANGELOG.md`, à la racine du dépôt,
 > qui renvoie au document expliquant le détail.
 
-# CHANTIERS : pistes ouvertes du service (mise à jour 2026-10-11)
+# CHANTIERS : pistes ouvertes du service (mise à jour 2026-11-05)
 
-Trois entrées : ce qui reste du cache, renvoyé au document qui le porte ;
-les suites de l'audit du 2026-10-11 ; un objectif de fond.
+L'ordre retenu, puis trois entrées : ce qui reste du cache, renvoyé au
+document qui le porte ; les suites de l'audit du 2026-10-11 ; un objectif
+de fond.
 Ce qui a quitté ce fichier le 2026-07-29 est parti dans le document qui en
 porte la matière, pas à la corbeille :
 
@@ -27,6 +28,27 @@ porte la matière, pas à la corbeille :
   chaque écriture n'est pas un chantier qu'on finira un jour : c'est une
   règle, et sa place est là où on lit les règles.
 
+## L'ordre retenu le 2026-11-05
+
+Le but est que MAKAHO (`../../MAKAHO_project/MAKAHO-next/`) puisse
+s'appuyer sur le service. D'où cet ordre, chaque étape renvoyant au
+document qui la porte :
+
+```
+  1. contrat : refus natif des paramètres inconnus, `?key=` retiré,
+     B3 (date du pool dans /v1/health), et B5 déjà livré dans le
+     dépôt                              une seule version mineure
+  2. ménage documentaire (/kit-clean), sur l'état qui en sort
+  3. première clé de priorité : celle de MAKAHO, qui demande plus de
+     stations que le plafond public ; les versions redeviennent alors
+     des engagements (CLAUDE.md)
+  4. MAKAHO-next, chantier M1, depuis son propre dossier
+```
+
+B5 et B6 (`PLAN_CACHE_SUITE.md`) sont livrés le 2026-11-06. Au
+déploiement de la version, corriger `CARD_API_SYNC_STATIONS` dans le
+`.env` de production et y retirer `CARD_API_POOL_REFRESH_DAYS`.
+
 ## Le cache, et ce qu'il reste après lui
 
 Le chantier « ce qui manque pour qu'un client puisse dépendre du service »,
@@ -36,11 +58,8 @@ fichier pour `CHANGELOG.md`, qui dit quand chaque morceau est tombé, et
 `PLAN_CACHE.md`, qui garde les mesures et les raisons.
 
 Ce qui reste ouvert est dans **`PLAN_CACHE_SUITE.md`**, écrit après l'audit
-du 2026-09-19 : ne plus relire la chronique pour signer (chiffré, non
-décidé), faire surveiller le pool par la sonde (une question de forme à
-trancher), et le plafond des demandes à froid, taillé sur une mesure de
-juillet que la réalité a démentie d'un facteur dix à vingt. Rien n'en est
-recopié ici, et chaque chantier y porte son état.
+du 2026-09-19 et repris le 2026-11-05. Rien n'en est recopié ici : chaque
+chantier y porte son état, dans le tableau de tête.
 
 ## Les suites de l'audit du 2026-10-11
 
@@ -57,8 +76,9 @@ même (FastAPI et Swagger UI épinglés, `/docs` ouverte après chaque
   FastAPI** (`extra="forbid"` sur les modèles de paramètres, ce qui
   suppose d'en faire un aussi pour les filtres de `/v1/cards`), la clé
   ne passant plus que par l'en-tête `X-API-Key`. Changement de contrat,
-  donc version mineure. Question préalable, à l'utilisateur : des clés
-  ont-elles été distribuées, et un porteur passe-t-il par `?key=` ?
+  donc version mineure. La question préalable est tranchée le
+  2026-11-05 : aucune clé n'a été distribuée, `?key=` peut disparaître
+  sans casser personne.
 - **Écrire le projet d'agrégation avant d'y toucher** : quelles données,
   pour quels usagers, où cela vit, qui l'entretient. L'audit recommande
   un composant à part, que le service lirait comme il lit Hub'Eau.

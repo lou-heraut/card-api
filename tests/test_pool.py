@@ -100,7 +100,7 @@ def test_sans_date_de_lecture_on_se_rabat_sur_le_fichier():
 
 
 def test_le_pool_rafraichit_ce_qui_vieillit_et_rien_d_autre(monkeypatch):
-    monkeypatch.setattr(pool, "FRAICHEUR_JOURS", 7)
+    monkeypatch.setattr(cache, "MAX_AGE_DAYS", 30)     # seuil du pool : 25
     monkeypatch.setattr(pool, "EVICTION_JOURS", 10_000)   # rien à évincer
     _copie("K0550010", age_jours=30)          # au-delà du seuil
     _copie("K0550011", age_jours=1)           # encore fraîche
@@ -112,6 +112,31 @@ def test_le_pool_rafraichit_ce_qui_vieillit_et_rien_d_autre(monkeypatch):
     assert not cache.is_fresh("K0550011", 0.01)
 
 
+@pytest.mark.parametrize("accepte", [30, 60])
+def test_le_pool_renouvelle_avant_que_la_requete_ne_refuse(monkeypatch,
+                                                            accepte):
+    """Le seuil du pool se DÉDUIT de l'âge accepté, il n'est pas réglé à part.
+
+    Une copie dans la marge (plus vieille que le seuil, plus jeune que l'âge
+    accepté) serait encore servie à une requête, et le pool la renouvelle
+    quand même : c'est ce qui épargne le téléchargement à la requête. Une
+    copie plus jeune que le seuil n'est pas touchée. Changer l'âge accepté
+    déplace le seuil avec lui (B6 de docs/dev/PLAN_CACHE_SUITE.md).
+    """
+    monkeypatch.setattr(cache, "MAX_AGE_DAYS", accepte)
+    monkeypatch.setattr(pool, "EVICTION_JOURS", 10_000)
+    seuil = pool.seuil_jours()
+    assert 0 < seuil < accepte
+    _copie("K0550010", age_jours=(seuil + accepte) / 2)     # dans la marge
+    _copie("K0550011", age_jours=seuil - 1)                 # trop jeune
+    assert cache.is_fresh("K0550010")      # une requête la servirait encore
+
+    bilan = pool.passe(espacement=0)
+    assert bilan["candidates"] == 1 and bilan["rafraichies"] == 1
+    assert cache.is_fresh("K0550010", 0.01)                 # renouvelée
+    assert not cache.is_fresh("K0550011", 0.01)             # laissée
+
+
 def test_le_pool_ne_marque_aucune_lecture(monkeypatch):
     """**La règle sur laquelle repose toute l'éviction.**
 
@@ -120,7 +145,7 @@ def test_le_pool_ne_marque_aucune_lecture(monkeypatch):
     en permanence et rien ne sortirait jamais du cache : la station que
     personne ne redemande resterait là pour toujours.
     """
-    monkeypatch.setattr(pool, "FRAICHEUR_JOURS", 7)
+    monkeypatch.setattr(cache, "MAX_AGE_DAYS", 30)     # seuil du pool : 25
     monkeypatch.setattr(pool, "EVICTION_JOURS", 10_000)
     _copie("K0550010", age_jours=30)
     _lu_il_y_a(cache._CHRONIQUE, "K0550010", 40)
@@ -135,7 +160,7 @@ def test_une_station_muette_n_arrete_pas_la_passe(monkeypatch):
     """Le pool repassera, et le service sert la copie en place en
     attendant : une station qui ne répond pas ne doit pas emporter les
     autres."""
-    monkeypatch.setattr(pool, "FRAICHEUR_JOURS", 7)
+    monkeypatch.setattr(cache, "MAX_AGE_DAYS", 30)     # seuil du pool : 25
     monkeypatch.setattr(pool, "EVICTION_JOURS", 10_000)
     _copie("K0550010", age_jours=30)
     _copie("XXXX0000", age_jours=30)

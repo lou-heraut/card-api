@@ -641,8 +641,8 @@ def _limits():
             "cards": jobs.SYNC_CARDS,
             "note": "au-delà de l'un de ces seuils la demande devient un "
                     "job (202 + ticket). Chacun borne un coût mesuré : les "
-                    "stations À TÉLÉCHARGER (une chronique coûte environ "
-                    "trente fois plus à rapatrier qu'à calculer), les "
+                    "stations À TÉLÉCHARGER (une chronique coûte bien "
+                    "plus à rapatrier qu'à calculer), les "
                     "stations au total (relire et signer chaque chronique, "
                     "ce qu'aucun cache ne supprime), et les séries, soit "
                     "stations × fiches.",
@@ -1057,11 +1057,11 @@ def _tient_en_direct(st, cd, max_age) -> bool:
     """La demande peut-elle être servie sans passer par la file ?
 
     Ce n'est pas le nombre de stations qui décide, c'est le nombre de
-    stations à TÉLÉCHARGER. Mesuré en production le 2026-07-29 : une
-    chronique coûte environ 1,2 s à rapatrier et 0,04 s à calculer, trente
-    fois moins. Les mêmes 20 stations valent donc 24 s à froid et 1 s à
-    chaud, et le compteur unique tranchait au mauvais endroit : on payait
-    un ticket, une file et un aller-retour pour économiser une seconde.
+    stations à TÉLÉCHARGER : rapatrier une chronique entière coûte des
+    dizaines à des centaines de fois plus que la calculer (mesures datées :
+    docs/dev/PLAN_CACHE_SUITE.md, B5). Le compteur unique tranchait au
+    mauvais endroit : on payait un ticket, une file et un aller-retour pour
+    économiser une seconde.
 
     Trois seuils, chacun sur ce qu'il borne vraiment. Le bas s'applique aux
     téléchargements, il tient la durée d'une réponse immédiate. Celui du
@@ -1598,8 +1598,8 @@ def extract(request: Request, p: Annotated[ExtractParams, Query()]):
     202 avec un ticket à suivre (cf. /v1/jobs/{id}), dont le résultat se
     récupère ensuite en JSON, en CSV ou en figure. Ce qui déclenche la
     bascule n'est pas le nombre de stations demandées mais celles qui
-    restent à TÉLÉCHARGER, le rapatriement coûtant environ trente fois
-    plus que le calcul : les mêmes stations peuvent donc répondre en
+    restent à TÉLÉCHARGER, le rapatriement coûtant bien plus que le
+    calcul : les mêmes stations peuvent donc répondre en
     direct au second appel. Les valeurs en vigueur sont publiées par
     `/v1` (bloc `limits`), jamais recopiées ici où elles périmeraient.
 
