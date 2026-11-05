@@ -35,13 +35,17 @@ s'appuyer sur le service. D'où cet ordre, chaque étape renvoyant au
 document qui la porte :
 
 ```
-  1. contrat : refus natif des paramètres inconnus, `?key=` retiré,
+  1. aligner card-api sur la structure commune (campagne du
+     2026-11-06, plan dans ../card/dev/plans/2026-11-06_layout-
+     alignment.md) : ce registre devient ROADMAP.md, docs/dev/
+     devient dev/, et le CLAUDE.md s'allège
+  2. contrat : refus natif des paramètres inconnus, `?key=` retiré,
      B3 (date du pool dans /v1/health), et B5 déjà livré dans le
      dépôt                              une seule version mineure
-  2. première clé de priorité : celle de MAKAHO, qui demande plus de
+  3. première clé de priorité : celle de MAKAHO, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (CLAUDE.md)
-  3. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
+  4. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
      date du 2026-09-18 : il dit encore « rien n'est commencé » et
      liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
 ```
@@ -70,9 +74,8 @@ davantage de données. Sur ses cinq propositions, deux sont faites le jour
 même (FastAPI et Swagger UI épinglés, `/docs` ouverte après chaque
 `make update`). Restent trois chantiers :
 
-- **Alléger la prose** : `CLAUDE.md` et les récits datés dans le code,
-  par la procédure commune de `../card/docs/dev/NETTOYAGE.md`, dans une
-  session à part.
+- **Alléger la prose** : `CLAUDE.md` et les récits datés dans le code.
+  Se fait dans la phase D de l'alignement, étape 1 de l'ordre ci-dessus.
 - **Remplacer le refus maison des paramètres inconnus par celui de
   FastAPI** (`extra="forbid"` sur les modèles de paramètres, ce qui
   suppose d'en faire un aussi pour les filtres de `/v1/cards`), la clé
