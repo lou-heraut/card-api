@@ -4,11 +4,11 @@
 > en sort et devient une entrée de `CHANGELOG.md`, à la racine du dépôt,
 > qui renvoie au document expliquant le détail.
 
-# CHANTIERS : pistes ouvertes du service (mise à jour 2026-11-05)
+# CHANTIERS : pistes ouvertes du service (mise à jour 2026-11-06)
 
 L'ordre retenu, puis trois entrées : ce qui reste du cache, renvoyé au
 document qui le porte ; les suites de l'audit du 2026-10-11 ; un objectif
-de fond.
+de fond. En réserve, sans date : la phase 4 de `PLAN_FAIR.md`.
 Ce qui a quitté ce fichier le 2026-07-29 est parti dans le document qui en
 porte la matière, pas à la corbeille :
 
@@ -38,11 +38,12 @@ document qui la porte :
   1. contrat : refus natif des paramètres inconnus, `?key=` retiré,
      B3 (date du pool dans /v1/health), et B5 déjà livré dans le
      dépôt                              une seule version mineure
-  2. ménage documentaire (/kit-clean), sur l'état qui en sort
-  3. première clé de priorité : celle de MAKAHO, qui demande plus de
+  2. première clé de priorité : celle de MAKAHO, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (CLAUDE.md)
-  4. MAKAHO-next, chantier M1, depuis son propre dossier
+  3. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
+     date du 2026-09-18 : il dit encore « rien n'est commencé » et
+     liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
 ```
 
 B5 et B6 (`PLAN_CACHE_SUITE.md`) sont livrés le 2026-11-06. Au

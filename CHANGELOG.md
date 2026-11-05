@@ -81,6 +81,14 @@ des deux endroits.
 
 ### Documentation
 
+- **Ménage du 2026-11-06.** Le README annonçait encore qu'une demande
+  devient un job « au-dessus de 10 stations ou 20 fiches », règle fausse
+  depuis 0.7.0 : il renvoie maintenant aux plafonds publiés par `/v1`.
+  `INSTALL.md` donnait 226 pour `CARD_API_PRIORITY_CARDS`, qui vaut 0
+  (sans limite) partout ailleurs. `PLAN_FAIR.md` se disait en cours avec
+  ses quatre phases livrées sauf une en réserve. Une copie de cache au
+  format CSV d'avant 0.8.0, suivie par git par erreur, sort du dépôt.
+
 - **Audit du 2026-10-11** : la page `/docs` en panne, ce qu'elle dit de
   la complexité du service, et l'envie d'agréger davantage de données
   (`docs/dev/audits/2026-10-11_docs-outage-and-complexity.md`). Ses

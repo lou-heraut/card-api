@@ -18,11 +18,14 @@ statut en tête ; ne jamais recopier d'un fichier à l'autre, renvoyer.
   entre le même jour), ce qui a été vérifié dans le moteur avant d'écrire,
   et les endroits où une mesure a contredit une intuition. Chaque chantier
   y porte son état.
-- `docs/dev/PLAN_CACHE_SUITE.md` : ce qui reste du cache APRÈS cet audit du
-  2026-09-19, chantier par chantier avec son état, plus ce qu'il ne faut
-  pas faire et pourquoi. C'est là qu'on regarde avant de toucher au cache,
-  pas dans un souvenir : trois restes ouverts, dont le plafond des demandes
-  à froid qui est taillé sur une mesure périmée d'un facteur dix à vingt.
+- `docs/dev/PLAN_CACHE_SUITE.md` : ce qui reste du cache APRÈS l'audit du
+  2026-09-19, l'état de chaque chantier dans son tableau de tête, plus ce
+  qu'il ne faut pas faire et pourquoi. C'est là qu'on regarde avant de
+  toucher au cache, pas dans un souvenir.
+- `docs/dev/THEME_DOCS.md` : le thème de `/docs`, comment il se construit
+  et se vérifie.
+- `docs/dev/PLAN_FAIR.md` : la revue FAIR du 2026-07-24 ; phases 0 à 3
+  livrées, la 4 en réserve.
 - `docs/dev/audits/` : états des lieux datés, figés une fois écrits ;
   leurs suites partent dans `CHANTIERS.md`.
 - Ménage documentaire : la procédure est commune aux trois dépôts et vit

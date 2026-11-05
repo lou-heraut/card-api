@@ -332,8 +332,8 @@ lines(dates, tr$a * years + tr$b, lty = 2)
 
 ### Grosses demandes : les jobs
 
-Au-dessus de 10 stations ou 20 fiches, la demande devient un job,
-sans inscription : la réponse `202` donne un ticket, le calcul se
+Au-delà des plafonds de réponse immédiate (publiés par `/v1`, bloc
+`limits`), la demande devient un job, sans inscription : la réponse `202` donne un ticket, le calcul se
 fait en file, le résultat reste téléchargeable plusieurs jours avec
 un bloc de provenance (paramètres, versions, date des données) qui le
 rend citable et reproductible.
@@ -377,7 +377,7 @@ vous revient par le même canal, ce qui est la raison de ce choix : une
 issue GitHub est publique, le jeton ne peut pas y transiter.
 Elle se passe en en-tête `X-API-Key` (de préférence à `key=`, qui
 laisse la clé dans les logs web) : quotas par minute levés, plafonds
-relevés (jusqu'à 1000 stations par job), jobs en tête de file, et
+relevés, jobs en tête de file, et
 `GET /v1/jobs` liste vos jobs déposés avec la clé (tickets compris :
 pratique pour retrouver un résultat dont le ticket est égaré).
 

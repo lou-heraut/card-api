@@ -1,8 +1,9 @@
-# Plan : rendre card-api FAIR pour de vrai (en cours)
+# Plan : rendre card-api FAIR pour de vrai
 
-> **Statut : plan de travail vivant.** Issu de la revue FAIR du
-> 2026-07-24. Une phase livrée sort d'ici et devient une entrée de
-> `CHANGELOG.md`. Ne pas paraphraser dans d'autres fichiers, renvoyer.
+> **Statut : phases 0 à 3 livrées le 2026-07-24, phase 4 en réserve,**
+> sans date et sur décision. Issu de la revue FAIR du 2026-07-24. Ce qui
+> a été livré se lit dans `CHANGELOG.md`. Ne pas paraphraser dans
+> d'autres fichiers, renvoyer.
 
 ## Constat de la revue
 
