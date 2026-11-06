@@ -1,9 +1,11 @@
-> **Statut : norme en vigueur.** Conception du service : la carte de
-> l'écosystème à trois dépôts, le modèle d'accès et les arbitrages qui
-> engagent encore le code. Ce que le service FAIT aujourd'hui se lit dans
-> le README ; ce qui a changé et quand, dans `CHANGELOG.md` à la racine.
+> **Statut : repères en vigueur.** Les choix qui engagent encore le
+> service, chacun avec sa date et sa raison : on les suit tant qu'ils
+> servent, et leur raison dit quand l'un d'eux ne tient plus. Ce que le
+> service FAIT aujourd'hui se lit dans le README ; ce qui a changé et
+> quand, dans `CHANGELOG.md` ; les raisons propres à un module, dans sa
+> docstring.
 
-# Conception du service card-api
+# Décisions du service card-api
 
 > Réflexion du 2026-07-16, **arbitrée le jour même** : repo `card-api`,
 > service full public sans clé (modèle Hub'Eau) avec quota par IP,
@@ -18,26 +20,25 @@
 
 Principe : **card reste une bibliothèque de calcul pure** (installable,
 légère, sans dépendance service). Tout ce qui est *service* (réseau,
-cache, clés, déploiement) vit dans un repo séparé, comme stase et card
-sont déjà séparés par nature (moteur / fiches).
+cache, clés, déploiement) vit dans un dépôt séparé, comme stase et card
+sont déjà séparés par nature (moteur / fiches). Carte redessinée le
+2026-11-06 ; celle du 2026-07-16 ne comptait que trois dépôts.
 
 ```
-stase        moteur d'extraction/stationnarité         (repo existant)
+stase        le moteur : agrégation, Mann-Kendall, Sen
   ▲
-card         fiches + classification + fonctions hydro (repo existant)
-  │            ├─ scripts/generate_catalog.py → docs/CARDS.md   (Pages)
-  │            └─ scripts/generate_skos.py    → docs/card.ttl   (Pages, chantier §4)
-  ▼
-card-api     service web FastAPI                       (NOUVEAU repo, VM)
-               ├─ hubeau.py    client Hub'Eau + cache des chroniques
-               ├─ main.py      endpoints v1
-               ├─ auth/quotas  clés d'API (statistiques d'usage)
-               └─ Dockerfile / systemd (déploiement VM)
-
-Skosmos      navigateur de thésaurus (VM, optionnel)   lit docs/card.ttl
+card         les fiches, leur classification, les fonctions hydro
+  ▲            (catalogue et export SKOS générés dans son dépôt)
+  ├─ card4r    front R : appelle card par reticulate
+  │
+card-api     le service web FastAPI, sur la VM, derrière son Apache
+  ▲            client Hub'Eau, cache, chaîne de calcul, file, quotas, clés
+  │
+MAKAHO       client de référence, en préparation
+               (../../MAKAHO_project/MAKAHO-next/)
 ```
 
-Pourquoi un repo séparé (`card-api`, nom de travail) :
+Pourquoi un dépôt séparé :
 - cycles de vie différents (une fiche corrigée ≠ un redéploiement ;
   une évolution d'endpoint ≠ une release card) ;
 - dépendances contenues : card garde numpy/pandas/yaml ; l'API ajoute
@@ -50,9 +51,9 @@ Pourquoi un repo séparé (`card-api`, nom de travail) :
 
 ## Modèle de l'API v1
 
-Toutes les réponses JSON portent `card_version`, `stase_version` et la
-`version` de chaque fiche utilisée (discipline de versions en place).
-Préfixe `/v1` dès le départ.
+Toutes les réponses JSON portent l'identité du calcul (`versions()` :
+numéros, commits et SWHID de card et de stase) et la version et le SWHID
+de chaque fiche utilisée. Préfixe `/v1` dès le départ.
 
 ### Découverte
 
@@ -160,8 +161,10 @@ demande part en réponse immédiate ou en file, en comptant les stations à
 télécharger. Quand cette décision jugeait la fraîcheur avec la durée de
 vie du service pendant que le calcul la jugeait avec ce que la requête
 accepte, les deux pouvaient se contredire : une demande annoncée immédiate
-partait pour une minute de téléchargements, derrière le sémaphore, en
-bloquant tous ceux qui attendaient. Les deux appellent désormais la même
+partait pour une minute de téléchargements, sans rien renvoyer ni montrer
+d'avancement. (Corrigé le 2026-11-06 : ce paragraphe ajoutait qu'elle
+bloquait tous ceux qui attendaient derrière le sémaphore. C'est faux, les
+téléchargements se font avant de le prendre.) Les deux appellent désormais la même
 fonction avec la même valeur, résolue une fois par `pipeline.normalise`,
 et un job gèle celle de la demande qui l'a créé.
 
@@ -427,9 +430,11 @@ en large quand c'est voulu.
 
 `docker compose` à deux services sur la VM :
 - **api** : image card-api (uvicorn+FastAPI) qui installe card et
-  stase depuis GitHub à révision épinglée (traçabilité : API x.y =
-  card @tag + stase @tag) ; concurrence bornée en-process (sémaphore
-  sur les endpoints de calcul) : pas de Redis/worker externe en v1 ;
+  stase depuis GitHub à la révision de `CARD_REF` / `STASE_REF`,
+  aujourd'hui `main` (cf. « La production suit main » plus bas). Le
+  projet du 2026-07-16 épinglait des tags, ce n'est plus le cas ;
+  concurrence bornée en-process (sémaphore sur les calculs) : pas de
+  Redis ni de worker externe ;
 - volume persistant pour le cache des chroniques et le journal d'usage.
 
 **Révision du 2026-07-17** : le frontal n'est pas Caddy mais l'**Apache
@@ -447,8 +452,7 @@ la classification, qui vit dans card (source de vérité :
 La conception de l'export (generate_skos.py, concept schemes par
 facette, publication `docs/card.ttl` sur GitHub Pages, URIs w3id.org,
 Skosmos optionnel) était décrite ici par accident de rangement. Elle a
-été rapatriée le 2026-07-20 dans card, `docs/dev/CHANTIERS.md`, avec
-le reste du sujet.
+été rapatriée le 2026-07-20 dans le dépôt card, avec le reste du sujet.
 
 Ce qui reste du ressort du service : l'API pourrait exposer un
 `GET /v1/concepts` renvoyant vers ces URIs. C'est un renvoi, pas une
@@ -460,8 +464,45 @@ source, et rien ne presse tant que l'export n'existe pas.
 2. `POST /v1/extract` (données utilisateur) : **reporté**.
 3. `/v1/trend` : **en v1** avec extract ; multi-stations, plage
    temporelle et liste de fiches sur les deux.
-4. Accès : **full public sans clé** (quota IP bas) + file d'attente
+4. Accès : **full public sans clé** (quota IP bas, relevé le 2026-07-29,
+   cf. « Où porte réellement la protection ») + file d'attente
    bornée/motif job en cas de charge + **clés de priorité gratuites à
    la demande** pour les besoins massifs (attribution manuelle).
-5. w3id.org pour les URIs SKOS : à confirmer le moment venu (pas
-   bloquant).
+5. w3id.org pour les URIs SKOS : à confirmer le moment venu, question
+   qui relève désormais de card.
+
+## Exploitation, diffusion et versions
+
+Ces repères étaient portés par le `CLAUDE.md` et le registre des
+chantiers ; ils sont réunis ici le 2026-11-06.
+
+- **La production suit `main`** (`CARD_REF` / `STASE_REF` dans `.env`) :
+  une fiche corrigée part en ligne au `make update` suivant, sans geste
+  intermédiaire. Ce qui rend un résultat traçable n'est pas une ref figée
+  mais le **commit** résolu à la construction (`scripts/resolve_refs.py`),
+  publié par `versions()` dans chaque réponse. Un numéro de version ne
+  s'écrit jamais à la main dans une réponse. Doctrine des numéros : en
+  tête de `CHANGELOG.md`.
+- **Le déploiement ne part jamais du CI** (arbitré au plus tard le
+  2026-07-29, réserve explicite de l'utilisateur). La production suit
+  `main`, mais c'est l'auteur qui décide du moment : `make update` reste un
+  geste conscient, suivi d'un coup d'œil à `/docs` (`INSTALL.md`). Le CI ne
+  fait que les tests et le lint. À ne pas reproposer comme une évidence.
+- **Les clés de priorité se demandent par courriel**, jamais par une issue
+  du dépôt (2026-07-29) : une issue est publique, et le jeton ne peut pas
+  en revenir. Le gabarit d'issue a été retiré pour cette raison ; ne pas le
+  réintroduire.
+- **À partir de la première clé distribuée, les versions redeviennent des
+  engagements** : `FINGERPRINT_VERSION` s'incrémente à tout changement du
+  calcul d'empreinte, et un renommage de colonne devient une rupture
+  d'API. Aucune clé n'était distribuée au 2026-11-05.
+- **Les clés créées avant le durcissement du 2026-07-18 sont à recréer**
+  (`make key`) : il n'est pas rétroactif, et les jobs antérieurs ne se
+  listent pas par clé. Sans objet tant qu'aucune clé ancienne ne traîne
+  dans `keys.json`, ce que `make keys` dit sur la VM.
+- **Pas de sauvegarde du volume** (écartée le 2026-07-22) : les clés sont
+  réémissibles, les jobs éphémères, le journal petit.
+- **Citer passe par Software Heritage et HAL**, avec `CITATION.cff` et
+  `codemeta.json` ; **pas de dépôt Zenodo**, choix de l'utilisateur
+  (2026-07-18). Les trois dépôts sont archivés sur Software Heritage
+  depuis le 2026-07-22, et SWH revisite seul ensuite.

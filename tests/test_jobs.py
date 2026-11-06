@@ -318,8 +318,8 @@ def test_l_age_accepte_par_la_requete_decide_aussi_du_routage(tmp_path,
     `max_age=2`, la MÊME demande compte vingt téléchargements et doit
     partir en file. Quand le routage jugeait avec la durée de vie du
     service pendant que le calcul jugeait avec ce que la requête accepte,
-    elle était annoncée immédiate puis partait pour vingt téléchargements
-    derrière le sémaphore, en bloquant tous ceux qui attendaient.
+    elle était annoncée immédiate puis partait pour vingt téléchargements,
+    sans rien renvoyer ni montrer d'avancement.
     """
     st = _stations(20)
     vieux = time.time() - 10 * 86400

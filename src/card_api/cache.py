@@ -228,8 +228,8 @@ def is_fresh(station: str, max_age: float | None = None) -> bool:
     se contredire : le routage comparait l'âge à la durée de vie du
     service pendant que le calcul le comparait à ce que la requête
     acceptait. Une demande annoncée immédiate partait alors pour une
-    minute de téléchargements, derrière le sémaphore, en bloquant tous
-    ceux qui attendaient.
+    minute de téléchargements, sans rien renvoyer ni montrer
+    d'avancement.
     """
     jours = MAX_AGE_DAYS if max_age is None else max_age
     p = chronicle_path(station)

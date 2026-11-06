@@ -1,5 +1,6 @@
-> **Statut : plan de chantier, l'état de chacun dans le tableau ci-dessous**
-> (repris le 2026-11-05). Ce qui
+> **Statut : en cours.** Seul B3 reste ouvert, et il part avec la
+> prochaine version mineure (`ROADMAP.md`) ; l'état de chaque chantier est
+> dans le tableau ci-dessous (repris le 2026-11-06). Ce qui
 > reste du cache APRÈS que `dev/plans/2026-09-18_cache.md` a été entièrement livré (service
 > 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
 > mesures qui ont commandé l'architecture, la règle de la clé et ce qui a

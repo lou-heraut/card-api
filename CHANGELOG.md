@@ -81,6 +81,22 @@ des deux endroits.
 
 ### Documentation
 
+- **Les documents de développement prennent la structure commune aux
+  dépôts de l'écosystème (2026-11-06).** `docs/dev/CHANTIERS.md` devient
+  `ROADMAP.md` à la racine, `docs/dev/API.md` devient `dev/decisions.md`,
+  les plans passent dans `dev/plans/` avec leur date de création dans le
+  nom, l'audit dans `dev/audits/`, le thème de `/docs` dans
+  `dev/docs-theme.md`. Le `CLAUDE.md` passe d'environ 27 à 9 Ko : son bloc
+  « Structure » redisait les docstrings des modules, vérifié point par
+  point, et ce qu'il était seul à porter rejoint `dev/decisions.md`. Deux
+  décisions n'étaient écrites nulle part ailleurs : le déploiement qui ne
+  part jamais du CI, et la sauvegarde du volume écartée. Corrigés au
+  passage : `dev/decisions.md` disait la production épinglée sur des tags
+  (elle suit `main`) et ne connaissait que trois dépôts ; quatre textes
+  affirmaient qu'une demande à froid bloquait les autres derrière le
+  sémaphore, ce qui est faux depuis `pipeline.py` (2026-07-29). Campagne
+  commune : `../card/dev/plans/2026-11-06_layout-alignment.md`.
+
 - **Ménage du 2026-11-06.** Le README annonçait encore qu'une demande
   devient un job « au-dessus de 10 stations ou 20 fiches », règle fausse
   depuis 0.7.0 : il renvoie maintenant aux plafonds publiés par `/v1`.
