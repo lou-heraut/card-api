@@ -13,7 +13,7 @@ authors = [{name = "Louis Héraut", email = "louis.heraut@inrae.fr"}]
 dependencies = [
     # Épinglé : FastAPI décide de la forme du contrat publié. Une montée
     # passe par un commit qui relance les tests et regarde /docs.
-    # Cf. docs/dev/audits/2026-10-11_docs-outage-and-complexity.md
+    # Cf. dev/audits/2026-10-11_docs-outage-and-complexity.md
     "fastapi==0.143.0",
     "uvicorn[standard]",
     "httpx",

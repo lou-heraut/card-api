@@ -62,7 +62,7 @@ des deux endroits.
   `CARD_API_MAX_AGE_DAYS` (25 jours pour 30) et `CARD_API_POOL_REFRESH_DAYS`
   disparaît : s'il reste dans un `.env`, il ne sert plus et peut être
   retiré. Rien ne change pour un client. Détail :
-  `docs/dev/PLAN_CACHE_SUITE.md` (B6).
+  `dev/plans/2026-09-19_cache-followup.md` (B6).
 
 - **Au-delà de trois stations à télécharger, la demande part en job, et
   non plus au-delà de dix (2026-11-06).** Le seuil avait été fixé sur une
@@ -76,7 +76,7 @@ des deux endroits.
   production, corriger `CARD_API_SYNC_STATIONS` dans le `.env`. Le chiffre
   de juillet était recopié dans huit fichiers, dont la note de `/v1` et la
   description de `/v1/extract` : les textes disent désormais la règle sans
-  le chiffre, et les mesures vivent dans `docs/dev/PLAN_CACHE_SUITE.md`
+  le chiffre, et les mesures vivent dans `dev/plans/2026-09-19_cache-followup.md`
   (B5).
 
 ### Documentation
@@ -91,8 +91,8 @@ des deux endroits.
 
 - **Audit du 2026-10-11** : la page `/docs` en panne, ce qu'elle dit de
   la complexité du service, et l'envie d'agréger davantage de données
-  (`docs/dev/audits/2026-10-11_docs-outage-and-complexity.md`). Ses
-  suites sont dans `CHANTIERS.md`. Ouvrir `/docs` après un `make update`
+  (`dev/audits/2026-10-11_docs-outage-and-complexity.md`). Ses
+  suites sont dans `ROADMAP.md`. Ouvrir `/docs` après un `make update`
   entre dans la procédure de `INSTALL.md`.
 
 ## 0.8.1 (2026-10-11)
@@ -183,7 +183,7 @@ des deux endroits.
   fois, puis l'éviction ramasse les anciennes sans attendre leur délai de
   lecture. Profil de ce qui reste, tout en cache : 61 % à lire et signer
   les chroniques, 23 % à relire les séries, 15 % de tendance. Suite
-  éventuelle dans `docs/dev/PLAN_CACHE_SUITE.md` (B2b), non décidée.
+  éventuelle dans `dev/plans/2026-09-19_cache-followup.md` (B2b), non décidée.
 
 ### Ajouté
 
@@ -309,7 +309,7 @@ des deux endroits.
   servies et calculées, jobs compris, et `make stats` affiche le taux de
   succès. Les deux champs sont ABSENTS quand l'étage est éteint, un zéro se
   lisant comme un échec là où il faut lire une absence. Détail, mesures et
-  preuves : `docs/dev/PLAN_CACHE.md` (A5).
+  preuves : `dev/plans/2026-09-18_cache.md` (A5).
 
 - **Le cache se garde chaud et se vide tout seul (2026-09-19).** Un module
   `pool.py` tient une tâche de fond qui, à chaque passe, évince ce que
@@ -366,7 +366,7 @@ des deux endroits.
   milliers de lignes par station, et rien ne le rattrape. L'empreinte porte
   sur la chronique ENTIÈRE même quand la réponse n'en montre qu'une
   fenêtre. Le service devient ainsi un miroir partiel de Hub'Eau, ce qui
-  est assumé et écrit dans `docs/dev/API.md`.
+  est assumé et écrit dans `dev/decisions.md`.
 
 - **Le plafond de la réponse immédiate suit le coût mesuré (2026-09-19).**
   Relevé sur 200 chroniques Hub'Eau réelles, une fois le second étage en
@@ -466,7 +466,7 @@ des deux endroits.
   demande qui exige du frais compte des stations à télécharger, donc
   bascule plus volontiers en file : ce n'est pas un effet de bord, c'est
   le coût réel qui redevient visible. Règle et raisons dans
-  `docs/dev/API.md`.
+  `dev/decisions.md`.
 
 - **La tendance dit sur combien de points elle a porté (2026-09-18).** La
   colonne `n` apparaît dans chaque ligne de `/v1/trend` et de
@@ -524,7 +524,7 @@ des deux endroits.
   par une colonne. Ce que la base coûte est dit aussi franchement : un
   schéma à migrer le jour où il bouge, et une écriture concurrente qui
   peut être refusée, contenue par le WAL, des transactions d'une ligne et
-  un échec avalé. Raisonnement complet dans `docs/dev/PLAN_CACHE.md`
+  un échec avalé. Raisonnement complet dans `dev/plans/2026-09-18_cache.md`
   (A4).
 
   **L'écriture devient atomique** (temporaire puis renommage). Deux
@@ -534,7 +534,7 @@ des deux endroits.
 
   C'est la fondation de la fraîcheur réglable par requête, du pool qui se
   garde chaud et du second étage de cache : détail et suite dans
-  `docs/dev/PLAN_CACHE.md`.
+  `dev/plans/2026-09-18_cache.md`.
 
 ### Documentation
 
@@ -549,7 +549,7 @@ des deux endroits.
   source, soit le contraire de ce à quoi elle sert.
 
   Le code ne permettait déjà pas de faire autrement. Ce qui manquait est
-  la règle écrite, dans `docs/dev/API.md`, et un test qui vérifie que la
+  la règle écrite, dans `dev/decisions.md`, et un test qui vérifie que la
   demande envoyée à Hub'Eau ne porte aucune borne de date : l'idée de ne
   rafraîchir que la queue revient dès qu'on regarde une facture de bande
   passante.
@@ -594,7 +594,7 @@ des deux endroits.
   chaud, le second étage de cache, le plafond synchrone, la chronique
   journalière exposée, le nombre de points de la tendance. Rien n'est
   implémenté. Le plan, les décisions retenues et les mesures qui les
-  fondent sont dans `docs/dev/PLAN_CACHE.md`, y compris les deux
+  fondent sont dans `dev/plans/2026-09-18_cache.md`, y compris les deux
   affirmations de l'audit qui se sont révélées fausses à la
   vérification, et un défaut de `stase` trouvé en mesurant : la fenêtre
   d'échantillonnage adaptative s'y calculait avant le filtre de période,
@@ -954,7 +954,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   l'**empreinte des données** plutôt que par une date de génération :
   deux fichiers de même nom ont la même source, et deux extractions
   séparées par une révision Hub'Eau ne s'écrasent pas. Détail et
-  arbitrages dans `docs/dev/API.md`.
+  arbitrages dans `dev/decisions.md`.
 
   **Aucune virgule dans le bandeau `#`.** Un tableur n'a pas de notion de
   commentaire : il affiche ces lignes comme des données et les découpe
@@ -979,7 +979,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   la peur de recopier neuf paramètres, n'existait pas : FastAPI accepte
   un modèle Pydantic comme paramètres de requête, les deux endpoints les
   déclarent donc **une** fois et le contrat les rend identiques. La règle
-  qui en sort, écrite dans `docs/dev/API.md` : **une représentation, une
+  qui en sort, écrite dans `dev/decisions.md` : **une représentation, une
   URL**, extension de chemin quand seul l'encodage change
   (`/v1/trend.csv`), sous-ressource quand l'information change
   (la figure retire les intervalles et ajoute un verdict).
@@ -1056,7 +1056,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   même gris que le titre et suivra `--text` si elle change), la favicon
   une URL `data:`. Même règle que le reste du thème, et même conséquence :
   si l'une cesse un jour de s'appliquer, la page rend un titre sans logo,
-  elle ne casse pas. Détail dans `docs/dev/THEME_DOCS.md`.
+  elle ne casse pas. Détail dans `dev/docs-theme.md`.
 
 - **L'en-tête de `/docs` redevient lisible (2026-07-28).** La description
   charriait quatre liens au fil des phrases et une phrase sur la
@@ -1247,7 +1247,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
 
   L'omission voyage dans toutes les représentations, lignes `#` du CSV et
   figure comprises, comme le ticket de job la veille. Arbitrage complet
-  dans `docs/dev/API.md`, y compris la piste écartée d'un cache de
+  dans `dev/decisions.md`, y compris la piste écartée d'un cache de
   disponibilité qui deviendrait faux le jour où Hub'Eau publie la série.
 
 - **`make stats` garde la même forme, pleine ou vide (2026-07-29).** Les
@@ -1285,7 +1285,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   n'aille vite, et la boucle station par station, premier script que tout
   le monde écrit. Les refus étant désormais mesurés, ces valeurs se
   resserreront à la charge observée s'il le faut, et plus à l'intuition.
-  Raisonnement complet dans `docs/dev/API.md`.
+  Raisonnement complet dans `dev/decisions.md`.
 
 - **Le message du 429 enseigne la bonne forme d'appel (2026-07-29).** Il
   n'offrait que « demandez une clé de priorité », c'est-à-dire une
@@ -1339,20 +1339,20 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
   adresse absolue, la seule dont dispose un générateur de client ou
   quiconque lit `openapi.json` ailleurs que sur cette page. Le retirer
   produirait des clients pointant sur `/` pour gagner trente pixels.
-  Même doctrine que les autres champs masqués, cf. `THEME_DOCS.md`, qui
+  Même doctrine que les autres champs masqués, cf. `dev/docs-theme.md`, qui
   note aussi la condition : le masque suppose un seul serveur.
 
 - **`CHANTIERS.md` ne garde qu'une piste ouverte (2026-07-29).** Le thème
   de `/docs` est refermé, le déploiement depuis le CI est une décision
   prise et non une piste, et la veille sur les décomptes est devenue une
   règle. Chaque élément est parti dans le document qui en porte la
-  matière : `THEME_DOCS.md` pour la doctrine du thème, `CLAUDE.md` pour
+  matière : `dev/docs-theme.md` pour la doctrine du thème, `CLAUDE.md` pour
   les deux règles. Un registre de pistes ouvertes qui accumule des
   décisions closes cesse de dire ce qui reste à faire.
 
 - **La colonne de station devient `code_station` (2026-07-28),** et la
   colonne de valeurs d'`extract.csv` devient `value`. Avec la règle qui
-  les décide, écrite dans `docs/dev/API.md` : une colonne porte un nom
+  les décide, écrite dans `dev/decisions.md` : une colonne porte un nom
   **anglais snake_case**, sauf lorsqu'elle **relaie telle quelle** une
   donnée d'une source extérieure, auquel cas elle garde le nom de la
   source pour qu'une jointure se fasse sans traduction.
@@ -1417,7 +1417,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
     `license_info`, endpoints groupés par tags (service, cards, data,
     stations, jobs).
 
-  Plan complet et phases suivantes : `docs/dev/PLAN_FAIR.md`.
+  Plan complet et phases suivantes : `dev/plans/2026-07-24_fair.md`.
 
 - **`/docs` : champs éditables d'emblée et exemples pré-remplis.** Il
   fallait cliquer « Try it out » avant chaque essai, et les champs étaient
@@ -1445,7 +1445,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
 
   Gris neutres à gamme ouverte, couleur réservée aux méthodes HTTP et
   jamais seule porteuse de l'information, hors axe rouge/vert. Conception,
-  palette et façon de vérifier : `docs/dev/THEME_DOCS.md`.
+  palette et façon de vérifier : `dev/docs-theme.md`.
 
 - README : les cinq exemples Python et les quatre exemples R sont
   rejoués contre une instance locale à Hub'Eau simulé, ce qui n'avait
@@ -1651,7 +1651,7 @@ Le détail et les raisons sont dans le CHANGELOG de card (2026-07-30 et
 ### Modifié
 
 - Documentation restructurée comme dans card et stase : un rôle par
-  fichier, un bandeau de statut en tête. `docs/dev/API.md` perd son
+  fichier, un bandeau de statut en tête. `dev/decisions.md` perd son
   état d'avancement figé au 2026-07-16 (il annonçait encore le
   déploiement comme restant à faire) et ses étapes, toutes réalisées,
   au profit de ce journal ; il garde la carte de l'écosystème, le modèle
@@ -1783,5 +1783,5 @@ Création du service, de l'ébauche au dépôt complet.
   n'utilise pas l'échantillonnage adaptatif des fiches, il impose leur
   fenêtre préférée partout.
 
-Détail de la conception : `docs/dev/API.md`. Déploiement et variables
+Détail de la conception : `dev/decisions.md`. Déploiement et variables
 d'environnement : `INSTALL.md`.

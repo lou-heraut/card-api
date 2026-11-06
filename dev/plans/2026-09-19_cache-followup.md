@@ -1,6 +1,6 @@
 > **Statut : plan de chantier, l'état de chacun dans le tableau ci-dessous**
 > (repris le 2026-11-05). Ce qui
-> reste du cache APRÈS que `PLAN_CACHE.md` a été entièrement livré (service
+> reste du cache APRÈS que `dev/plans/2026-09-18_cache.md` a été entièrement livré (service
 > 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
 > mesures qui ont commandé l'architecture, la règle de la clé et ce qui a
 > été vérifié dans le moteur sont là-bas. Ici, ce que l'audit du 2026-09-19
@@ -177,7 +177,7 @@ ce qu'elle peut déjà voir.
 du pool, et la sonde la vérifie.** C'est la seule voie par laquelle une
 sonde extérieure voit le pool sans lire le journal, et le champ ne coûte
 presque rien. Le contrat bouge : il part dans la même version mineure que
-le refus natif des paramètres inconnus (`CHANTIERS.md`).
+le refus natif des paramètres inconnus (`ROADMAP.md`).
 
 ## B4. L'indépendance par station : refermé le 2026-09-19
 
@@ -310,7 +310,7 @@ pour lui : pour les 228 stations de MAKAHO, ~1 000 téléchargements par mois
 contre ~270 à 25 jours.
 
 Une phrase était fausse au passage, dans `pool.py`, `.env.example` et
-`PLAN_CACHE.md` (A1) : l'âge réel d'une chronique consultée n'est pas la
+`dev/plans/2026-09-18_cache.md` (A1) : l'âge réel d'une chronique consultée n'est pas la
 période des passes, c'est ce seuil, à une passe près. Corrigée avec B6.
 
 **Livré le 2026-11-06** : le seuil se déduit de l'âge accepté (25 jours

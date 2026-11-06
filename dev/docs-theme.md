@@ -3,7 +3,7 @@
 > **Statut : norme en vigueur.** Décrit le thème sombre de la page
 > `/docs`, comment il est fabriqué et comment on le vérifie. Ce qui a
 > changé et quand se lit dans `CHANGELOG.md`, l'avancement FAIR dans
-> `PLAN_FAIR.md`. Ne rien recopier d'ici : renvoyer.
+> `dev/plans/2026-07-24_fair.md`. Ne rien recopier d'ici : renvoyer.
 
 ## Ce que c'est
 

@@ -9,7 +9,7 @@
 
 """card-api : service web des fiches CARD (v1).
 
-Conception : docs/dev/API.md du repo card. Découverte du catalogue et
+Conception : dev/decisions.md. Découverte du catalogue et
 des stations, extraction Hub'Eau, tendance Mann-Kendall/Sen ; quotas
 par IP et journal d'usage anonymisé (usage.py).
 """
@@ -516,7 +516,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 # `scripts/build_theme.py`, qui relit le CSS réel de Swagger et
 # re-déclare chacune de ses règles de couleur ; écrire ces règles à la
 # main revient à en oublier, et un thème à moitié appliqué est pire
-# qu'un thème absent (leçon du 2026-07-23, cf. docs/dev/THEME_DOCS.md).
+# qu'un thème absent (leçon du 2026-07-23, cf. dev/docs-theme.md).
 # DEUX feuilles, servies dans cet ordre, et c'est délibéré :
 #
 #   swagger-colors.css   GÉNÉRÉ par scripts/build_theme.py. Ne contient
@@ -1059,7 +1059,7 @@ def _tient_en_direct(st, cd, max_age) -> bool:
     Ce n'est pas le nombre de stations qui décide, c'est le nombre de
     stations à TÉLÉCHARGER : rapatrier une chronique entière coûte des
     dizaines à des centaines de fois plus que la calculer (mesures datées :
-    docs/dev/PLAN_CACHE_SUITE.md, B5). Le compteur unique tranchait au
+    dev/plans/2026-09-19_cache-followup.md, B5). Le compteur unique tranchait au
     mauvais endroit : on payait un ticket, une file et un aller-retour pour
     économiser une seconde.
 
@@ -1769,7 +1769,7 @@ def trend_figure(request: Request, p: Annotated[TrendParams, Query()]):
 # Le service la détenait déjà sans la rendre : aucune fiche à entrée `Q` ne
 # restitue la chronique brute. La raison d'ouvrir cette porte n'est pas le
 # téléchargement évité, c'est la PROVENANCE (cf. `pipeline.chronicles_export`
-# et `docs/dev/API.md`).
+# et `dev/decisions.md`).
 
 _D_CHRONICLE_STATIONS = (
     "Codes de stations Hub'Eau, séparés par des virgules. Le plafond est "

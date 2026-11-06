@@ -3,7 +3,7 @@ name: tests
 # Exécuter les tests, rien d'autre. Le déploiement reste `make update`
 # sur la VM, un geste conscient : la production suit `main`, mais c'est
 # l'auteur qui décide du moment (arbitrage consigné dans
-# docs/dev/CHANTIERS.md, à ne pas rouvrir sans lui).
+# dev/decisions.md, à ne pas rouvrir sans lui).
 
 on:
   push:

@@ -8,7 +8,7 @@ restaient clairs sur fond sombre. D'où les garanties ci-dessous, qui sont
 toutes des choses que ce thème-là aurait ratées.
 
 Ce qu'aucun test ne remplace, et qui reste la vraie vérification : ouvrir
-la page et la regarder (mode d'emploi dans `docs/dev/THEME_DOCS.md`).
+la page et la regarder (mode d'emploi dans `dev/docs-theme.md`).
 """
 
 import re

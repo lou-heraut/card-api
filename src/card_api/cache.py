@@ -123,7 +123,7 @@ MAX_AGE_DAYS = float(os.environ.get("CARD_API_MAX_AGE_DAYS", 30))
 # pourrait relier à la cause. Mesuré, une chronique pèse ~100 Kio et une
 # série ~4 Kio : quelques gigaoctets tiennent très au-delà de tout usage
 # plausible. Ce plafond n'arbitre pas une place rare, il donne une borne à
-# une dérive. Raisonnement complet : docs/dev/PLAN_CACHE_SUITE.md (B1).
+# une dérive. Raisonnement complet : dev/plans/2026-09-19_cache-followup.md (B1).
 MAX_GO = float(os.environ.get("CARD_API_CACHE_MAX_GB", 5))
 
 # Préfixes de clé du registre : les deux familles d'entrées cohabitent

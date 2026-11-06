@@ -127,7 +127,7 @@ trop bas. Les valeurs se règlent désormais sur cette observation.
   demandée et l'identité de construction de l'image : une version se
   bosse à la main, un hash de contenu non. L'invalidation est alors
   gratuite, une clé qui change cessant simplement d'être demandée.
-  Détail, mesures et preuves dans `PLAN_CACHE.md` (A5).
+  Détail, mesures et preuves dans `dev/plans/2026-09-18_cache.md` (A5).
 - Respecter la politique de débit Hub'Eau (taille de page, pauses) ;
   bannière de provenance des données (Licence Ouverte, eaufrance).
 - **Formats de réponse (arbitré 2026-07-16)** : JSON `records` par

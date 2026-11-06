@@ -22,7 +22,7 @@ Deux gestes par passe, et ils ne répondent pas à la même question.
   du cache, par la même règle et sur la même date de dernière lecture. La
   question est celle de la place.
 - **Rafraîchir** les copies qui vieillissent, entières (jamais par morceaux
-  recollés, cf. `docs/dev/API.md`). La question est celle de la fraîcheur :
+  recollés, cf. `dev/decisions.md`). La question est celle de la fraîcheur :
   le pool renouvelle chaque copie un peu AVANT l'âge que le service
   accepte, pour qu'aucune requête n'ait à la retélécharger elle-même.
 
@@ -59,7 +59,7 @@ PASSE_HEURES = float(os.environ.get("CARD_API_POOL_HOURS", 6))
 # pour qu'aucune requête ne rencontre une copie trop vieille, il doit donc
 # passer un peu avant, jamais ailleurs. La marge couvre l'écart entre deux
 # passes et une panne de Hub'Eau de quelques jours.
-# Cf. docs/dev/PLAN_CACHE_SUITE.md (B6).
+# Cf. dev/plans/2026-09-19_cache-followup.md (B6).
 MARGE = 1 / 6
 
 # Sans lecture depuis ce délai, une entrée sort du cache. Généreux à

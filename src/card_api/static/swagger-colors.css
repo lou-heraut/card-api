@@ -4,7 +4,7 @@
    couleurs : le reste du thème est écrit à la main dans
    `theme-identity.css`, servi juste après celui-ci, et qui lui
    s'édite sans rien reconstruire.
-   Conception et façon de vérifier : docs/dev/THEME_DOCS.md */
+   Conception et façon de vérifier : dev/docs-theme.md */
 
 .swagger-ui{color:#a6adbf}
 .swagger-ui mark{background-color:#d7d78e;color:#ececec}

@@ -493,7 +493,7 @@ def extraction(data, retenues, empreintes, params):
     lecture de la source.
 
     Les garanties sur lesquelles tout repose sont mesurées, pas supposées
-    (cf. `docs/dev/PLAN_CACHE.md`, A5) : la série d'une station est la
+    (cf. `dev/plans/2026-09-18_cache.md`, A5) : la série d'une station est la
     même seule et dans un lot, y compris quand la fin de période est
     absente et que la borne haute vient donc du lot ; une fiche rend la
     même chose seule ou avec d'autres ; et `meta` ne dépend pas des
@@ -597,7 +597,7 @@ def chronicles_export(params: dict) -> dict:
     C'est aussi le premier point de sortie qui rend de la donnée SOURCE
     plutôt qu'un résultat calculé : le service devient un miroir partiel de
     Hub'Eau. C'est défendable, les droits Etalab étant déjà publiés dans
-    chaque réponse, et c'est dit dans `docs/dev/API.md` plutôt que laissé à
+    chaque réponse, et c'est dit dans `dev/decisions.md` plutôt que laissé à
     découvrir.
 
     L'empreinte porte sur la chronique ENTIÈRE, comme partout ailleurs,

@@ -42,7 +42,7 @@ from . import cache, hubeau, usage
 # DEUX seuils de stations, parce que deux coûts très différents se
 # cachaient derrière un seul compteur : télécharger une chronique entière
 # coûte des dizaines à des centaines de fois plus que la calculer (mesures
-# datées : docs/dev/PLAN_CACHE_SUITE.md, B5). Un seuil unique tranchait au
+# datées : dev/plans/2026-09-19_cache-followup.md, B5). Un seuil unique tranchait au
 # mauvais endroit : des stations déjà en cache partaient en file, avec
 # ticket et aller-retour, pour économiser une seconde.
 #

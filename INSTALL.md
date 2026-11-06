@@ -126,7 +126,7 @@ make down       # arrêt
 Après un `make update`, ouvrir `/docs` et déplier une opération. La
 sonde dit que l'API répond, pas que la page s'affiche : elle a perdu son
 thème et ses champs pendant des semaines sans que rien d'autre le
-signale (`docs/dev/audits/2026-10-11_docs-outage-and-complexity.md`).
+signale (`dev/audits/2026-10-11_docs-outage-and-complexity.md`).
 
 L'image installe card et stase depuis GitHub à révision épinglée
 (`CARD_REF`/`STASE_REF` dans `.env`) : chaque déploiement est
@@ -172,7 +172,7 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_SALT` | aucun (requis, généré par `make env`) | sel du hachage des IP du journal ; fixe en prod pour des comptes d'utilisateurs distincts stables |
 | `CARD_API_RATE_COMPUTE` | 60 | requêtes de calcul (extract/trend/jobs) par IP/minute ; large à dessein, les refus sont journalisés et remontent dans `make stats` |
 | `CARD_API_RATE_LIGHT` | 300 | requêtes de catalogue par IP/minute |
-| `CARD_API_SYNC_STATIONS` | 3 | stations **à télécharger** tolérées dans une réponse immédiate ; c'est le téléchargement qui coûte, et ils se suivent : bas pour qu'une réponse à froid reste sous la minute (mesures : `docs/dev/PLAN_CACHE_SUITE.md`, B5) |
+| `CARD_API_SYNC_STATIONS` | 3 | stations **à télécharger** tolérées dans une réponse immédiate ; c'est le téléchargement qui coûte, et ils se suivent : bas pour qu'une réponse à froid reste sous la minute (mesures : `dev/plans/2026-09-19_cache-followup.md`, B5) |
 | `CARD_API_SYNC_STATIONS_CACHED` | 250 | stations au TOTAL dans une réponse immédiate ; borne la relecture des chroniques (~25 ms chacune, qu'aucun cache ne supprime). À 250 pour que la vue MAKAHO de 228 stations réponde en direct, ce qui suppose une clé de priorité, le plafond dur public restant à 100 |
 | `CARD_API_SYNC_SERIES` | 600 | séries (stations × fiches) dans une réponse immédiate ; borne la relecture des séries agrégées (~5 ms chacune). Sans lui, 250 stations × 20 fiches feraient une trentaine de secondes en direct |
 | `CARD_API_SYNC_CARDS` | 20 | fiches par réponse immédiate ; au-delà de l'un de ces trois seuils, bascule en job |

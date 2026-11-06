@@ -121,7 +121,7 @@ def test_le_pool_renouvelle_avant_que_la_requete_ne_refuse(monkeypatch,
     accepté) serait encore servie à une requête, et le pool la renouvelle
     quand même : c'est ce qui épargne le téléchargement à la requête. Une
     copie plus jeune que le seuil n'est pas touchée. Changer l'âge accepté
-    déplace le seuil avec lui (B6 de docs/dev/PLAN_CACHE_SUITE.md).
+    déplace le seuil avec lui (B6 de dev/plans/2026-09-19_cache-followup.md).
     """
     monkeypatch.setattr(cache, "MAX_AGE_DAYS", accepte)
     monkeypatch.setattr(pool, "EVICTION_JOURS", 10_000)

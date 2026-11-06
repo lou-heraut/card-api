@@ -33,7 +33,7 @@ Swagger. Retoucher l'apparence = éditer theme-identity.css et recharger
 la page. Rien d'autre.
 
 Vérifier le résultat SE REGARDE, ça ne se déduit pas : voir la boucle de
-capture d'écran décrite dans `docs/dev/THEME_DOCS.md`.
+capture d'écran décrite dans `dev/docs-theme.md`.
 """
 
 import argparse
@@ -88,7 +88,7 @@ BANNER = """/* FICHIER GÉNÉRÉ : ne pas éditer à la main.
    couleurs : le reste du thème est écrit à la main dans
    `theme-identity.css`, servi juste après celui-ci, et qui lui
    s'édite sans rien reconstruire.
-   Conception et façon de vérifier : docs/dev/THEME_DOCS.md */
+   Conception et façon de vérifier : dev/docs-theme.md */
 """
 
 

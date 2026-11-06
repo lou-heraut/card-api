@@ -276,7 +276,7 @@ def test_stations_deja_en_cache_restent_synchrones(monkeypatch):
     """Vingt stations en cache, c'est une seconde de calcul.
 
     Rapatrier une chronique coûte bien plus que la calculer (mesures :
-    docs/dev/PLAN_CACHE_SUITE.md, B5). Le compteur unique envoyait donc en
+    dev/plans/2026-09-19_cache-followup.md, B5). Le compteur unique envoyait donc en
     file, avec ticket et aller-retour, une demande qui tenait en une
     seconde. C'est la friction signalée.
     """
