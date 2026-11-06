@@ -88,7 +88,7 @@ def _card_meta_map():
 # libellés fr/en ('basses eaux' vaut 'low-flows'), mais un contrat n'a
 # qu'un identifiant par concept, et un menu à trois orthographes du même
 # phénomène serait illisible. Le slug est justement ce qui n'appartient à
-# aucune des deux langues (cf. docs/dev/TOPICS.md de card).
+# aucune des deux langues (cf. dev/topics.md de card).
 _VOCAB = card.vocabulary()
 
 
