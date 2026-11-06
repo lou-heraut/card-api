@@ -24,6 +24,8 @@ ne jamais recopier d'un fichier à l'autre, renvoyer.
   reste. C'est là qu'on regarde avant de toucher au cache.
 - `dev/audits/` : états des lieux datés, figés une fois écrits ; leurs
   suites partent dans `ROADMAP.md`.
+- Principes documentaires communs aux quatre dépôts de l'écosystème :
+  `../card/dev/decisions.md`.
 
 ## Structure
 

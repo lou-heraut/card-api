@@ -456,7 +456,9 @@ Skosmos optionnel) était décrite ici par accident de rangement. Elle a
 
 Ce qui reste du ressort du service : l'API pourrait exposer un
 `GET /v1/concepts` renvoyant vers ces URIs. C'est un renvoi, pas une
-source, et rien ne presse tant que l'export n'existe pas.
+source, et rien ne presse tant que l'export n'est pas publié : il est
+construit depuis card 0.12.0, sa base d'URI attend la réponse de Theia
+(cf. la feuille de route de card).
 
 ## Arbitrages (rendus le 2026-07-16)
 
