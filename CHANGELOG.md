@@ -41,6 +41,18 @@ des deux endroits.
 
 ## Non publié
 
+## 0.9.1 (2026-11-10)
+
+### Corrigé
+
+- **Le corps de `POST /v1/jobs` refuse un champ inconnu (2026-11-10).**
+  La 0.9.0 refusait les paramètres de requête mal orthographiés, mais le
+  corps d'un dépôt de job ignorait encore en silence un champ qu'il ne
+  connaît pas : `"max_agee": 0` partait avec l'âge par défaut. Il répond
+  désormais 422 (`extra_forbidden`), et le contrat annonce le corps comme
+  fermé (`additionalProperties: false`). Le README ne recopie plus le
+  plafond de stations d'un job : il renvoie à `/v1`.
+
 ## 0.9.0 (2026-11-09)
 
 ### Ajouté

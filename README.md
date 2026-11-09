@@ -341,7 +341,7 @@ rend citable et reproductible.
 ```python
 job = requests.post("https://card-api.riverly.inrae.fr/v1/jobs", json={
     "endpoint": "trend",
-    "stations": liste_de_codes,       # jusqu'à 100
+    "stations": liste_de_codes,       # plafond publié par /v1 (limits)
     "cards": ["QA", "VCN10"],
     "sampling": "preferred",
 }).json()

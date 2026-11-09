@@ -191,6 +191,12 @@ def test_job_validation_and_unknown():
     assert client.post("/v1/jobs", json={
         "endpoint": "trend", "stations": "K0550010",
         "cards": "BFI-LH"}).status_code == 422       # fiche non 'series'
+    # un champ mal orthographié est refusé, pas ignoré en silence
+    r = client.post("/v1/jobs", json={
+        "endpoint": "extract", "stations": "K0550010", "cards": "QA",
+        "max_agee": 0})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["type"] == "extra_forbidden"
     assert client.get("/v1/jobs/deadbeef").status_code == 404
 
 

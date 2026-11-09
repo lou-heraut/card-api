@@ -1858,9 +1858,13 @@ class JobRequest(BaseModel):
     stations_meta: bool = Field(False, description=_D_STATIONS_META)
     orient: _Orient = Field("records", description=_D_ORIENT)
 
-    # Un corps d'exemple complet : Swagger pré-remplit la zone de saisie
-    # avec, donc déposer un vrai job ne demande aucune rédaction.
+    # `extra="forbid"` : un champ mal orthographié (`max_agee`) fait
+    # échouer le dépôt au lieu d'être ignoré, comme sur les paramètres de
+    # requête (cf. `_Params`). Un corps d'exemple complet : Swagger
+    # pré-remplit la zone de saisie avec, donc déposer un vrai job ne
+    # demande aucune rédaction.
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "examples": [{
                 "endpoint": "trend",
