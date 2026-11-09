@@ -67,6 +67,15 @@ Les mentions légales du README sont rédigées d'après ce que le code fait.
 Éditeur, responsable de publication et hébergeur gagneraient une
 validation par le service compétent d'INRAE.
 
+## Un test pour les valeurs par défaut
+
+Chaque réglage a sa valeur par défaut écrite à quatre endroits : le code,
+`compose.yaml`, `.env.example` et le tableau d'`INSTALL.md`. Vérifiées
+identiques le 2026-11-10, mais rien ne les y oblige, et le plafond à froid
+de B5 était recopié dans huit fichiers. Retenu le 2026-11-10 : un test qui
+les compare, sur le modèle de `tests/test_citation.py` pour le numéro de
+version, plutôt que retirer des copies. À faire plus tard.
+
 ## En réserve, sans date
 
 La phase 4 de la revue FAIR (`dev/plans/2026-07-24_fair.md`) : unités
