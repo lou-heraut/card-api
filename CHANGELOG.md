@@ -41,6 +41,18 @@ des deux endroits.
 
 ## Non publié
 
+### Ajouté
+
+- **`/v1/health` publie l'état du pool, et la sonde le vérifie
+  (2026-11-09).** Un pool arrêté ne se voyait qu'en lisant `make stats`.
+  Le bloc `pool` donne la fin de sa dernière passe et `next_pass_by`,
+  l'heure avant laquelle la suivante doit être finie, que le pool calcule
+  depuis son propre rythme ; une passe qui échoue ne la repousse pas.
+  `scripts/veille_sante.py` alerte quand cette heure est passée ou que le
+  pool est coupé, sans seuil à régler. Ce qu'un client voit change : un
+  champ de plus dans `/v1/health`, à publier avec la prochaine version.
+  Détail : `dev/plans/2026-09-19_cache-followup.md` (B3).
+
 ### Modifié
 
 - **FastAPI et Swagger UI sont épinglés (2026-10-11).** FastAPI décide de

@@ -243,3 +243,70 @@ def test_le_plafond_de_place_ne_touche_a_rien_s_il_reste_de_la_marge():
     _lu_il_y_a(cache._CHRONIQUE, "K0550010", 1)
     assert cache.evict(10_000)["place"] == 0
     assert cache.chronicle_path("K0550010").exists()
+
+
+# ── Ce que /v1/health publie du pool, et ce que la sonde en fait (B3) ──
+
+@pytest.fixture
+def pool_allume(monkeypatch):
+    """Le pool déclaré allumé, sans thread, et sans passe depuis le départ."""
+    monkeypatch.setattr(pool, "ENABLED", True)
+    monkeypatch.setattr(pool, "_derniere_passe", None)
+    monkeypatch.setattr(pool, "_echeance", None)
+
+
+def test_une_passe_repousse_l_echeance(pool_allume, monkeypatch):
+    monkeypatch.setattr(pool, "EVICTION_JOURS", 10_000)
+    assert pool.etat()["last_pass"] is None
+    avant = time.time()
+    pool.passe(espacement=0)
+    assert avant - 1 <= pool._derniere_passe <= time.time()
+    # le sommeil d'une période, puis une période pour la passe suivante
+    assert pool._echeance == pytest.approx(
+        pool._derniere_passe + 2 * pool.PASSE_HEURES * 3600, abs=1)
+    assert pool.etat()["last_pass"].endswith("+00:00")
+
+
+def test_une_passe_qui_echoue_ne_repousse_pas_l_echeance(pool_allume,
+                                                          monkeypatch):
+    """Un pool dont toutes les passes échouent tourne, mais ne sert à rien :
+    la sonde doit le voir en retard."""
+    pool._repousse_echeance(0)
+    echeance = pool._echeance
+
+    def en_panne():
+        raise OSError("disque illisible")
+    monkeypatch.setattr(cache, "cached_stations", en_panne)
+    with pytest.raises(OSError):
+        pool.passe(espacement=0)
+    assert pool._echeance == echeance and pool._derniere_passe is None
+
+
+def test_la_sonde_lit_le_pool_dans_la_vraie_reponse(pool_allume, monkeypatch):
+    """La sonde tourne hors de la VM et lit `/v1/health` : on la confronte
+    à la réponse que le service rend, pas à un exemple écrit à la main."""
+    import sys
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from card_api.main import app
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import veille_sante
+
+    monkeypatch.setattr(veille_sante, "DISQUE_PCT", 100)   # disque du poste
+    client = TestClient(app)
+
+    def verdict(maintenant=None):
+        corps = client.get("/v1/health").json()
+        return veille_sante.anomalie(corps, 0, maintenant)
+
+    assert "jamais démarré" in verdict()
+    pool._repousse_echeance(pool.DEPART_S)                 # ce que fait ensure_pool
+    assert verdict() is None
+    plus_tard = datetime.now(timezone.utc) + timedelta(
+        hours=2 * pool.PASSE_HEURES)
+    assert "en retard" in verdict(plus_tard)
+    monkeypatch.setattr(pool, "ENABLED", False)
+    assert "coupé" in verdict()

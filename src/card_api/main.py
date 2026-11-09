@@ -2089,13 +2089,16 @@ def health():
     VM ENTIÈRE (partagé avec d'autres services : c'est la place
     restante qui borne les jobs, pas notre consommation) ; `data` est
     l'empreinte propre de card-api (cache des chroniques, jobs,
-    journal)."""
+    journal). `pool` dit quand la tâche de fond qui rafraîchit et vide le
+    cache a fini sa dernière passe, et avant quelle heure la suivante doit
+    être finie (`next_pass_by`) : passé cette heure, elle est en retard."""
     d = cache.data_dir()
     du = shutil.disk_usage(d)
     return {
         "status": "ok",
         **versions(),
         "jobs": jobs.queue_stats(),
+        "pool": pool.etat(),
         "disk": {"used_pct": round(du.used / du.total * 100, 1),
                  "free_gb": round(du.free / 1e9, 1)},
         "data": {"total_mb": _tree_mb(d),

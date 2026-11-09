@@ -20,8 +20,9 @@ ne jamais recopier d'un fichier à l'autre, renvoyer.
   vérifie.
 - `dev/plans/` : les plans datés, chacun avec son état en tête. Pour le
   cache : `2026-09-18_cache.md` garde les mesures qui ont commandé chaque
-  décision et la règle de la clé, `2026-09-19_cache-followup.md` ce qui
-  reste. C'est là qu'on regarde avant de toucher au cache.
+  décision et la règle de la clé, `2026-09-19_cache-followup.md` les
+  suites de son audit et ce qu'il ne faut pas faire. C'est là qu'on
+  regarde avant de toucher au cache.
 - `dev/audits/` : états des lieux datés, figés une fois écrits ; leurs
   suites partent dans `ROADMAP.md`.
 - Principes documentaires communs aux quatre dépôts de l'écosystème :

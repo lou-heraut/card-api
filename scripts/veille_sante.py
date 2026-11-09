@@ -20,7 +20,8 @@ publique, n'importe quel poste allumé régulièrement fait l'affaire
         python3 /chemin/vers/veille_sante.py
 
 Silencieux quand tout va bien. En cas d'anomalie (API injoignable,
-réponse lente, disque de la VM plein, file de calcul engorgée) :
+réponse lente, disque de la VM plein, file de calcul engorgée, pool de
+cache coupé ou en retard sur l'échéance qu'il publie) :
 notification poussée sur https://ntfy.sh/$NTFY si NTFY est défini
 (gratuit, sans compte : s'abonner au même sujet depuis l'application
 ou le navigateur), et dans tous les cas message sur stderr + sortie
@@ -36,6 +37,7 @@ import os
 import sys
 import time
 import urllib.request
+from datetime import datetime, timezone
 
 URL = os.environ.get("CARD_API_URL", "http://147.100.222.13").rstrip("/")
 NTFY = os.environ.get("NTFY", "")
@@ -57,6 +59,39 @@ def alerte(message: str):
     sys.exit(1)
 
 
+def anomalie(corps: dict, duree: float,
+             maintenant: datetime | None = None) -> str | None:
+    """La première anomalie lue dans une réponse de /v1/health, ou None.
+
+    Séparée de l'appel réseau pour que les tests du service la confrontent
+    à la réponse que le service rend vraiment."""
+    if corps.get("status") != "ok":
+        return f"status = {corps.get('status')!r}"
+    if duree > LENTEUR_S:
+        return f"réponse lente : {duree:.1f} s (seuil {LENTEUR_S:g} s)"
+    if corps["disk"]["used_pct"] > DISQUE_PCT:
+        return (f"disque de la VM à {corps['disk']['used_pct']} % "
+                f"({corps['disk']['free_gb']} Go libres)")
+    if corps["jobs"]["queued"] > FILE_MAX:
+        return (f"file de calcul engorgée : {corps['jobs']['queued']} "
+                "jobs en attente")
+    # Le pool publie lui-même son échéance : la sonde n'a pas à connaître
+    # son rythme, seulement à la comparer à l'heure qu'il est.
+    pool = corps.get("pool")
+    if pool is None:
+        return "/v1/health ne publie pas `pool` : service plus ancien que la sonde ?"
+    if not pool["enabled"]:
+        return "pool de cache coupé : plus rien n'est évincé, le disque grossit"
+    if pool["next_pass_by"] is None:
+        return "pool de cache jamais démarré"
+    maintenant = maintenant or datetime.now(timezone.utc)
+    if maintenant > datetime.fromisoformat(pool["next_pass_by"]):
+        derniere = pool["last_pass"] or "aucune depuis le démarrage"
+        return (f"pool de cache en retard : passe attendue avant "
+                f"{pool['next_pass_by']}, dernière finie : {derniere}")
+    return None
+
+
 def main():
     t0 = time.time()
     try:
@@ -65,18 +100,9 @@ def main():
             corps = json.load(r)
     except OSError as e:
         alerte(f"API injoignable : {e}")
-    duree = time.time() - t0
-
-    if corps.get("status") != "ok":
-        alerte(f"status = {corps.get('status')!r}")
-    if duree > LENTEUR_S:
-        alerte(f"réponse lente : {duree:.1f} s (seuil {LENTEUR_S:g} s)")
-    if corps["disk"]["used_pct"] > DISQUE_PCT:
-        alerte(f"disque de la VM à {corps['disk']['used_pct']} % "
-               f"({corps['disk']['free_gb']} Go libres)")
-    if corps["jobs"]["queued"] > FILE_MAX:
-        alerte(f"file de calcul engorgée : {corps['jobs']['queued']} "
-               "jobs en attente")
+    message = anomalie(corps, time.time() - t0)
+    if message:
+        alerte(message)
 
 
 if __name__ == "__main__":

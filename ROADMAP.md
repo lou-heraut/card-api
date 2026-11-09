@@ -13,8 +13,8 @@ Le but est que MAKAHO (`../../MAKAHO_project/MAKAHO-next/`) prenne tout
 son contenu scientifique au service. D'où cet ordre :
 
 ```
-  1. contrat, en une seule version mineure : reste la date de la
-     dernière passe du pool dans /v1/health (B3), puis publier
+  1. contrat, en une seule version mineure : tout est livré, reste
+     à publier la version puis à la déployer
   2. première clé de priorité : celle de MAKAHO, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (dev/decisions.md)
@@ -23,16 +23,11 @@ son contenu scientifique au service. D'où cet ordre :
      liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
 ```
 
-**Le contrat (étape 1).** Le refus natif des paramètres inconnus, le
-retrait de `?key=` et le plafond à froid (B5) sont livrés, sous « Non
-publié » dans `CHANGELOG.md`. Reste B3, dont la décision est dans
-`dev/plans/2026-09-19_cache-followup.md`. Au déploiement de la
-version, corriger `CARD_API_SYNC_STATIONS` dans le `.env` de production
-(B5) et y retirer `CARD_API_POOL_REFRESH_DAYS`, qui ne sert plus (B6).
-
-**Ce qui reste du cache** est dans `dev/plans/2026-09-19_cache-followup.md`,
-chaque chantier avec son état dans le tableau de tête. Rien n'en est
-recopié ici.
+**Le contrat (étape 1).** Ce qu'il contient est sous « Non publié » dans
+`CHANGELOG.md`. Au déploiement de la version : corriger
+`CARD_API_SYNC_STATIONS` dans le `.env` de production (B5), y retirer
+`CARD_API_POOL_REFRESH_DAYS`, qui ne sert plus (B6), et remplacer la
+copie de `scripts/veille_sante.py` sur la machine qui la lance (B3).
 
 ## Le projet d'agrégation, à écrire avant d'y toucher
 

@@ -1,6 +1,6 @@
-> **Statut : en cours.** Seul B3 reste ouvert, et il part avec la
-> prochaine version mineure (`ROADMAP.md`) ; l'état de chaque chantier est
-> dans le tableau ci-dessous (repris le 2026-11-06). Ce qui
+> **Statut : terminé le 2026-11-09.** Chaque chantier est livré ou
+> refermé, son état dans le tableau ci-dessous ; reste à reporter B5 dans le
+> `.env` de production au prochain déploiement (`ROADMAP.md`). Ce qui
 > reste du cache APRÈS que `dev/plans/2026-09-18_cache.md` a été entièrement livré (service
 > 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
 > mesures qui ont commandé l'architecture, la règle de la clé et ce qui a
@@ -13,7 +13,7 @@
 > | B1, évincer par la place            | **livré** le 2026-09-19                            |
 > | B2a, les chroniques en Parquet      | **livré**, card-api 0.8.0                          |
 > | B2b, ne plus relire la chronique    | **non retenu** le 2026-11-05, rouvrable sur mesure |
-> | B3, faire surveiller le pool        | **décidé** le 2026-11-05, à livrer                 |
+> | B3, faire surveiller le pool        | **livré** le 2026-11-09                            |
 > | B4, l'indépendance par station      | **refermé**, c'est une propriété du moteur         |
 > | B5, le plafond des demandes à froid | **livré** le 2026-11-06, à reporter dans le `.env` |
 > | B6, le seuil de rafraîchissement    | **livré** le 2026-11-06                            |
@@ -179,6 +179,20 @@ du pool, et la sonde la vérifie.** C'est la seule voie par laquelle une
 sonde extérieure voit le pool sans lire le journal, et le champ ne coûte
 presque rien. Le contrat bouge : il part dans la même version mineure que
 le refus natif des paramètres inconnus (`ROADMAP.md`).
+
+**Livré le 2026-11-09, sous une forme précisée en route.** La date seule
+ne suffisait pas : pour la juger trop vieille, la sonde aurait dû connaître
+le rythme du pool (période réglable, passe étalée sur la moitié de la
+période, attente au démarrage), et après un redémarrage aucune passe ne
+finit avant trois heures environ. `/v1/health` publie donc aussi
+`next_pass_by`, l'heure avant laquelle la prochaine passe doit être finie,
+que le pool calcule depuis son propre rythme : une période de sommeil, plus
+une période pour la passe. La sonde la compare à l'heure qu'il est et n'a
+aucun seuil à régler. Une passe qui échoue ne repousse pas l'échéance, et
+un pool coupé le dit, puisque plus rien n'est alors évincé. Écarté :
+publier la date de démarrage et laisser la sonde fixer un seuil, qui
+crierait au loup le jour où la période change. Les deux dates vivent en
+mémoire, le pool tournant dans le processus du service.
 
 ## B4. L'indépendance par station : refermé le 2026-09-19
 

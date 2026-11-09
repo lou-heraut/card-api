@@ -60,7 +60,7 @@ les droits qui vont avec.
 | `GET /v1/chronicles.csv` | la même chronique, en CSV pour le tableur |
 | `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
 | `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
-| `GET /v1/health` | santé du service (file de calcul, disque) |
+| `GET /v1/health` | santé du service (file de calcul, disque, pool de cache) |
 | `/docs` | documentation interactive (OpenAPI) |
 
 Chaque réponse est en JSON et se suffit à elle-même : `data` (les

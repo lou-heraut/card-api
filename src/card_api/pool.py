@@ -44,6 +44,7 @@ consultées en permanence et rien ne sortirait jamais du cache. Il passe par
 import os
 import threading
 import time
+from datetime import datetime, timezone
 
 from . import cache, hubeau, usage
 
@@ -75,6 +76,44 @@ DEPART_S = 300.0
 
 _demarre = False
 _verrou = threading.Lock()
+
+# Ce que /v1/health publie du pool (cf. `etat`). En mémoire : le pool vit
+# dans le processus du service, et un redémarrage repart de son départ.
+_derniere_passe: float | None = None
+_echeance: float | None = None
+
+
+def _repousse_echeance(attente_s: float):
+    """La prochaine passe doit être finie dans `attente_s`, plus une
+    période entière pour la passe elle-même : elle étale ses
+    téléchargements sur la moitié de la période, l'autre moitié couvre
+    leur durée. Une passe plus longue est un pool qui ne tient plus son
+    rythme, et cela aussi mérite d'être signalé."""
+    global _echeance
+    _echeance = time.time() + attente_s + PASSE_HEURES * 3600
+
+
+def _iso(t: float | None) -> str | None:
+    if t is None:
+        return None
+    return (datetime.fromtimestamp(t, timezone.utc)
+            .isoformat(timespec="seconds"))
+
+
+def etat() -> dict:
+    """Le pool vu de l'extérieur, pour une sonde qui ne lit pas le journal.
+
+    `next_pass_by` est l'heure avant laquelle la prochaine passe doit être
+    finie. La sonde n'a qu'à la comparer à l'heure qu'il est : le rythme
+    reste écrit ici, et une sonde n'a pas à le connaître. Passé cette
+    heure, le pool est arrêté, bloqué, ou ses passes échouent (une passe
+    qui échoue ne repousse pas l'échéance). Coupé, il le dit : plus rien
+    n'est alors évincé, et le disque grossit.
+    """
+    if not ENABLED:
+        return {"enabled": False}
+    return {"enabled": True, "last_pass": _iso(_derniere_passe),
+            "next_pass_by": _iso(_echeance)}
 
 
 def seuil_jours() -> float:
@@ -119,6 +158,9 @@ def passe(espacement: float | None = None) -> dict:
             # attendant. Le compte des échecs suffit à le voir.
             echecs += 1
     bilan.update(rafraichies=faites, echecs=echecs, candidates=len(a_faire))
+    global _derniere_passe
+    _derniere_passe = time.time()
+    _repousse_echeance(PASSE_HEURES * 3600)     # le sommeil de `_boucle`
     usage.log_event("pool", **bilan)
     return bilan
 
@@ -146,6 +188,7 @@ def ensure_pool() -> bool:
         if _demarre:
             return True
         _demarre = True
+        _repousse_echeance(DEPART_S)
         threading.Thread(target=_boucle, daemon=True,
                          name="pool").start()
         return True

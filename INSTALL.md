@@ -194,12 +194,16 @@ Suivi : `make status` (santé, file, disque via /v1/health), `make stats`
 calcul), `make watch` (le même, rafraîchi en continu). Dans
 /v1/health, `disk` décrit le disque de la VM entière (c'est la place
 restante qui borne les jobs, le stockage des autres services compte
-dedans) et `data` l'empreinte propre de card-api.
+dedans), `data` l'empreinte propre de card-api, et `pool` la fin de la
+dernière passe de la tâche de fond qui rafraîchit et vide le cache, avec
+l'heure avant laquelle la suivante doit être finie (`next_pass_by`).
 
 Alertes sans surveillance active (optionnel) :
 `scripts/veille_sante.py`, une sonde pour cron à lancer depuis une
 machine EXTÉRIEURE à la VM (une veille installée sur la VM meurt avec
-elle) ; seuils et notification ntfy.sh dans l'en-tête du script.
+elle) ; seuils et notification ntfy.sh dans l'en-tête du script. Elle
+lit ce que publie `/v1/health` : après un déploiement qui en change la
+forme, remplacer aussi la copie de la sonde.
 
 Clés de priorité (attribution manuelle, demandées par courriel, cf.
 « Données personnelles » du README) : `make key name="Prénom Nom, labo"`
