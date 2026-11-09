@@ -29,7 +29,7 @@ library(httr)
 library(tibble)
 library(ggplot2)
 
-API <- "http://147.100.222.13"
+API <- "https://card-api.riverly.inrae.fr"
 JOB <- ""     # ticket d'un job déjà déposé ; "" = déposer
 START <- "1968-09-01"   # fenêtre MAKAHO RRSE ; "" = toute la chronique
 END   <- "2024-08-31"

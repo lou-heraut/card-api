@@ -106,6 +106,10 @@ des deux endroits.
   (`/v1`, `/v1/health`, les jobs...) ignorent ce qu'on leur passe au lieu
   de répondre 422.
 
+- **La sonde et l'exemple R visent l'adresse HTTPS du service
+  (2026-11-09)**, `https://card-api.riverly.inrae.fr`, et non plus l'IP
+  nue de la VM en HTTP. Rien ne change pour un client.
+
 ### Retiré
 
 - **`?key=` (2026-11-09).** La clé de priorité ne se présente plus que

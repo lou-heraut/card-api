@@ -15,8 +15,7 @@ sur la VM meurt avec elle et ne signalera jamais sa panne. L'API est
 publique, n'importe quel poste allumé régulièrement fait l'affaire
 (stdlib seule, aucune dépendance). Exemple de crontab :
 
-    */15 * * * * CARD_API_URL=http://147.100.222.13 \\
-        NTFY=un-sujet-difficile-a-deviner \\
+    */15 * * * * NTFY=un-sujet-difficile-a-deviner \\
         python3 /chemin/vers/veille_sante.py
 
 Silencieux quand tout va bien. En cas d'anomalie (API injoignable,
@@ -30,6 +29,8 @@ non nulle (cron enverra son mail local s'il est configuré).
 Seuils par variables d'environnement (défauts entre parenthèses) :
 LENTEUR_S (5) réponse maximale en secondes, DISQUE_PCT (90)
 remplissage maximal du disque de la VM, FILE_MAX (50) jobs en attente.
+CARD_API_URL vise par défaut la production ; une autre instance se
+surveille en le donnant.
 """
 
 import json
@@ -39,7 +40,8 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 
-URL = os.environ.get("CARD_API_URL", "http://147.100.222.13").rstrip("/")
+URL = os.environ.get("CARD_API_URL",
+                     "https://card-api.riverly.inrae.fr").rstrip("/")
 NTFY = os.environ.get("NTFY", "")
 LENTEUR_S = float(os.environ.get("LENTEUR_S", 5))
 DISQUE_PCT = float(os.environ.get("DISQUE_PCT", 90))
