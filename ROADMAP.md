@@ -13,20 +13,24 @@ Le but est que MAKAHO (`../../MAKAHO_project/MAKAHO-next/`) prenne tout
 son contenu scientifique au service. D'où cet ordre :
 
 ```
-  1. contrat : publié en 0.9.0 (2026-11-09), reste à le déployer
-  2. première clé de priorité : celle de MAKAHO, qui demande plus de
+  1. première clé de priorité : celle de MAKAHO, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (dev/decisions.md)
-  3. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
+  2. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
      date du 2026-09-18 : il dit encore « rien n'est commencé » et
      liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
 ```
 
-**Le contrat (étape 1).** Ce qu'il contient est dans `CHANGELOG.md`,
-section 0.9.0. Au déploiement : corriger
-`CARD_API_SYNC_STATIONS` dans le `.env` de production (B5), y retirer
-`CARD_API_POOL_REFRESH_DAYS`, qui ne sert plus (B6), et remplacer la
-copie de `scripts/veille_sante.py` sur la machine qui la lance (B3).
+Le contrat que MAKAHO attendait est publié en 0.9.0 et déployé le
+2026-11-09 (`CHANGELOG.md`).
+
+## Une surveillance, à décider
+
+La sonde (`scripts/veille_sante.py`) existe, et depuis 0.9.0 elle lit
+aussi l'échéance du pool (B3), mais rien ne la lance : constaté le
+2026-11-09, elle n'a jamais été installée nulle part. Personne n'est donc
+averti si le service tombe ou si le pool s'arrête. À décider : où la faire
+tourner, ou rien, et de préférence avant que MAKAHO dépende du service.
 
 ## Le projet d'agrégation, à écrire avant d'y toucher
 
