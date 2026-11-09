@@ -13,24 +13,29 @@ Le but est que MAKAHO (`../../MAKAHO_project/MAKAHO-next/`) prenne tout
 son contenu scientifique au service. D'où cet ordre :
 
 ```
-  1. première clé de priorité : celle de MAKAHO, qui demande plus de
+  1. le corps de POST /v1/jobs ignore encore un champ inconnu
+     (`JobRequest` n'est pas strict) : même défaut que les
+     paramètres de requête avant 0.9.0, à corriger avant la clé
+  2. première clé de priorité : celle de MAKAHO, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (dev/decisions.md)
-  2. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
+  3. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
      date du 2026-09-18 : il dit encore « rien n'est commencé » et
      liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
 ```
 
 Le contrat que MAKAHO attendait est publié en 0.9.0 et déployé le
-2026-11-09 (`CHANGELOG.md`).
+2026-11-09 (`CHANGELOG.md`). Côté MAKAHO-next, `scripts/mesure_sampling.py`
+lit directement les fichiers du cache de card-api, au format CSV d'avant
+0.8.0 : il ne marche plus que sur un vieux cache local, alors que
+`/v1/chronicles` sert la même chose.
 
-## Une surveillance, à décider
+## Une surveillance, plus tard et hors de card-api
 
-La sonde (`scripts/veille_sante.py`) existe, et depuis 0.9.0 elle lit
-aussi l'échéance du pool (B3), mais rien ne la lance : constaté le
-2026-11-09, elle n'a jamais été installée nulle part. Personne n'est donc
-averti si le service tombe ou si le pool s'arrête. À décider : où la faire
-tourner, ou rien, et de préférence avant que MAKAHO dépende du service.
+La sonde (`scripts/veille_sante.py`) lit `/v1/health`, échéance du pool
+comprise, mais rien ne la lance. Remis à plus tard le 2026-11-09 :
+l'utilisateur envisage une surveillance commune à ses services, à part
+(un outil du genre Uptime Kuma), qui lirait `/v1/health`.
 
 ## Le projet d'agrégation, à écrire avant d'y toucher
 
