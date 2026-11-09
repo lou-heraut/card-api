@@ -52,6 +52,15 @@ chacun, et la chaîne de traitement d'une fiche, que `method` décrit déjà
 en prose, pourrait se donner à lire. À instruire avec le chantier
 documentation de card, puisque la matière vient des fiches.
 
+## Le dépôt HAL, annoncé par la citation
+
+`CITATION.cff` et le README annoncent un identifiant pérenne à venir,
+« dépôt HAL adossé à Software Heritage » ; la citation passe par ces deux
+canaux (`dev/decisions.md`). Le dépôt est archivé sur Software Heritage
+depuis le 2026-07-22 ; rien dans le dépôt ne dit que le dépôt HAL est
+fait (à confirmer). Geste de l'utilisateur, avec son compte HAL ; une fois
+fait, son identifiant remplace l'annonce dans les deux fichiers.
+
 ## Les mentions légales, à faire valider
 
 Les mentions légales du README sont rédigées d'après ce que le code fait.

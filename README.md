@@ -60,6 +60,8 @@ les droits qui vont avec.
 | `GET /v1/chronicles.csv` | la même chronique, en CSV pour le tableur |
 | `POST /v1/jobs` | grosses demandes en file de calcul (202 + ticket) |
 | `GET /v1/jobs/{id}` | statut et progression ; `/result` : résultat gelé |
+| `DELETE /v1/jobs/{id}` | abandonner un job par son ticket |
+| `GET /v1/jobs` | vos jobs, avec une clé de priorité |
 | `GET /v1/health` | santé du service (file de calcul, disque, pool de cache) |
 | `/docs` | documentation interactive (OpenAPI) |
 
@@ -156,9 +158,9 @@ immédiate. Ce qui décide n'est pas le nombre de stations mais le nombre
 de stations **à télécharger** : rapatrier une chronique coûte bien plus
 que la calculer. Des stations déjà lues répondent donc en direct, les
 mêmes à froid partent en file dès qu'elles sont plus de quelques-unes
-(les seuils en vigueur se lisent dans `/v1`, bloc `limits`). La même URL peut par
-conséquent donner un ticket au premier appel et un résultat au second,
-et c'est voulu.
+(les seuils en vigueur se lisent dans `/v1`, bloc `limits`). La même URL
+peut par conséquent donner un ticket au premier appel et un résultat au
+second, et c'est voulu.
 
 Le résultat d'un job se récupère dans la représentation de votre choix,
 quelle que soit celle demandée au dépôt :

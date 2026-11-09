@@ -159,8 +159,8 @@ except Exception:                                    # exécution hors install
 
 # Identité de la CONSTRUCTION de l'image, ingrédient de la clé du second
 # étage de cache. Deux choses changent un résultat sans changer un
-# commit : la bascule `CARD_ROLL_COMPAT`, documentée dans l'ORIGINE_R.md
-# de card, qui modifie la moyenne mobile donc VCN10 et tout ce qui en
+# commit : la bascule `CARD_ROLL_COMPAT`, documentée dans le
+# `dev/r-origin.md` de card, qui modifie la moyenne mobile donc VCN10 et tout ce qui en
 # découle ; et une reconstruction qui tire un numpy ou un pandas plus
 # récent. L'instant de construction les couvre toutes les deux d'un coup,
 # sans rien avoir à énumérer, et il s'écrit sans réseau donc ne peut pas

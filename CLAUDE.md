@@ -47,8 +47,9 @@ src/card_api/
                `format` ; les `.csv` portent leur provenance en lignes `#` ;
                paramètres déclarés une fois (`TrendParams`, `ExtractParams`).
                Tout paramètre de requête vit dans un modèle dérivé de
-               `_Params`, qui refuse l'inconnu : jamais de règle globale
-               à côté du framework (elle a cassé `/docs` deux fois).
+               `_Params`, qui refuse l'inconnu, et le corps d'un job aussi
+               (`JobRequest`) : jamais de règle globale à côté du framework
+               (elle a cassé `/docs` deux fois).
                Dans `/v1/cards`, `id` est le nom du FICHIER de fiche, pas
                `variable_en`. `/docs` est Swagger UI habillé.
   static/      swagger-colors.css GÉNÉRÉ par scripts/build_theme.py (à refaire
@@ -79,7 +80,8 @@ tests/         hors ligne (Hub'Eau simulé) + live. Garde-fous à connaître :
                simuler `jobs.submit` quand seule l'enveloppe compte. Un test
                qui protège l'ancien comportement et reste vert après un
                changement de comportement est un SIGNAL D'ARRÊT.
-scripts/       veille_sante.py, sonde à lancer HORS de la VM ;
+scripts/       veille_sante.py, sonde à lancer HORS de la VM, dont
+               `anomalie` est testée contre la vraie réponse de /v1/health ;
                resolve_refs.py, set_version.py, build_theme.py.
 Makefile       `make` liste les cibles ; `make lint` passe par le ruff du
                venv, jamais celui du PATH.

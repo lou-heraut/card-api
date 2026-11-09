@@ -23,7 +23,7 @@ dtLF), et c'est documenté dans la colonne sampling_period_en de ses
 metaEX. Toute comparaison sur fiche adaptative doit reproduire ces
 fenêtres fixes. Validation à trois voies faite sur les mêmes
 chroniques Hub'Eau : CARD-R vs card/stase identiques (séries 94-100 %,
-H 99-100 %, résidus = divergences documentées ORIGINE_R.md) ; les
+H 99-100 %, résidus = divergences documentées dans dev/r-origin.md de card) ; les
 écarts restants vs MAKAHO sont dus à la source de données
 (révisions HydroPortail/Hub'Eau), pas à l'implémentation.
 """

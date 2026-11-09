@@ -176,9 +176,10 @@ Tout se règle dans `.env` (lu par docker compose ; cf. `.env.example`) :
 | `CARD_API_SYNC_STATIONS_CACHED` | 250 | stations au TOTAL dans une réponse immédiate ; borne la relecture des chroniques (~25 ms chacune, qu'aucun cache ne supprime). À 250 pour que la vue MAKAHO de 228 stations réponde en direct, ce qui suppose une clé de priorité, le plafond dur public restant à 100 |
 | `CARD_API_SYNC_SERIES` | 600 | séries (stations × fiches) dans une réponse immédiate ; borne la relecture des séries agrégées (~5 ms chacune). Sans lui, 250 stations × 20 fiches feraient une trentaine de secondes en direct |
 | `CARD_API_SYNC_CARDS` | 20 | fiches par réponse immédiate ; au-delà de l'un de ces trois seuils, bascule en job |
-| `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs (public ; les clés de priorité les lèveront) |
+| `CARD_API_JOB_STATIONS` / `CARD_API_JOB_CARDS` | 100 / 50 | plafonds des jobs publics (les porteurs de clé ont les leurs, `PRIORITY_*`) |
 | `CARD_API_JOB_TTL_DAYS` | 7 | rétention des résultats de jobs |
 | `CARD_API_JOB_QUEUE_MAX` | 100 | taille de la file (au-delà : 503 + Retry-After) |
+| `CARD_API_CHRONICLE_STATIONS` | 5 | stations par export de chronique (`/v1/chronicles`) ; bas parce qu'il borne un transfert, qu'aucune file ne rattrape |
 | `CARD_API_POOL` | 1 | tâche de fond qui rafraîchit le cache et évince ce qui n'est plus lu ; `0` la coupe (utile en développement) |
 | `CARD_API_POOL_HOURS` | 6 | période d'une passe ; les téléchargements s'étalent sur sa moitié. L'âge au-delà duquel une copie est rafraîchie se déduit de `CARD_API_MAX_AGE_DAYS` (25 jours pour 30) |
 | `CARD_API_CACHE_MAX_GB` | 5 | plafond de place du cache (deux étages) ; au-delà, les entrées les moins récemment lues partent. Absolu et non relatif au disque, qui est partagé : un pourcentage ferait évincer pour une raison étrangère au cache |

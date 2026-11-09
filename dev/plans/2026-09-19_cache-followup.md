@@ -1,8 +1,7 @@
 > **Statut : terminé le 2026-11-09.** Chaque chantier est livré ou
-> refermé, son état dans le tableau ci-dessous ; reste à reporter B5 dans le
-> `.env` de production au prochain déploiement (`ROADMAP.md`). Ce qui
-> reste du cache APRÈS que `dev/plans/2026-09-18_cache.md` a été entièrement livré (service
-> 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
+> refermé, son état dans le tableau ci-dessous. Ce qui restait du cache
+> APRÈS que `dev/plans/2026-09-18_cache.md` a été entièrement livré
+> (service 0.5.0 à 0.8.0, moteur 0.6.5). Il ne redit rien de ce document : les
 > mesures qui ont commandé l'architecture, la règle de la clé et ce qui a
 > été vérifié dans le moteur sont là-bas. Ici, ce que l'audit du 2026-09-19
 > a trouvé, et ce qu'il a laissé ouvert. Ce qui est livré en sort et devient
@@ -15,7 +14,7 @@
 > | B2b, ne plus relire la chronique    | **non retenu** le 2026-11-05, rouvrable sur mesure |
 > | B3, faire surveiller le pool        | **livré** le 2026-11-09                            |
 > | B4, l'indépendance par station      | **refermé**, c'est une propriété du moteur         |
-> | B5, le plafond des demandes à froid | **livré** le 2026-11-06, à reporter dans le `.env` |
+> | B5, le plafond des demandes à froid | **livré** le 2026-11-06, en production le 11-09  |
 > | B6, le seuil de rafraîchissement    | **livré** le 2026-11-06                            |
 
 # Ce qui reste du cache, après l'audit

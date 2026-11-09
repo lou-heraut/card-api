@@ -41,6 +41,18 @@ des deux endroits.
 
 ## Non publié
 
+### Documentation
+
+- **Ménage du 2026-11-10.** `CARD_API_CHRONICLE_STATIONS`, seul réglage
+  absent de `.env.example` et d'`INSTALL.md`, y entre ; les valeurs par
+  défaut ont été vérifiées identiques dans le code, `compose.yaml`,
+  `.env.example` et `INSTALL.md`. Le tableau des endpoints du README gagne
+  `GET /v1/jobs` et `DELETE /v1/jobs/{id}`. Le plan de suivi du cache ne
+  dit plus B5 à reporter dans le `.env`, fait au déploiement du
+  2026-11-09. Les renvois à l'`ORIGINE_R.md` de card suivent son
+  déplacement (`dev/r-origin.md`). Le dépôt HAL annoncé par la citation
+  entre dans `ROADMAP.md`, où rien ne le suivait.
+
 ## 0.9.1 (2026-11-10)
 
 ### Corrigé
