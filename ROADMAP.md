@@ -16,13 +16,13 @@ son contenu scientifique au service. D'où cet ordre :
   1. première clé de priorité : `MAKAHO`, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (dev/decisions.md)
-  2. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
-     est à jour : ce que card-api 0.9.0 et 0.9.1 changent pour lui y
-     est reporté depuis le 2026-11-10.
+  2. MAKAHO-next, chantier M1, depuis son propre dossier : son
+     CLAUDE.md et son PLAN.md disent où il en est, ne pas le redire ici
 ```
 
 Le contrat que MAKAHO attendait est publié en 0.9.0, déployé le
-2026-11-09, et complété en 0.9.1 (`CHANGELOG.md`).
+2026-11-09, et complété en 0.9.1 (`CHANGELOG.md`), qui part en
+production au prochain `make update` (aucun réglage à changer).
 
 ## Une surveillance, plus tard et hors de card-api
 
