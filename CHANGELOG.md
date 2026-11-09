@@ -41,6 +41,8 @@ des deux endroits.
 
 ## Non publié
 
+## 0.9.0 (2026-11-09)
+
 ### Ajouté
 
 - **`/v1/health` publie l'état du pool, et la sonde le vérifie
