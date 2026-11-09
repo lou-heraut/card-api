@@ -13,19 +13,16 @@ Le but est que MAKAHO (`../../MAKAHO_project/MAKAHO-next/`) prenne tout
 son contenu scientifique au service. D'où cet ordre :
 
 ```
-  1. première clé de priorité : celle de MAKAHO, qui demande plus de
+  1. première clé de priorité : `MAKAHO`, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (dev/decisions.md)
   2. MAKAHO-next, chantier M1, depuis son propre dossier. Son PLAN.md
-     date du 2026-09-18 : il dit encore « rien n'est commencé » et
-     liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
+     est à jour : ce que card-api 0.9.0 et 0.9.1 changent pour lui y
+     est reporté depuis le 2026-11-10.
 ```
 
 Le contrat que MAKAHO attendait est publié en 0.9.0, déployé le
-2026-11-09, et complété en 0.9.1 (`CHANGELOG.md`). Côté MAKAHO-next,
-`scripts/mesure_sampling.py` lit directement les fichiers du cache de
-card-api, au format CSV d'avant 0.8.0 : il ne marche plus que sur un vieux
-cache local, alors que `/v1/chronicles` sert la même chose.
+2026-11-09, et complété en 0.9.1 (`CHANGELOG.md`).
 
 ## Une surveillance, plus tard et hors de card-api
 
