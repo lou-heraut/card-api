@@ -79,6 +79,35 @@ des deux endroits.
   le chiffre, et les mesures vivent dans `dev/plans/2026-09-19_cache-followup.md`
   (B5).
 
+- **Un paramètre inconnu est refusé par FastAPI lui-même, sur les routes
+  qui filtrent ou calculent (2026-11-09).** La règle maison qui le faisait
+  pour toutes les routes recalculait à côté du framework la liste des
+  paramètres acceptés, et elle a cassé `/docs` deux fois (audit du
+  2026-10-11). Chaque route qui filtre ou calcule range désormais ses
+  paramètres dans un modèle qui refuse le reste : `/v1/cards`,
+  `/v1/stations` et `lang` y passent, extract, trend et chronicles y
+  étaient déjà. Un test refuse tout paramètre de requête écrit hors d'un
+  tel modèle. Le contrat ne change pas, paramètre par paramètre. Ce qu'un
+  client voit change, à publier avec la prochaine version : le 422 prend
+  la forme de FastAPI (`"type": "extra_forbidden"`) et ne liste plus les
+  paramètres acceptés, que le contrat donne ; les routes sans paramètre
+  (`/v1`, `/v1/health`, les jobs...) ignorent ce qu'on leur passe au lieu
+  de répondre 422.
+
+### Retiré
+
+- **`?key=` (2026-11-09).** La clé de priorité ne se présente plus que
+  par l'en-tête `X-API-Key` : dans une URL, elle finissait dans les
+  journaux du frontal et l'historique du navigateur. Aucune clé n'avait
+  été distribuée. Sur une route de calcul, `?key=` est refusé comme tout
+  paramètre inconnu ; ailleurs, il est ignoré.
+
+### Corrigé
+
+- **La description de `/v1/cards` comptait six facettes et quatre filtres
+  libres (2026-11-09)** ; il y en a sept et trois. Elle les nomme
+  désormais sans les compter.
+
 ### Documentation
 
 - **Les documents de développement prennent la structure commune aux

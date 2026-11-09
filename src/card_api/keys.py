@@ -111,8 +111,8 @@ def main():
     if args[:1] == ["add"] and len(args) == 2:
         token = add(args[1])
         print(f"clé créée pour « {args[1]} » :\n\n    {token}\n\n"
-              "à transmettre au demandeur ; usage : en-tête X-API-Key "
-              "ou paramètre key=. Le jeton n'est affiché que "
+              "à transmettre au demandeur ; usage : en-tête "
+              "X-API-Key. Le jeton n'est affiché que "
               "maintenant (seul son hachage est conservé) : perdu = "
               "en réémettre un.")
     elif args[:1] == ["list"]:

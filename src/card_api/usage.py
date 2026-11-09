@@ -71,13 +71,16 @@ def ip_hash(ip: str) -> str:
 
 
 def priority_of(request: Request) -> dict | None:
-    """Clé de priorité de la requête (en-tête X-API-Key ou paramètre
-    key=). None sans clé ; 401 explicite si la clé est inconnue (mieux
-    qu'une dégradation silencieuse en trafic public). Retourne
+    """Clé de priorité de la requête, lue dans l'en-tête X-API-Key. None
+    sans clé ; 401 explicite si la clé est inconnue (mieux qu'une
+    dégradation silencieuse en trafic public). Retourne
     {prefix, name, created} ; seul le préfixe circule ensuite
-    (journal, jobs), jamais le nom ni le jeton."""
-    token = (request.headers.get("x-api-key")
-             or request.query_params.get(PARAM_CLE))
+    (journal, jobs), jamais le nom ni le jeton.
+
+    Jamais dans l'URL : une clé en paramètre (`?key=`, accepté jusqu'en
+    0.8.1) finit dans les journaux du frontal, l'historique du navigateur
+    et les référents."""
+    token = request.headers.get("x-api-key")
     if not token:
         return None
     info = keys_mod.lookup(token)
@@ -86,22 +89,6 @@ def priority_of(request: Request) -> dict | None:
             401, "clé de priorité inconnue (révoquée ?) : retirez-la "
                  "pour un accès public, ou demandez-en une nouvelle")
     return info
-
-
-# `?key=` est une alternative à l'en-tête `X-API-Key`, et `priority_of`
-# la lit depuis toujours. Elle reste HORS du contrat : une clé dans une
-# URL se retrouve dans les journaux, l'historique du navigateur et les
-# référents, donc le service l'accepte sans que /docs la propose.
-#
-# Elle n'est déclarée NULLE PART, et c'est le refus des paramètres
-# inconnus (main.py) qui l'accepte par ce nom. Elle a été déclarée ici,
-# masquée du schéma, du 2026-08-13 au 2026-10-11, et cela suffisait à
-# vider /docs : pour écrire le contrat, FastAPI additionne les paramètres
-# d'une route et ceux de ses dépendances, et ne déplie un modèle de
-# paramètres (`p: Annotated[TrendParams, Query()]`) que s'il est SEUL.
-# Avec `key` à côté, extract, trend et chronicles n'annonçaient plus
-# qu'un paramètre `p`. Masquée ou non, une déclaration compte.
-PARAM_CLE = "key"
 
 
 def check_rate(request: Request, limit: int, famille: str):

@@ -35,7 +35,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import (HTMLResponse, JSONResponse, PlainTextResponse,
                                Response as _RawResponse)
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 import card
 
@@ -113,67 +113,29 @@ def _facet_doc(facette, intro):
     return f"{intro} {gloss}."
 
 
-def _params_declares(dependant):
-    """Noms de paramètres de requête qu'une route accepte.
+class _Params(BaseModel):
+    """Base des modèles de paramètres de requête : ce qu'un modèle ne
+    déclare pas fait échouer l'appel (422).
 
-    Trois sources. Les paramètres écrits dans la signature ; ceux des
-    sous-dépendances (aucune n'en déclare plus, et c'est voulu : cf.
-    `usage.PARAM_CLE`) ; et surtout ceux d'un MODÈLE de paramètres,
-    `p: Annotated[TrendParams, Query()]`, dont FastAPI ne rapporte que le
-    modèle, pas ses champs. Sans ce dernier cas, `/v1/trend` n'accepterait
-    plus que `p` et refuserait ses propres paramètres.
+    Par défaut, FastAPI ignore en silence un paramètre qu'il ne connaît
+    pas : une faute de frappe (`?phenomen=low-flows`) rendait le catalogue
+    entier, et l'appelant croyait avoir filtré. Le refus est celui de
+    FastAPI lui-même (`extra="forbid"`), qui garde le contrat déplié champ
+    par champ. Il remplace une règle maison appliquée à toutes les routes,
+    qui recalculait à côté du framework la liste des paramètres acceptés
+    et a cassé /docs deux fois (audit du 2026-10-11) : ne pas la refaire.
+
+    Toute route qui FILTRE ou CALCULE range donc ses paramètres de requête
+    dans un modèle dérivé de celui-ci. Une route sans paramètre, ou qui
+    sert un fichier, ignore ce qu'elle ne connaît pas : elle n'a aucun
+    filtre à faire croire appliqué.
+
+    Un modèle n'est déplié dans le contrat que s'il est le SEUL paramètre
+    de requête de sa route, dépendances comprises : aucune dépendance ne
+    doit en déclarer (`test_le_contrat_deplie_les_modeles_de_parametres`).
     """
-    noms = set()
-    for p in dependant.query_params:
-        annotation = p.field_info.annotation
-        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-            noms |= {champ.alias or nom
-                     for nom, champ in annotation.model_fields.items()}
-        else:
-            noms.add(p.alias)
-    for sous in dependant.dependencies:
-        noms |= _params_declares(sous)
-    return noms
 
-
-async def _refuse_les_parametres_inconnus(request: Request):
-    """Un paramètre de requête non déclaré fait échouer l'appel.
-
-    Par défaut, FastAPI IGNORE en silence ce qu'il ne connaît pas : une
-    faute de frappe (`?phenomen=low-flows`) rend le catalogue entier et
-    l'appelant croit avoir filtré. Constaté le 2026-08-13 en retirant le
-    filtre `operator` : `?operator=delta` continuait de répondre 200 avec
-    les 472 lignes au lieu des 83 attendues, sans le moindre signal.
-
-    Le silence n'est pas tenable ici parce que les facettes sont des
-    listes FERMÉES, annoncées dans l'OpenAPI et rendues en menus : un
-    service qui promet des valeurs valides doit dire quand on sort de la
-    liste, y compris quand c'est le NOM du filtre qui est faux. Le refus
-    nomme les paramètres acceptés, de sorte que la réponse d'erreur
-    suffise à corriger l'appel sans aller lire la documentation.
-    """
-    route = request.scope.get("route")
-    dependant = getattr(route, "dependant", None)
-    # Seules /openapi.json et /redoc, routes de FastAPI lui-même, n'ont
-    # pas de `dependant`. Une route `@app.get` en a toujours un, même
-    # absente du schéma : les feuilles de /docs y compris.
-    if dependant is None:
-        return
-    # `?key=` est accepté partout sans être déclaré nulle part : le
-    # déclarer, même masqué, empêche FastAPI de déplier les modèles de
-    # paramètres dans le contrat (cf. usage.PARAM_CLE).
-    connus = _params_declares(dependant) | {usage.PARAM_CLE}
-    inconnus = sorted(set(request.query_params) - connus)
-    if inconnus:
-        raise HTTPException(
-            status_code=422,
-            detail=[{
-                "type": "unexpected_query_parameter",
-                "loc": ["query", nom],
-                "msg": f"paramètre inconnu '{nom}'",
-                "acceptés": sorted(connus),
-            } for nom in inconnus],
-        )
+    model_config = ConfigDict(extra="forbid")
 
 
 _Domain = _facet_enum("domain")
@@ -476,11 +438,7 @@ app = FastAPI(
                     "en tête de file et `GET /v1/jobs` liste les vôtres. "
                     "Elle se demande par courriel (lien en tête de "
                     "page), elle ne s'achète pas. Coller le jeton tel "
-                    "quel, sans préfixe.")),
-        # Vaut pour TOUTES les routes : un contrat qui annonce ses
-        # paramètres doit refuser ceux qu'il n'annonce pas, sinon il
-        # n'annonce rien.
-        Depends(_refuse_les_parametres_inconnus)],
+                    "quel, sans préfixe."))],
     # Réglages d'AFFICHAGE de Swagger. Ils ne touchent pas au contrat :
     # `openapi.json` reste complet, c'est la page qui décide de ce
     # qu'elle montre d'emblée.
@@ -555,13 +513,11 @@ def _css_tag(path) -> str:
         f"{st.st_mtime_ns}:{st.st_size}".encode()).hexdigest()[:12]
 
 
-# `v` est l'empreinte que /docs colle dans le `<link>` (`_css_tag`). Le
-# serveur n'en fait rien, elle ne sert qu'à changer l'URL pour le cache
-# du navigateur. Mais elle DOIT être déclarée : le refus des paramètres
-# inconnus vaut ici comme partout, et du 2026-08-13 au 2026-10-11 il a
-# répondu 422 à la page, qui s'affichait alors sans son thème.
+# La page appelle chaque feuille avec son empreinte (`?v=`, `_css_tag`),
+# qui ne sert qu'à changer l'URL pour le cache du navigateur. La route
+# n'a pas de modèle de paramètres, donc l'ignore : c'est voulu.
 @app.get("/static/{sheet}.css", include_in_schema=False)
-def theme_css(sheet: str, v: str | None = None) -> _RawResponse:
+def theme_css(sheet: str) -> _RawResponse:
     name = f"{sheet}.css"
     if name not in _CSS_LAYERS:            # pas de traversée de chemin
         raise HTTPException(404, f"feuille inconnue : {name}")
@@ -770,60 +726,60 @@ def root():
     }
 
 
-@app.get("/v1/cards", tags=["cards"],
-         summary="Catalogue, filtrable par facette",
-         dependencies=[Depends(usage.rate_light)])
-def cards(
-    domain: _Domain | None = Query(
-        None, description=_facet_doc("domain", "Grandeur mesurée.")),
-    phenomenon: _Phenomenon | None = Query(
-        None, description=_facet_doc("phenomenon", "Phénomène décrit.")),
-    aspect: _Aspect | None = Query(
-        None, description=_facet_doc("aspect", "Dimension IHA.")),
-    statistic: _Statistic | None = Query(
+class CardsParams(_Params):
+    """Les filtres du catalogue : les facettes de classification, puis le
+    texte libre. Ce sont ceux de `card.list_cards()`."""
+
+    domain: _Domain | None = Field(
+        None, description=_facet_doc("domain", "Grandeur mesurée."))
+    phenomenon: _Phenomenon | None = Field(
+        None, description=_facet_doc("phenomenon", "Phénomène décrit."))
+    aspect: _Aspect | None = Field(
+        None, description=_facet_doc("aspect", "Dimension IHA."))
+    statistic: _Statistic | None = Field(
         None, description=_facet_doc(
             "statistic",
             "Opération statistique qui produit la variable. Orthogonale "
             "à aspect : VCN10 et tVCN10 sont tous deux un minimum, l'un "
-            "en magnitude, l'autre en timing.")),
-    season: _Season | None = Query(
-        None, description=_facet_doc("season", "Fenêtre d'échantillonnage.")),
-    output: _Output | None = Query(
-        None, description=_facet_doc("output", "Forme du résultat.")),
-    purpose: _Purpose | None = Query(
-        None, description=_facet_doc("purpose", "Finalité particulière.")),
-    function: str | None = Query(
+            "en magnitude, l'autre en timing."))
+    season: _Season | None = Field(
+        None, description=_facet_doc("season", "Fenêtre d'échantillonnage."))
+    output: _Output | None = Field(
+        None, description=_facet_doc("output", "Forme du résultat."))
+    purpose: _Purpose | None = Field(
+        None, description=_facet_doc("purpose", "Finalité particulière."))
+    function: str | None = Field(
         None,
         description="Sous-chaîne d'un nom de fonction employée dans le "
                     "calcul : rollmean, baseflow, return_level, delta, "
-                    "apply_threshold..."),
-    variable: str | None = Query(
+                    "apply_threshold...")
+    variable: str | None = Field(
         None,
         description="Sous-chaîne du nom de variable produit : VCN attrape "
-                    "toute la famille des étiages, QA le module annuel."),
-    search: str | None = Query(
+                    "toute la famille des étiages, QA le module annuel.")
+    search: str | None = Field(
         None,
         description="Recherche libre dans le nom, la description et la "
                     "variable, en français comme en anglais, insensible à "
                     "la casse. Un fragment suffit : « basses », "
-                    "« minimum », « maximal »."),
-    limit: int = Query(default=1000, le=1000,
-                       description="Nombre maximal de lignes rendues."),
-):
+                    "« minimum », « maximal ».")
+    limit: int = Field(1000, le=1000,
+                       description="Nombre maximal de lignes rendues.")
+
+
+@app.get("/v1/cards", tags=["cards"],
+         summary="Catalogue, filtrable par facette",
+         dependencies=[Depends(usage.rate_light)])
+def cards(p: Annotated[CardsParams, Query()]):
     """Catalogue des fiches, une ligne par variable produite.
 
-    Les six premiers filtres sont les facettes de classification : ce
-    sont des listes fermées, proposées en menu, et `/v1/vocabulary` les
-    rend aussi sous forme de données. Les quatre suivants sont du texte
-    libre. Tous se combinent, et ce sont ceux de `card.list_cards()`.
+    Les facettes de classification (de `domain` à `purpose`) sont des
+    listes fermées, proposées en menu, et `/v1/vocabulary` les rend aussi
+    sous forme de données. `function`, `variable` et `search` sont du
+    texte libre. Tous les filtres se combinent.
     """
-    df = card.list_cards(domain=domain, phenomenon=phenomenon,
-                         aspect=aspect, statistic=statistic,
-                         season=season, output=output,
-                         purpose=purpose,
-                         function=function, variable=variable,
-                         search=search)
-    rows = clean(df.head(limit).to_dict(orient="records"))
+    df = card.list_cards(**p.model_dump(exclude={"limit"}))
+    rows = clean(df.head(p.limit).to_dict(orient="records"))
     # L'identifiant d'une fiche est le NOM DE SON FICHIER, pas sa
     # variable. Les deux coïncident pour une minorité de fiches et
     # diffèrent pour la majorité : `ETPMA_month.yaml` produit `ETPMA_jan` à
@@ -848,17 +804,23 @@ def cards(
     }
 
 
+class LangParams(_Params):
+    """La langue d'une fiche, partagée par son JSON et sa figure."""
+
+    lang: Literal["fr", "en"] = Field(
+        "fr", description="Langue des libellés et des descriptions.")
+
+
 @app.get("/v1/cards/{card_id}", tags=["cards"],
          summary="Détail d'une fiche, en JSON",
          dependencies=[Depends(usage.rate_light)])
 def card_detail(
+    p: Annotated[LangParams, Query()],
     card_id: str = PathParam(
         json_schema_extra={"example": "VCN10"},
         description="Identifiant de la fiche, tel que rendu par "
                     "/v1/cards (colonne `id`). Exemple : `VCN10`, "
                     "l'étiage."),
-    lang: Literal["fr", "en"] = Query(
-        "fr", description="Langue des libellés et des descriptions."),
 ):
     """Détail d'une fiche : métadonnées complètes et classification.
 
@@ -870,7 +832,7 @@ def card_detail(
         # quiet : le service n'a pas de terminal ; sans lui, la figure
         # partirait dans les logs à chaque requête, calculée pour rien.
         # Elle est servie telle quelle par /v1/cards/{id}/figure.
-        meta = card.info(card_id, lang=lang, quiet=True)
+        meta = card.info(card_id, lang=p.lang, quiet=True)
     except FileNotFoundError as e:
         # Deux causes distinctes derrière la même exception : fiche absente
         # du corpus (levée nue par card, sans filename) ou fichier de
@@ -891,7 +853,7 @@ def card_detail(
                         f"{ref}/src/card/cards/{rel}")
     if meta.get("swhid"):
         meta["archive"] = f"https://archive.softwareheritage.org/{meta['swhid']}"
-    return {**versions(), "lang": lang, "card": meta}
+    return {**versions(), "lang": p.lang, "card": meta}
 
 
 @app.get("/v1/cards/{card_id}/figure", tags=["cards"],
@@ -899,13 +861,12 @@ def card_detail(
          response_class=PlainTextResponse,
          dependencies=[Depends(usage.rate_light)])
 def card_figure(
+    p: Annotated[LangParams, Query()],
     card_id: str = PathParam(
         json_schema_extra={"example": "QA"},
         description="Identifiant de la fiche, tel que rendu par "
                     "/v1/cards (colonne `id`). Exemple : `QA`, le "
                     "module annuel."),
-    lang: Literal["fr", "en"] = Query(
-        "fr", description="Langue des libellés et des descriptions."),
 ):
     """La fiche **dessinée** : chaîne de calcul, fonctions et réglages,
     fenêtre d'échantillonnage sur douze mois, ce qui est produit.
@@ -915,7 +876,7 @@ def card_figure(
     coup d'oeil ce que la fiche calcule, sans lire son YAML.
     """
     try:
-        return card.figure(card_id, lang=lang)
+        return card.figure(card_id, lang=p.lang)
     except FileNotFoundError as e:
         if e.filename:                       # bug serveur, pas fiche absente
             raise
@@ -935,33 +896,38 @@ def vocabulary():
     return {**versions(), "vocabulary": card.vocabulary()}
 
 
-@app.get("/v1/stations", tags=["stations"],
-         summary="Chercher une station par son nom",
-         dependencies=[Depends(usage.rate_light)])
-def stations(
-    libelle: str | None = Query(
+class StationsParams(_Params):
+    """Les critères de recherche d'une station."""
+
+    libelle: str | None = Field(
         None, json_schema_extra={"example": "Austerlitz"},
         description="Fragment du nom de la station ou de son cours "
-                    "d'eau. Exemple : `Austerlitz`, la Seine à Paris."),
-    code: str | None = Query(
+                    "d'eau. Exemple : `Austerlitz`, la Seine à Paris.")
+    code: str | None = Field(
         None,
         description="Code station Hub'Eau, si vous le connaissez déjà "
                     "(ex. F700000103). Se combine en ET avec les autres "
-                    "critères."),
-    departement: str | None = Query(
+                    "critères.")
+    departement: str | None = Field(
         None,
         description="Numéro de département, sur deux caractères (ex. 07). "
-                    "Se combine en ET avec les autres critères."),
-    size: int = Query(20, le=100,
-                      description="Nombre maximal de stations rendues."),
-):
+                    "Se combine en ET avec les autres critères.")
+    size: int = Field(20, le=100,
+                      description="Nombre maximal de stations rendues.")
+
+
+@app.get("/v1/stations", tags=["stations"],
+         summary="Chercher une station par son nom",
+         dependencies=[Depends(usage.rate_light)])
+def stations(p: Annotated[StationsParams, Query()]):
     """Recherche de stations hydrométriques (référentiel Hub'Eau).
     Utile aussi pour retrouver les nouveaux codes : depuis la refonte
     Hydro, les anciens codes Banque Hydro ne sont plus valides."""
-    if not any((libelle, code, departement)):
+    if not any((p.libelle, p.code, p.departement)):
         raise HTTPException(422, "donner au moins libelle, code ou departement")
     try:
-        trouvees = hubeau.search_stations(libelle, code, departement, size)
+        trouvees = hubeau.search_stations(p.libelle, p.code, p.departement,
+                                          p.size)
         # Même service que `ids` dans /v1/cards : les codes trouvés, prêts
         # à coller dans le paramètre `stations` d'/v1/extract ou
         # /v1/trend. Une recherche par département en rend vingt ; les
@@ -1514,7 +1480,7 @@ def _traduit(exc):
     return HTTPException(422, str(exc))
 
 
-class ExtractParams(BaseModel):
+class ExtractParams(_Params):
     """Les paramètres de l'extraction, déclarés UNE fois. Partagés par
     `/v1/extract` et `/v1/extract.csv` (cf. TrendParams)."""
 
@@ -1642,7 +1608,7 @@ def extract_csv(request: Request, p: Annotated[ExtractParams, Query()]):
     return _csv_du_resultat(out, "extract")
 
 
-class TrendParams(BaseModel):
+class TrendParams(_Params):
     """Les paramètres de la tendance, déclarés UNE fois.
 
     Deux endpoints les partagent : `/v1/trend`, qui rend le résultat, et
@@ -1778,7 +1744,7 @@ _D_CHRONICLE_STATIONS = (
     "calcul mais un gros transfert.")
 
 
-class ChronicleParams(BaseModel):
+class ChronicleParams(_Params):
     """Les paramètres de l'export, déclarés UNE fois et partagés par le
     JSON et son jumeau CSV (cf. TrendParams pour la même raison)."""
 
@@ -1949,9 +1915,8 @@ def job_list(request: Request):
     forme du GET /jobs d'OGC API Processes restreinte à la clé).
 
     Réservé aux porteurs de clé : sans comptes, une liste publique
-    exposerait les tickets et l'activité de tous. Présenter la clé en
-    en-tête X-API-Key de préférence à key= (les URLs finissent dans
-    les logs du frontal web)."""
+    exposerait les tickets et l'activité de tous. La clé se présente en
+    en-tête X-API-Key."""
     prio = usage.priority_of(request)
     if prio is None:
         raise HTTPException(

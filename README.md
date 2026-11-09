@@ -375,8 +375,8 @@ traitement), demandez une clé de priorité gratuite **par courriel** à
 associé si vous voulez. Attribution manuelle, réponse rapide. Le jeton
 vous revient par le même canal, ce qui est la raison de ce choix : une
 issue GitHub est publique, le jeton ne peut pas y transiter.
-Elle se passe en en-tête `X-API-Key` (de préférence à `key=`, qui
-laisse la clé dans les logs web) : quotas par minute levés, plafonds
+Elle se passe en en-tête `X-API-Key`, jamais dans l'URL, où elle
+finirait dans les logs web : quotas par minute levés, plafonds
 relevés, jobs en tête de file, et
 `GET /v1/jobs` liste vos jobs déposés avec la clé (tickets compris :
 pratique pour retrouver un résultat dont le ticket est égaré).

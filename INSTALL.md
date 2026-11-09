@@ -207,8 +207,8 @@ crée et affiche le jeton à transmettre, `make keys` liste,
 `make key-revoke key=<jeton, préfixe affiché par make keys, ou nom>` révoque. Stockage :
 `$CARD_API_DATA/keys.json` (jamais sous git), qui ne garde que le
 hachage du jeton : il n'est affiché qu'à la création, perdu = en
-réémettre un. Le porteur le passe en en-tête `X-API-Key` (préférer
-l'en-tête à `key=`, qui laisse le jeton dans les logs du frontal) :
+réémettre un. Le porteur le passe en en-tête `X-API-Key`, seul canal
+accepté (une URL laisserait le jeton dans les logs du frontal) :
 quotas par minute levés, plafonds `PRIORITY_*`, jobs en tête de file,
 et `GET /v1/jobs` liste ses jobs. Le journal et les jobs
 n'enregistrent que le préfixe du jeton, jamais le jeton ni le nom.

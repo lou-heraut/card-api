@@ -605,20 +605,33 @@ def test_an_unknown_query_parameter_is_refused():
     `?phenomen=low-flows` rendait le catalogue entier et l'appelant
     croyait avoir filtré. Constaté le 2026-08-13 en retirant `operator` :
     l'ancien appel continuait de répondre 200 avec toutes les lignes.
-    Les facettes étant des listes FERMÉES annoncées dans l'OpenAPI, le
-    service doit dire quand on sort de la liste, y compris quand c'est le
-    NOM du filtre qui est faux.
+    Le refus est celui de FastAPI, porté par les modèles de paramètres
+    (`main._Params`) ; la réponse nomme le paramètre fautif, le contrat
+    dit ceux qui sont acceptés.
     """
     r = client.get("/v1/cards", params={"phenomen": "low-flows"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
-    assert "phenomen" in detail["msg"]
-    # la réponse suffit à corriger l'appel sans aller lire la doc
-    assert "phenomenon" in detail["acceptés"]
+    assert detail["type"] == "extra_forbidden"
+    assert detail["loc"] == ["query", "phenomen"]
 
     # `operator`, retiré le 2026-08-13, ne rend plus silencieusement tout
     assert client.get("/v1/cards",
                       params={"operator": "delta"}).status_code == 422
+
+    # une faute refusée sur chaque route qui filtre ou calcule, avant
+    # tout appel à Hub'Eau
+    demande = {"stations": "F700000103", "cards": "QA"}
+    for url, params in (
+            ("/v1/stations", {"departemnt": "69"}),
+            ("/v1/cards/VCN10", {"lnag": "en"}),
+            ("/v1/cards/VCN10/figure", {"lnag": "en"}),
+            ("/v1/extract", {**demande, "satrt": "1990-01-01"}),
+            ("/v1/trend.csv", {**demande, "levle": "0.05"}),
+            ("/v1/chronicles", {"stations": "F700000103", "ende": "2000"})):
+        r = client.get(url, params=params)
+        assert r.status_code == 422, url
+        assert r.json()["detail"][0]["type"] == "extra_forbidden", url
 
     # et ce que le contrat déclare passe toujours, sur toutes les routes
     for url, params in (("/v1/cards", {"phenomenon": "low-flows"}),
@@ -652,3 +665,25 @@ def test_le_contrat_deplie_les_modeles_de_parametres():
     noms = {q["name"]
             for q in spec["paths"]["/v1/trend.csv"]["get"]["parameters"]}
     assert {"stations", "cards"} <= noms, noms
+
+
+def test_tout_parametre_de_requete_vit_dans_un_modele_strict():
+    """Le refus d'un paramètre inconnu ne vaut que sur un modèle dérivé de
+    `main._Params`. Un paramètre de requête écrit à part, dans une route ou
+    une de ses dépendances, rouvrirait le silence sur les fautes de frappe
+    (et, dans une dépendance, replierait le contrat en un seul `p`)."""
+    from card_api.main import _Params
+
+    def parametres(dependant):
+        yield from dependant.query_params
+        for sous in dependant.dependencies:
+            yield from parametres(sous)
+
+    for route in app.routes:
+        dependant = getattr(route, "dependant", None)
+        if dependant is None:          # /openapi.json, routes de FastAPI
+            continue
+        for q in parametres(dependant):
+            annotation = q.field_info.annotation
+            assert isinstance(annotation, type) and issubclass(
+                annotation, _Params), (route.path, q.name)

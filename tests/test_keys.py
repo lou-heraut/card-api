@@ -51,6 +51,19 @@ def test_unknown_key_is_explicit_401():
     assert "inconnue" in r.json()["detail"]
 
 
+def test_la_cle_ne_passe_que_par_l_en_tete(token):
+    """`?key=`, accepté jusqu'en 0.8.1, laissait le jeton dans les
+    journaux du frontal. Sur une route de calcul il est refusé comme tout
+    paramètre inconnu ; ailleurs il ne vaut rien."""
+    r = client.get("/v1/extract", params={"stations": "K0550010",
+                                          "cards": "QA", "key": token})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "key"]
+    assert client.get("/v1/jobs", params={"key": token}).status_code == 401
+    assert client.get("/v1/jobs",
+                      headers={"X-API-Key": token}).status_code == 200
+
+
 def test_key_bypasses_rate_limit(monkeypatch, token):
     monkeypatch.setattr(usage, "RATE_LIGHT", 1)
     params = {"code": "X"}
@@ -58,7 +71,8 @@ def test_key_bypasses_rate_limit(monkeypatch, token):
                         lambda *a, **k: [])
     assert client.get("/v1/stations", params=params).status_code == 200
     assert client.get("/v1/stations", params=params).status_code == 429
-    r = client.get("/v1/stations", params={**params, "key": token})
+    r = client.get("/v1/stations", params=params,
+                   headers={"X-API-Key": token})
     assert r.status_code == 200                    # la clé saute le quota
 
 
@@ -68,7 +82,7 @@ def test_key_raises_job_caps_and_priority(token):
     # sans clé : au-delà du plafond public
     assert client.get("/v1/extract", params=base).status_code == 422
     # avec clé : accepté, et le job est prioritaire (tête de file)
-    r = client.get("/v1/extract", params={**base, "key": token})
+    r = client.get("/v1/extract", params=base, headers={"X-API-Key": token})
     assert r.status_code == 202
     jid = r.json()["job"]
     assert jobs.load(jid)["priority"] == -1

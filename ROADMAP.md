@@ -5,7 +5,7 @@
 > ouvre un plan daté dans `dev/plans/`, vers lequel ce fichier renvoie
 > tant qu'il est en cours.
 
-# Feuille de route de card-api (mise à jour 2026-11-06)
+# Feuille de route de card-api (mise à jour 2026-11-09)
 
 ## Vers MAKAHO
 
@@ -13,9 +13,8 @@ Le but est que MAKAHO (`../../MAKAHO_project/MAKAHO-next/`) prenne tout
 son contenu scientifique au service. D'où cet ordre :
 
 ```
-  1. contrat : refus natif des paramètres inconnus, `?key=` retiré,
-     date de la dernière passe du pool dans /v1/health (B3),
-     et le plafond à froid déjà livré (B5)   une seule version mineure
+  1. contrat, en une seule version mineure : reste la date de la
+     dernière passe du pool dans /v1/health (B3), puis publier
   2. première clé de priorité : celle de MAKAHO, qui demande plus de
      stations que le plafond public ; les versions redeviennent alors
      des engagements (dev/decisions.md)
@@ -24,13 +23,10 @@ son contenu scientifique au service. D'où cet ordre :
      liste A1 à A8, tous livrés depuis. Le remettre à jour d'abord.
 ```
 
-**Le contrat (étape 1).** Remplacer le refus maison des paramètres
-inconnus par celui de FastAPI (`extra="forbid"` sur les modèles de
-paramètres, ce qui suppose d'en faire un aussi pour les filtres de
-`/v1/cards`), la clé ne passant plus que par l'en-tête `X-API-Key`. C'est
-la règle maison qui a cassé `/docs` deux fois (audit du 2026-10-11). Aucune
-clé n'a été distribuée (vérifié auprès de l'utilisateur le 2026-11-05),
-donc `?key=` peut disparaître sans casser personne. Au déploiement de la
+**Le contrat (étape 1).** Le refus natif des paramètres inconnus, le
+retrait de `?key=` et le plafond à froid (B5) sont livrés, sous « Non
+publié » dans `CHANGELOG.md`. Reste B3, dont la décision est dans
+`dev/plans/2026-09-19_cache-followup.md`. Au déploiement de la
 version, corriger `CARD_API_SYNC_STATIONS` dans le `.env` de production
 (B5) et y retirer `CARD_API_POOL_REFRESH_DAYS`, qui ne sert plus (B6).
 

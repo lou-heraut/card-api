@@ -45,6 +45,9 @@ src/card_api/
   main.py      les routes. Une représentation = une URL, jamais un paramètre
                `format` ; les `.csv` portent leur provenance en lignes `#` ;
                paramètres déclarés une fois (`TrendParams`, `ExtractParams`).
+               Tout paramètre de requête vit dans un modèle dérivé de
+               `_Params`, qui refuse l'inconnu : jamais de règle globale
+               à côté du framework (elle a cassé `/docs` deux fois).
                Dans `/v1/cards`, `id` est le nom du FICHIER de fiche, pas
                `variable_en`. `/docs` est Swagger UI habillé.
   static/      swagger-colors.css GÉNÉRÉ par scripts/build_theme.py (à refaire
