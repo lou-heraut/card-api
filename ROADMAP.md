@@ -14,9 +14,7 @@ son contenu scientifique au service. Reste le chantier M1 de
 MAKAHO-next, à mener depuis son propre dossier : son `CLAUDE.md` et son
 `PLAN.md` disent où il en est, ne pas le redire ici.
 
-Le contrat que MAKAHO attendait est publié en 0.9.0, déployé le
-2026-11-09, et complété en 0.9.1 (`CHANGELOG.md`), qui part en
-production au prochain `make update` (aucun réglage à changer).
+Le contrat que MAKAHO attendait est en production (`CHANGELOG.md`).
 
 ## Une surveillance, plus tard et hors de card-api
 
