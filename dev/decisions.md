@@ -494,14 +494,16 @@ chantiers ; ils sont réunis ici le 2026-11-06.
   du dépôt (2026-07-29) : une issue est publique, et le jeton ne peut pas
   en revenir. Le gabarit d'issue a été retiré pour cette raison ; ne pas le
   réintroduire.
-- **À partir de la première clé distribuée, les versions redeviennent des
-  engagements** : `FINGERPRINT_VERSION` s'incrémente à tout changement du
-  calcul d'empreinte, et un renommage de colonne devient une rupture
-  d'API. Aucune clé n'était distribuée au 2026-11-05.
-- **Les clés créées avant le durcissement du 2026-07-18 sont à recréer**
-  (`make key`) : il n'est pas rétroactif, et les jobs antérieurs ne se
-  listent pas par clé. Sans objet tant qu'aucune clé ancienne ne traîne
-  dans `keys.json`, ce que `make keys` dit sur la VM.
+- **Depuis la première clé distribuée, le 2026-11-10 (celle de MAKAHO),
+  les versions sont des engagements** : `FINGERPRINT_VERSION`
+  s'incrémente à tout changement du calcul d'empreinte, et un renommage
+  de colonne devient une rupture d'API.
+- **Pas de 1.0.0 tant que le contrat mûrit** (2026-11-10). Pour SemVer,
+  1.0.0 promet une API stable. En 0.x, le service s'engage à numéroter
+  chaque changement qu'un client voit, pas encore à ne plus en faire. Son
+  seul client, MAKAHO-next, ne l'a pas encore éprouvé : à reconsidérer
+  quand le chantier M1 aura tourné sur le contrat, ou quand d'autres
+  clients s'en serviront.
 - **Pas de sauvegarde du volume** (écartée le 2026-07-22) : les clés sont
   réémissibles, les jobs éphémères, le journal petit.
 - **Citer passe par Software Heritage et HAL**, avec `CITATION.cff` et

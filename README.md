@@ -413,8 +413,9 @@ filtre de période. Deux résultats qui portent la même valeur reposent
 sur la même donnée ; deux valeurs différentes signalent que Hub'Eau a
 révisé sa donnée entre les deux appels, ce qui arrive régulièrement et
 explique alors l'écart sans qu'il faille chercher du côté du calcul. Le
-préfixe `v1:` est la version de l'algorithme : s'il change un jour, vous
-saurez que deux empreintes ne sont plus comparables.
+préfixe, avant le deux-points, donne la version de l'algorithme : deux
+empreintes de versions différentes ne se comparent pas, même calculées
+sur une donnée identique.
 
 Pour un job, le résultat gelé porte en plus `data_fingerprints`, le
 détail station par station : quand un lot de 200 stations change, il dit

@@ -52,6 +52,12 @@ des deux endroits.
   2026-11-09. Les renvois à l'`ORIGINE_R.md` de card suivent son
   déplacement (`dev/r-origin.md`). Le dépôt HAL annoncé par la citation
   entre dans `ROADMAP.md`, où rien ne le suivait.
+- **Première clé de priorité distribuée (2026-11-10)**, à MAKAHO : les
+  versions sont désormais des engagements, et le service reste en 0.x
+  tant que son contrat mûrit (`dev/decisions.md`). Le repère sur les clés
+  antérieures au durcissement du 2026-07-18 est retiré, aucune n'ayant
+  existé. Le README parlait encore du préfixe d'empreinte `v1:`, devenu
+  `v2:` en 0.8.0 : il en dit désormais le rôle, sans la valeur.
 
 ## 0.9.1 (2026-11-10)
 
